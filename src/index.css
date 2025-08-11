@@ -78,3 +78,17 @@ a {
   background: var(--primary);
   color: var(--secondary);
 }
+
+.btn-danger {
+  background: #ef4444;
+  color: var(--secondary);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.btn-danger:disabled {
+  background: #fca5a5;
+  cursor: not-allowed;
+}

@@ -29,7 +29,7 @@ const Navbar = () => {
       <div className="navbar-container">
         <div className="navbar-brand">
           <Link to="/" className="navbar-logo">
-            <Home className="logo-icon" />
+            <img src="/logokasmonigr.png" alt="Sranan Kasmoni Logo" className="logo-icon" />
             <span className="logo-text">Sranan Kasmoni</span>
           </Link>
         </div>
