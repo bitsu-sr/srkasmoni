@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, Menu, X } from 'lucide-react'
 import './Navbar.css'
@@ -6,6 +6,7 @@ import './Navbar.css'
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const location = useLocation()
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Home },
@@ -23,6 +24,28 @@ const Navbar = () => {
   const closeMenu = () => {
     setIsMenuOpen(false)
   }
+
+  // Close menu when location changes
+  useEffect(() => {
+    closeMenu()
+  }, [location.pathname])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        closeMenu()
+      }
+    }
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isMenuOpen])
 
   return (
     <nav className="navbar">
@@ -58,7 +81,7 @@ const Navbar = () => {
       </div>
 
       {/* Mobile Navigation */}
-      <div className={`mobile-nav ${isMenuOpen ? 'open' : ''}`}>
+      <div ref={menuRef} className={`mobile-nav ${isMenuOpen ? 'open' : ''}`}>
         {navItems.map((item) => {
           const Icon = item.icon
           return (
@@ -66,7 +89,11 @@ const Navbar = () => {
               key={item.path}
               to={item.path}
               className={`mobile-nav-link ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={closeMenu}
+              onClick={() => {
+                closeMenu()
+                // Force close after a small delay to ensure navigation happens
+                setTimeout(() => setIsMenuOpen(false), 100)
+              }}
             >
               <Icon className="nav-icon" />
               <span>{item.label}</span>
