@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Trash2, User, MoreVertical, Eye } from 'lucide-react'
+import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload } from 'lucide-react'
 import { Member, MemberFormData, MemberFilters } from '../types/member'
 import { memberService } from '../services/memberService'
 import MemberModal from '../components/MemberModal'
@@ -16,6 +16,12 @@ interface MemberWithSlots extends Member {
   }
 }
 
+interface CSVImportResult {
+  success: number
+  errors: string[]
+  total: number
+}
+
 const Members = () => {
   const navigate = useNavigate()
   const [members, setMembers] = useState<MemberWithSlots[]>([])
@@ -29,6 +35,8 @@ const Members = () => {
     search: '',
     location: ''
   })
+  const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
 
   // Load members on component mount
   useEffect(() => {
@@ -159,6 +167,168 @@ const Members = () => {
     }
   }
 
+  // CSV Import Functions
+  const downloadSampleCSV = () => {
+    const sampleData = [
+      {
+        firstName: 'John',
+        lastName: 'Doe',
+        birthDate: '1990-01-15',
+        birthplace: 'Paramaribo',
+        address: '123 Main Street',
+        city: 'Paramaribo',
+        phone: '+59712345678',
+        email: 'john.doe@example.com',
+        nationalId: '123456789',
+        nationality: 'Surinamese',
+        occupation: 'Engineer',
+        bankName: 'Suriname Bank',
+        accountNumber: 'SR123456789',
+        dateOfRegistration: '2024-01-01',
+        notes: 'Sample member data'
+      },
+      {
+        firstName: 'Jane',
+        lastName: 'Smith',
+        birthDate: '1985-05-20',
+        birthplace: 'Nieuw Nickerie',
+        address: '456 Oak Avenue',
+        city: 'Nieuw Nickerie',
+        phone: '+59787654321',
+        email: 'jane.smith@example.com',
+        nationalId: '987654321',
+        nationality: 'Surinamese',
+        occupation: 'Teacher',
+        bankName: 'Suriname Bank',
+        accountNumber: 'SR987654321',
+        dateOfRegistration: '2024-01-02',
+        notes: 'Another sample member'
+      }
+    ]
+
+    const csvContent = [
+      // Header row
+      'firstName,lastName,birthDate,birthplace,address,city,phone,email,nationalId,nationality,occupation,bankName,accountNumber,dateOfRegistration,notes',
+      // Data rows
+      ...sampleData.map(row => 
+        Object.values(row).map(value => `"${value}"`).join(',')
+      )
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'members_sample.csv')
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const parseCSV = (csvText: string): MemberFormData[] => {
+    const lines = csvText.split('\n').filter(line => line.trim())
+    if (lines.length < 2) throw new Error('CSV file must have at least a header row and one data row')
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+    const data: MemberFormData[] = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i]
+      const values = line.split(',').map(v => v.trim().replace(/"/g, ''))
+      
+      if (values.length !== headers.length) {
+        throw new Error(`Row ${i + 1} has ${values.length} values but expected ${headers.length}`)
+      }
+
+      const row: any = {}
+      headers.forEach((header, index) => {
+        row[header] = values[index]
+      })
+
+      // Validate required fields
+      const requiredFields = ['firstName', 'lastName', 'birthDate', 'birthplace', 'address', 'city', 'phone', 'email', 'nationalId', 'nationality', 'occupation', 'bankName', 'accountNumber']
+      for (const field of requiredFields) {
+        if (!row[field] || row[field].trim() === '') {
+          throw new Error(`Row ${i + 1}: Missing required field '${field}'`)
+        }
+      }
+
+      // Transform to MemberFormData format
+      const memberData: MemberFormData = {
+        firstName: row.firstName,
+        lastName: row.lastName,
+        birthDate: row.birthDate,
+        birthplace: row.birthplace,
+        address: row.address,
+        city: row.city,
+        phone: row.phone,
+        email: row.email,
+        nationalId: row.nationalId,
+        nationality: row.nationality,
+        occupation: row.occupation,
+        bankName: row.bankName,
+        accountNumber: row.accountNumber,
+        dateOfRegistration: row.dateOfRegistration || new Date().toISOString().split('T')[0],
+        totalReceived: 0,
+        lastPayment: '',
+        nextPayment: '',
+        notes: row.notes || ''
+      }
+
+      data.push(memberData)
+    }
+
+    return data
+  }
+
+  const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      setIsImporting(true)
+      setCsvImportResult(null)
+
+      const text = await file.text()
+      const membersToImport = parseCSV(text)
+      
+      const results: CSVImportResult = {
+        success: 0,
+        errors: [],
+        total: membersToImport.length
+      }
+
+      for (const memberData of membersToImport) {
+        try {
+          const newMember = await memberService.createMember(memberData)
+          results.success++
+          
+          // Add to local state with slots info
+          const slotsInfo = await memberService.getMemberSlotsInfo(newMember.id)
+          const memberWithSlots = { ...newMember, slotsInfo }
+          setMembers(prev => [...prev, memberWithSlots])
+        } catch (error: any) {
+          const errorMsg = `Failed to import ${memberData.firstName} ${memberData.lastName}: ${error.message || 'Unknown error'}`
+          results.errors.push(errorMsg)
+        }
+      }
+
+      setCsvImportResult(results)
+      
+      // Clear the file input
+      event.target.value = ''
+    } catch (error: any) {
+      setCsvImportResult({
+        success: 0,
+        errors: [error.message || 'Failed to parse CSV file'],
+        total: 0
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   // Get unique values for filter dropdowns
   const uniqueCities = [...new Set(members.map(m => m.city))]
 
@@ -184,11 +354,63 @@ const Members = () => {
       <div className="container">
         {/* Header Actions */}
         <div className="page-actions">
+          <div className="csv-import-section">
+            <button className="btn btn-secondary" onClick={downloadSampleCSV}>
+              <Download size={20} />
+              Download Sample CSV
+            </button>
+            <div className="file-upload-wrapper">
+              <input
+                type="file"
+                id="csv-upload"
+                accept=".csv"
+                onChange={handleCSVImport}
+                disabled={isImporting}
+                style={{ display: 'none' }}
+              />
+              <label htmlFor="csv-upload" className="btn btn-secondary">
+                <Upload size={20} />
+                {isImporting ? 'Importing...' : 'Import CSV'}
+              </label>
+            </div>
+          </div>
           <button className="btn btn-primary" onClick={openAddModal}>
             <Plus size={20} />
             Add Member
           </button>
         </div>
+
+        {/* CSV Import Results */}
+        {csvImportResult && (
+          <div className={`csv-import-result ${csvImportResult.success > 0 ? 'success' : 'error'}`}>
+            <div className="result-header">
+              <h3>CSV Import Results</h3>
+              <button 
+                className="close-result" 
+                onClick={() => setCsvImportResult(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="result-summary">
+              <p>
+                <strong>Total:</strong> {csvImportResult.total} | 
+                <strong>Success:</strong> {csvImportResult.success} | 
+                <strong>Errors:</strong> {csvImportResult.errors.length}
+              </p>
+            </div>
+            {csvImportResult.errors.length > 0 && (
+              <div className="result-errors">
+                <h4>Import Errors:</h4>
+                <ul>
+                  {csvImportResult.errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Search and Filters */}
         <div className="filters-section">
