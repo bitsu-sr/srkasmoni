@@ -9,8 +9,24 @@ CREATE TABLE IF NOT EXISTS groups (
   id BIGSERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL UNIQUE,
   description TEXT,
+  monthly_amount DECIMAL(12,2) NOT NULL,
+  max_members INTEGER NOT NULL,
+  duration INTEGER NOT NULL,
+  start_date VARCHAR(7) NOT NULL CHECK (start_date ~ '^\d{4}-\d{2}$'),
+  end_date VARCHAR(7) NOT NULL CHECK (end_date ~ '^\d{4}-\d{2}$'),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create group_members table to track which members are in which groups
+CREATE TABLE IF NOT EXISTS group_members (
+  id BIGSERIAL PRIMARY KEY,
+  group_id BIGINT REFERENCES groups(id) ON DELETE CASCADE,
+  member_id BIGINT REFERENCES members(id) ON DELETE CASCADE,
+  assigned_month_date VARCHAR(7) NOT NULL CHECK (assigned_month_date ~ '^\d{4}-\d{2}$'),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(group_id, member_id),
+  UNIQUE(group_id, assigned_month_date)
 );
 
 -- Create members table
@@ -69,12 +85,20 @@ CREATE TRIGGER update_members_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert some sample groups
-INSERT INTO groups (name, description) VALUES
-  ('Group A', 'Primary investment group'),
-  ('Group B', 'Secondary investment group'),
-  ('Group C', 'Tertiary investment group'),
-  ('Group D', 'Special projects group')
+INSERT INTO groups (name, description, monthly_amount, max_members, duration, start_date, end_date) VALUES
+  ('Group A', 'Primary investment group', 2000.00, 8, 8, '2024-01', '2024-08'),
+  ('Group B', 'Secondary investment group', 1500.00, 6, 6, '2024-03', '2024-08'),
+  ('Group C', 'Tertiary investment group', 3000.00, 12, 12, '2024-01', '2024-12'),
+  ('Group D', 'Special projects group', 2500.00, 10, 10, '2024-02', '2024-11')
 ON CONFLICT (name) DO NOTHING;
+
+-- Insert sample group members
+INSERT INTO group_members (group_id, member_id, assigned_month_date) VALUES
+  (1, 1, '2024-01'), -- John Doe in Group A for January 2024
+  (1, 2, '2024-02'), -- Jane Smith in Group A for February 2024
+  (2, 1, '2024-03'), -- John Doe in Group B for March 2024
+  (2, 3, '2024-04')  -- Mike Johnson in Group B for April 2024
+ON CONFLICT (group_id, member_id) DO NOTHING;
 
 -- Insert sample data
 INSERT INTO members (

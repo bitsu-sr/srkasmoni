@@ -141,6 +141,11 @@ export interface Database {
           id: number
           name: string
           description: string | null
+          monthly_amount: number
+          max_members: number
+          duration: number
+          start_date: string
+          end_date: string
           created_at: string
           updated_at: string
         }
@@ -148,6 +153,11 @@ export interface Database {
           id?: number
           name: string
           description?: string | null
+          monthly_amount: number
+          max_members: number
+          duration: number
+          start_date: string
+          end_date: string
           created_at?: string
           updated_at?: string
         }
@@ -155,10 +165,38 @@ export interface Database {
           id?: number
           name?: string
           description?: string | null
+          monthly_amount?: number
+          max_members?: number
+          duration?: number
+          start_date?: string
+          end_date?: string
           created_at?: string
           updated_at?: string
         }
       }
+             group_members: {
+         Row: {
+           id: number
+           group_id: number
+           member_id: number
+           assigned_month: number
+           created_at: string
+         }
+         Insert: {
+           id?: number
+           group_id: number
+           member_id: number
+           assigned_month: number
+           created_at?: string
+         }
+         Update: {
+           id?: number
+           group_id?: number
+           member_id?: number
+           assigned_month?: number
+           created_at?: string
+         }
+       }
     }
   }
 }

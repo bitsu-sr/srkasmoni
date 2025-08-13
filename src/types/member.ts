@@ -47,3 +47,40 @@ export interface MemberFilters {
   search: string
   location: string
 }
+
+export interface Group {
+  id: number
+  name: string
+  description: string | null
+  monthlyAmount: number
+  maxMembers: number
+  duration: number
+  startDate: string
+  endDate: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GroupFormData {
+  name: string
+  description: string
+  monthlyAmount: number
+  maxMembers: number
+  duration: number
+  startDate: string
+  endDate: string
+}
+
+export interface GroupMember {
+  id: number
+  groupId: number
+  memberId: number
+  assignedMonthDate: string | number // Support both old (number) and new (string) formats during transition
+  member: Member
+  createdAt: string
+}
+
+export interface GroupMemberFormData {
+  memberId: number
+  assignedMonthDate: string | number // Support both formats during transition
+}

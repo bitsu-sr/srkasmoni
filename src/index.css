@@ -22,6 +22,7 @@ body {
   background-color: var(--secondary);
   color: var(--text);
   line-height: 1.6;
+  padding-top: 80px; /* Account for fixed navbar height */
 }
 
 #root {
@@ -91,4 +92,11 @@ a {
 .btn-danger:disabled {
   background: #fca5a5;
   cursor: not-allowed;
+}
+
+/* Mobile responsive padding for fixed navbar */
+@media (max-width: 768px) {
+  body {
+    padding-top: 70px; /* Account for mobile navbar height */
+  }
 }
