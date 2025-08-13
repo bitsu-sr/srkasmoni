@@ -162,12 +162,23 @@ export const groupService = {
   // Add member to group
   async addMemberToGroup(groupId: number, memberData: GroupMemberFormData): Promise<GroupMember> {
     try {
+      // Convert assignedMonthDate (YYYY-MM) back to month number for database
+      let assignedMonth: number
+      if (typeof memberData.assignedMonthDate === 'string') {
+        const [, month] = memberData.assignedMonthDate.split('-').map(Number)
+        assignedMonth = month
+      } else {
+        assignedMonth = memberData.assignedMonthDate as number
+      }
+
+      console.log(`addMemberToGroup: Converting ${memberData.assignedMonthDate} to month number ${assignedMonth}`)
+
       const { data, error } = await supabase
         .from('group_members')
         .insert({
           group_id: groupId,
           member_id: memberData.memberId,
-          assigned_month: memberData.assignedMonthDate // Use old field name for now
+          assigned_month: assignedMonth
         })
         .select()
         .single()
@@ -217,8 +228,6 @@ export const groupService = {
         const [startYear, startMonth] = group.startDate.split('-').map(Number)
         const [endYear, endMonth] = group.endDate.split('-').map(Number)
         
-        console.log(`getAvailableMonths: Group ${groupId} - Start: ${startYear}-${startMonth}, End: ${endYear}-${endMonth}`)
-        
         let currentYear = startYear
         let currentMonth = startMonth
         
@@ -238,8 +247,6 @@ export const groupService = {
             currentYear++
           }
         }
-        
-        console.log(`getAvailableMonths: Generated ${availableMonths.length} available months:`, availableMonths)
       }
 
       return availableMonths
