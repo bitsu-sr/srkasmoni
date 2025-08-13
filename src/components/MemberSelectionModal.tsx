@@ -153,7 +153,6 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
 
         <div className="modal-body">
           {error && <div className="error-banner">{error}</div>}
-          {successMessage && <div className="success-banner">{successMessage}</div>}
 
           {/* Search Members */}
           <div className="search-section">
@@ -250,6 +249,13 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
             </div>
           )}
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="success-banner success-banner-bottom">
+            {successMessage}
+          </div>
+        )}
 
         <div className="modal-actions">
           <button type="button" className="btn btn-secondary" onClick={onClose}>

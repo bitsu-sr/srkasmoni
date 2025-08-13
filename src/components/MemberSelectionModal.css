@@ -283,6 +283,12 @@
   font-size: 0.875rem;
 }
 
+.success-banner-bottom {
+  margin: 0 24px 16px 24px;
+  text-align: center;
+  font-weight: 500;
+}
+
 /* Success Button */
 .btn-success {
   background-color: #10b981;
