@@ -30,6 +30,35 @@ const transformGroupMemberRow = (row: GroupMemberRow): GroupMember => ({
   createdAt: row.created_at
 })
 
+// Transform member data from snake_case to camelCase
+const transformMemberData = (memberRow: any): any => {
+  if (!memberRow) return {}
+  
+  return {
+    id: memberRow.id,
+    firstName: memberRow.first_name,
+    lastName: memberRow.last_name,
+    birthDate: memberRow.birth_date,
+    birthplace: memberRow.birthplace,
+    address: memberRow.address,
+    city: memberRow.city,
+    phone: memberRow.phone,
+    email: memberRow.email,
+    nationalId: memberRow.national_id,
+    nationality: memberRow.nationality,
+    occupation: memberRow.occupation,
+    bankName: memberRow.bank_name,
+    accountNumber: memberRow.account_number,
+    dateOfRegistration: memberRow.date_of_registration,
+    totalReceived: memberRow.total_received,
+    lastPayment: memberRow.last_payment,
+    nextPayment: memberRow.next_payment,
+    notes: memberRow.notes,
+    createdAt: memberRow.created_at,
+    updatedAt: memberRow.updated_at
+  }
+}
+
 export const groupService = {
   // Get all groups
   async getAllGroups(): Promise<Group[]> {
@@ -149,10 +178,23 @@ export const groupService = {
         .order('assigned_month', { ascending: true }) // Use old field name for now
 
       if (error) throw error
-      return data.map((row: any) => ({
-        ...transformGroupMemberRow(row),
-        member: row.member as any
-      }))
+      
+      return data.map((row: any) => {
+        // Transform the group member row
+        const transformedRow = transformGroupMemberRow(row)
+        
+        // Ensure member data is properly structured and transformed
+        if (row.member && Array.isArray(row.member) && row.member.length > 0) {
+          transformedRow.member = transformMemberData(row.member[0]) // Transform the member data
+        } else if (row.member) {
+          transformedRow.member = transformMemberData(row.member) // Transform the member data
+        } else {
+          console.warn(`No member data found for group member ${row.id}`)
+          transformedRow.member = {} as any
+        }
+        
+        return transformedRow
+      })
     } catch (error) {
       console.error('Error fetching group members:', error)
       throw error

@@ -15,7 +15,7 @@ import { groupService } from '../services/groupService'
 import MemberSelectionModal from '../components/MemberSelectionModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import GroupModal from '../components/GroupModal'
-import { formatDateRange, calculateDuration } from '../utils/dateUtils'
+import { formatDateRange, calculateDuration, formatMonthYear } from '../utils/dateUtils'
 import './GroupDetails.css'
 
 const GroupDetails = () => {
@@ -112,10 +112,7 @@ const GroupDetails = () => {
     }
   }
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ]
+
 
   if (loading) {
     return (
@@ -227,10 +224,10 @@ const GroupDetails = () => {
           <div className="section-header">
             <h2>Group Members</h2>
             {members.length < group.maxMembers && (
-              <button className="btn btn-primary" onClick={() => setShowMemberModal(true)}>
-                <Plus size={16} />
-                Add Member
-              </button>
+                          <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
+              <Plus size={16} />
+              Add Member
+            </button>
             )}
           </div>
 
@@ -239,7 +236,7 @@ const GroupDetails = () => {
               <Users size={64} className="empty-icon" />
               <h3>No Members Yet</h3>
               <p>This group doesn't have any members yet. Add the first member to get started.</p>
-              <button className="btn btn-primary" onClick={() => setShowMemberModal(true)}>
+              <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
                 <Plus size={16} />
                 Add First Member
               </button>
@@ -250,17 +247,22 @@ const GroupDetails = () => {
                 <div key={groupMember.id} className="member-card">
                   <div className="member-info">
                     <div className="member-name">
-                      {groupMember.member.firstName} {groupMember.member.lastName}
+                      {groupMember.member?.firstName} {groupMember.member?.lastName}
                     </div>
                     <div className="member-details">
+                      <span className="member-recipient">
+                        Recipient: {groupMember.member?.firstName} {groupMember.member?.lastName}
+                      </span>
                       <span className="member-month">
-                        Month: {
+                        Payment Month: {
                           typeof groupMember.assignedMonthDate === 'string' 
-                            ? new Date(groupMember.assignedMonthDate + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                            : monthNames[groupMember.assignedMonthDate - 1] // Fallback to old format
+                            ? formatMonthYear(groupMember.assignedMonthDate)
+                            : formatMonthYear(`2024-${String(groupMember.assignedMonthDate).padStart(2, '0')}`) // Fallback to old format
                         }
                       </span>
-                      <span className="member-city">{groupMember.member.city}</span>
+                      <span className="member-amount">
+                        Receives: SRD {(group?.duration || 0) * (group?.monthlyAmount || 0)}
+                      </span>
                     </div>
                   </div>
                   <div className="member-actions">

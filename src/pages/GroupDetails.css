@@ -129,6 +129,11 @@
   margin-bottom: 24px;
 }
 
+.section-header .btn {
+  flex: 0 0 auto;
+  width: fit-content;
+}
+
 .section-header h2 {
   margin: 0;
   font-size: 1.5rem;
@@ -192,7 +197,8 @@
 
 .member-details {
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  gap: 4px;
   font-size: 0.875rem;
   color: #6b7280;
 }
@@ -200,6 +206,16 @@
 .member-month {
   color: #3b82f6;
   font-weight: 500;
+}
+
+.member-recipient {
+  color: #059669;
+  font-weight: 500;
+}
+
+.member-amount {
+  color: #dc2626;
+  font-weight: 600;
 }
 
 .member-actions {
@@ -251,6 +267,16 @@
 .btn-sm {
   padding: 6px 12px;
   font-size: 0.75rem;
+}
+
+.btn-compact {
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: unset !important;
+  flex-shrink: 0;
 }
 
 /* Loading and Error States */
