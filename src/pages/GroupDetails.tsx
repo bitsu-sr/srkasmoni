@@ -10,7 +10,7 @@ import {
   Plus,
   UserX
 } from 'lucide-react'
-import type { Group, GroupMember } from '../types/member'
+import type { Group, GroupMember, GroupMemberFormData } from '../types/member'
 import { groupService } from '../services/groupService'
 import MemberSelectionModal from '../components/MemberSelectionModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'

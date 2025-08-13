@@ -42,7 +42,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
     endDate: getDefaultEndDate()
   })
 
-  const [errors, setErrors] = useState<Partial<GroupFormData>>({})
+  const [errors, setErrors] = useState<{ [K in keyof GroupFormData]?: string }>({})
 
   useEffect(() => {
     if (group && mode === 'edit') {
@@ -52,7 +52,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
         description: group.description || '',
         monthlyAmount: group.monthlyAmount,
         maxMembers: group.maxMembers,
-        duration: calculatedDuration,
+        duration: calculatedDuration as number,
         startDate: group.startDate,
         endDate: group.endDate
       })
@@ -71,7 +71,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
   }, [group, mode])
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<GroupFormData> = {}
+    const newErrors: { [K in keyof GroupFormData]?: string } = {}
 
     if (!formData.name.trim()) {
       newErrors.name = 'Group name is required'
@@ -135,7 +135,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
       
       // Auto-calculate duration when start or end dates change
       if (field === 'startDate' || field === 'endDate') {
-        newData.duration = calculateDuration(newData.startDate, newData.endDate)
+        newData.duration = calculateDuration(newData.startDate, newData.endDate) as number
       }
       
       return newData
