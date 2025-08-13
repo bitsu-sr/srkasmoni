@@ -25,7 +25,7 @@ const transformGroupMemberRow = (row: GroupMemberRow): GroupMember => ({
   id: row.id,
   groupId: row.group_id,
   memberId: row.member_id,
-  assignedMonthDate: row.assigned_month, // Use old field name until database migration is complete
+  assignedMonthDate: row.assigned_month_date, // Use new field name
   member: {} as any, // Will be populated when joining with members table
   createdAt: row.created_at
 })
@@ -175,7 +175,7 @@ export const groupService = {
           member:members(*)
         `)
         .eq('group_id', groupId)
-        .order('assigned_month', { ascending: true }) // Use old field name for now
+        .order('assigned_month_date', { ascending: true }) // Use new field name
 
       if (error) throw error
       
@@ -204,23 +204,17 @@ export const groupService = {
   // Add member to group
   async addMemberToGroup(groupId: number, memberData: GroupMemberFormData): Promise<GroupMember> {
     try {
-      // Convert assignedMonthDate (YYYY-MM) back to month number for database
-      let assignedMonth: number
-      if (typeof memberData.assignedMonthDate === 'string') {
-        const [, month] = memberData.assignedMonthDate.split('-').map(Number)
-        assignedMonth = month
-      } else {
-        assignedMonth = memberData.assignedMonthDate as number
-      }
+      // Use the assignedMonthDate directly as it's already in YYYY-MM format
+      const assignedMonthDate = memberData.assignedMonthDate
 
-      console.log(`addMemberToGroup: Converting ${memberData.assignedMonthDate} to month number ${assignedMonth}`)
+      console.log(`addMemberToGroup: Adding member ${memberData.memberId} to group ${groupId} for month ${assignedMonthDate}`)
 
       const { data, error } = await supabase
         .from('group_members')
         .insert({
           group_id: groupId,
           member_id: memberData.memberId,
-          assigned_month: assignedMonth
+          assigned_month_date: assignedMonthDate
         })
         .select()
         .single()
@@ -233,7 +227,7 @@ export const groupService = {
     }
   },
 
-  // Remove member from group
+  // Remove member from group (removes all slots for the member in this group)
   async removeMemberFromGroup(groupId: number, memberId: number): Promise<void> {
     try {
       const { error } = await supabase
@@ -249,21 +243,47 @@ export const groupService = {
     }
   },
 
-  // Get available months for a group
-  async getAvailableMonths(groupId: number): Promise<string[]> {
+  // Remove a specific slot (month) for a member in a group
+  async removeMemberSlot(groupId: number, memberId: number, monthDate: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('member_id', memberId)
+        .eq('assigned_month_date', monthDate)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error removing member slot:', error)
+      throw error
+    }
+  },
+
+  // Get all months for a group (both available and reserved)
+  async getAllGroupMonths(groupId: number): Promise<{ month: string; isReserved: boolean; reservedBy?: string }[]> {
     try {
       const group = await this.getGroupById(groupId)
       if (!group) throw new Error('Group not found')
 
       const { data: assignedMonths, error } = await supabase
         .from('group_members')
-        .select('assigned_month') // Use old field name for now
+        .select(`
+          assigned_month_date,
+          member:members(first_name, last_name)
+        `)
         .eq('group_id', groupId)
 
       if (error) throw error
 
-      const usedMonths = new Set(assignedMonths.map((row: any) => row.assigned_month))
-      const availableMonths: string[] = []
+      const reservedMonths = new Map<string, string>()
+      assignedMonths.forEach((row: any) => {
+        const month = row.assigned_month_date
+        const memberName = row.member ? `${row.member.first_name} ${row.member.last_name}` : 'Unknown'
+        reservedMonths.set(month, memberName)
+      })
+
+      const allMonths: { month: string; isReserved: boolean; reservedBy?: string }[] = []
 
       if (group.startDate && group.endDate) {
         // Parse start and end dates
@@ -276,11 +296,14 @@ export const groupService = {
         // Generate all months from start to end
         while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
           const monthDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
+          const isReserved = reservedMonths.has(monthDate)
+          const reservedBy = reservedMonths.get(monthDate)
           
-          // Check if this month is already assigned (using month number for now)
-          if (!usedMonths.has(currentMonth)) {
-            availableMonths.push(monthDate)
-          }
+          allMonths.push({
+            month: monthDate,
+            isReserved,
+            reservedBy
+          })
           
           // Move to next month
           currentMonth++
@@ -291,7 +314,18 @@ export const groupService = {
         }
       }
 
-      return availableMonths
+      return allMonths
+    } catch (error) {
+      console.error('Error getting all group months:', error)
+      throw error
+    }
+  },
+
+  // Get available months for a group (only unreserved months)
+  async getAvailableMonths(groupId: number): Promise<string[]> {
+    try {
+      const allMonths = await this.getAllGroupMonths(groupId)
+      return allMonths.filter(m => !m.isReserved).map(m => m.month)
     } catch (error) {
       console.error('Error getting available months:', error)
       throw error

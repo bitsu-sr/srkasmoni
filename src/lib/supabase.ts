@@ -179,21 +179,21 @@ export interface Database {
            id: number
            group_id: number
            member_id: number
-           assigned_month: number
+           assigned_month_date: string
            created_at: string
          }
          Insert: {
            id?: number
            group_id: number
            member_id: number
-           assigned_month: number
+           assigned_month_date: string
            created_at?: string
          }
          Update: {
            id?: number
            group_id?: number
            member_id?: number
-           assigned_month?: number
+           assigned_month_date?: string
            created_at?: string
          }
        }

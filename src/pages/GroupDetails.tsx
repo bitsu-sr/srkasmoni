@@ -67,8 +67,19 @@ const GroupDetails = () => {
       // Reload members
       const updatedMembers = await groupService.getGroupMembers(group.id)
       setMembers(updatedMembers)
-    } catch (err) {
-      setError('Failed to add member to group')
+    } catch (err: any) {
+      let errorMessage = 'Failed to add member to group'
+      
+      // Handle specific database constraint errors
+      if (err?.code === '23505') {
+        if (err.message?.includes('group_id, member_id')) {
+          errorMessage = 'This member is already in this group. You can add multiple slots to the same member.'
+        } else if (err.message?.includes('group_id, assigned_month_date')) {
+          errorMessage = 'This month is already assigned to another member in this group.'
+        }
+      }
+      
+      setError(errorMessage)
       console.error('Error adding member:', err)
     }
   }
@@ -186,7 +197,13 @@ const GroupDetails = () => {
               </div>
               <div className="overview-content">
                 <h3>Members</h3>
-                <p className="overview-value">{members.length} / {group.maxMembers}</p>
+                <p className="overview-value">
+                  {(() => {
+                    const uniqueMembers = new Set(members.map(m => m.memberId)).size
+                    const totalSlots = members.length
+                    return `${uniqueMembers} members, ${totalSlots} slots / ${group.maxMembers}`
+                  })()}
+                </p>
               </div>
             </div>
 
@@ -223,19 +240,27 @@ const GroupDetails = () => {
         <div className="members-section">
           <div className="section-header">
             <h2>Group Members</h2>
-            {members.length < group.maxMembers && (
-                          <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
-              <Plus size={16} />
-              Add Member
-            </button>
-            )}
+            {(() => {
+              const totalSlots = members.length
+              const hasAvailableSlots = totalSlots < group.maxMembers
+              return hasAvailableSlots ? (
+                <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
+                  <Plus size={16} />
+                  Add Member
+                </button>
+              ) : (
+                <div className="no-slots-available">
+                  <span>All slots filled</span>
+                </div>
+              )
+            })()}
           </div>
 
           {members.length === 0 ? (
             <div className="empty-members">
               <Users size={64} className="empty-icon" />
               <h3>No Members Yet</h3>
-              <p>This group doesn't have any members yet. Add the first member to get started.</p>
+              <p>This group doesn't have any members yet. Add the first member to get started. Each member can reserve multiple monthly slots.</p>
               <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
                 <Plus size={16} />
                 Add First Member
@@ -243,39 +268,58 @@ const GroupDetails = () => {
             </div>
           ) : (
             <div className="members-grid">
-              {members.map((groupMember) => (
-                <div key={groupMember.id} className="member-card">
-                  <div className="member-info">
-                    <div className="member-name">
-                      {groupMember.member?.firstName} {groupMember.member?.lastName}
+              {(() => {
+                // Group members by member ID to show multiple slots per member
+                const memberSlots = new Map<number, GroupMember[]>()
+                members.forEach(member => {
+                  if (!memberSlots.has(member.memberId)) {
+                    memberSlots.set(member.memberId, [])
+                  }
+                  memberSlots.get(member.memberId)!.push(member)
+                })
+
+                return Array.from(memberSlots.entries()).map(([memberId, memberSlots]) => {
+                  const firstMember = memberSlots[0]
+                  const totalSlots = memberSlots.length
+                  const totalAmount = totalSlots * (group?.monthlyAmount || 0)
+
+                  return (
+                    <div key={memberId} className="member-card">
+                      <div className="member-info">
+                        <div className="member-name">
+                          {firstMember.member?.firstName} {firstMember.member?.lastName}
+                          <span className="member-slot-count">({totalSlots} slot{totalSlots !== 1 ? 's' : ''})</span>
+                        </div>
+                        <div className="member-details">
+                          <span className="member-recipient">
+                            Recipient: {firstMember.member?.firstName} {firstMember.member?.lastName}
+                          </span>
+                          <span className="member-slots">
+                            Payment Months: {memberSlots.map(slot => 
+                              formatMonthYear(typeof slot.assignedMonthDate === 'string' 
+                                ? slot.assignedMonthDate
+                                : `2024-${String(slot.assignedMonthDate).padStart(2, '0')}`
+                              )
+                            ).join(', ')}
+                          </span>
+                          <span className="member-amount">
+                            Total Receives: SRD {totalAmount.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="member-actions">
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleRemoveMember(memberId)}
+                          title="Remove all slots for this member"
+                        >
+                          <UserX size={16} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="member-details">
-                      <span className="member-recipient">
-                        Recipient: {groupMember.member?.firstName} {groupMember.member?.lastName}
-                      </span>
-                      <span className="member-month">
-                        Payment Month: {
-                          typeof groupMember.assignedMonthDate === 'string' 
-                            ? formatMonthYear(groupMember.assignedMonthDate)
-                            : formatMonthYear(`2024-${String(groupMember.assignedMonthDate).padStart(2, '0')}`) // Fallback to old format
-                        }
-                      </span>
-                      <span className="member-amount">
-                        Receives: SRD {(group?.duration || 0) * (group?.monthlyAmount || 0)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="member-actions">
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleRemoveMember(groupMember.memberId)}
-                      title="Remove member from group"
-                    >
-                      <UserX size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                  )
+                })
+              })()}
             </div>
           )}
         </div>

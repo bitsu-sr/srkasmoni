@@ -281,6 +281,123 @@
   color: #6b7280;
 }
 
+/* Slots Table Styles */
+.slots-content {
+  margin-top: 16px;
+}
+
+.no-slots {
+  text-align: center;
+  padding: 48px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  color: #6b7280;
+}
+
+.no-slots svg {
+  margin-bottom: 16px;
+  color: #9ca3af;
+}
+
+.no-slots p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.slots-table-container {
+  overflow-x: auto;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.slots-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.slots-table th {
+  background-color: #f8fafc;
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.slots-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: top;
+}
+
+.slots-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.slots-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.group-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.group-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.group-description {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.month-date {
+  font-weight: 500;
+  color: #374151;
+}
+
+.monthly-amount {
+  font-weight: 600;
+  color: #059669;
+}
+
+.status-badge.future {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-badge.completed {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.slots-summary {
+  background-color: #f8fafc;
+  font-weight: 600;
+}
+
+.slots-summary td {
+  padding: 20px 12px;
+  border-top: 2px solid #e5e7eb;
+  color: #374151;
+}
+
+.future-slot {
+  background-color: #fefefe;
+}
+
+.past-slot {
+  background-color: #fafafa;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .header-content {
@@ -332,6 +449,21 @@
     text-align: left;
   }
 
+  .slots-table-container {
+    overflow-x: auto;
+    margin: 0 -16px;
+    border-radius: 0;
+  }
+
+  .slots-table {
+    font-size: 0.8rem;
+  }
+
+  .slots-table th,
+  .slots-table td {
+    padding: 12px 8px;
+  }
+
   .container {
     padding: 0 16px;
   }
@@ -360,4 +492,5 @@
     font-size: 0.8rem;
   }
 }
+
 

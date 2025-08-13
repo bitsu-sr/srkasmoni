@@ -7,9 +7,18 @@ import MemberModal from '../components/MemberModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import './Members.css'
 
+interface MemberWithSlots extends Member {
+  slotsInfo?: {
+    totalSlots: number
+    totalMonthlyAmount: number
+    nextReceiveMonth: string | null
+    isActive: boolean
+  }
+}
+
 const Members = () => {
   const navigate = useNavigate()
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<MemberWithSlots[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<Member | null>(null)
@@ -27,7 +36,21 @@ const Members = () => {
       try {
         setIsLoadingMembers(true)
         const data = await memberService.getAllMembers()
-        setMembers(data)
+        
+        // Load slots info for each member
+        const membersWithSlots = await Promise.all(
+          data.map(async (member) => {
+            try {
+              const slotsInfo = await memberService.getMemberSlotsInfo(member.id)
+              return { ...member, slotsInfo }
+            } catch (error) {
+              console.error(`Failed to load slots info for member ${member.id}:`, error)
+              return { ...member, slotsInfo: undefined }
+            }
+          })
+        )
+        
+        setMembers(membersWithSlots)
       } catch (error) {
         console.error('Failed to load members:', error)
         // Fallback to empty array if Supabase is not configured
@@ -62,10 +85,18 @@ const Members = () => {
       setIsLoading(true)
       if (editingMember) {
         const updatedMember = await memberService.updateMember(editingMember.id, memberData)
-        setMembers(prev => prev.map(m => m.id === editingMember.id ? updatedMember : m))
+        // Reload slots info for the updated member
+        const slotsInfo = await memberService.getMemberSlotsInfo(updatedMember.id)
+        const memberWithSlots = { ...updatedMember, slotsInfo }
+        
+        setMembers(prev => prev.map(m => m.id === editingMember.id ? memberWithSlots : m))
       } else {
         const newMember = await memberService.createMember(memberData)
-        setMembers(prev => [...prev, newMember])
+        // Load slots info for the new member
+        const slotsInfo = await memberService.getMemberSlotsInfo(newMember.id)
+        const memberWithSlots = { ...newMember, slotsInfo }
+        
+        setMembers(prev => [...prev, memberWithSlots])
       }
       setIsModalOpen(false)
       setEditingMember(null)
@@ -113,6 +144,19 @@ const Members = () => {
 
   const handleViewDetails = (memberId: number) => {
     navigate(`/members/${memberId}`)
+  }
+
+  // Helper function to format month display
+  const formatMonthDisplay = (monthDate: string | null) => {
+    if (!monthDate) return 'No upcoming slots'
+    
+    try {
+      const [year, month] = monthDate.split('-')
+      const date = new Date(parseInt(year), parseInt(month) - 1)
+      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    } catch (error) {
+      return monthDate
+    }
   }
 
   // Get unique values for filter dropdowns
@@ -185,8 +229,9 @@ const Members = () => {
                 <div className="member-info">
                   <h3 className="member-name">{member.firstName} {member.lastName}</h3>
                   <div className="status-tags">
-                    <span className="status-tag active">ACTIVE</span>
-                    <span className="status-tag pending">Pending</span>
+                    <span className={`status-tag ${member.slotsInfo?.isActive ? 'active' : 'inactive'}`}>
+                      {member.slotsInfo?.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
                   </div>
                 </div>
                 <div className="member-menu">
@@ -198,31 +243,25 @@ const Members = () => {
 
               <div className="member-details">
                 <div className="detail-item">
-                  <span className="detail-label">Slots 5</span>
+                  <span className="detail-label">Slots: {member.slotsInfo?.totalSlots || 0}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">National ID: {member.nationalId}</span>
                 </div>
               </div>
 
-              <div className="progress-section">
-                <div className="progress-header">
-                  <span className="progress-label">Progress</span>
-                  <span className="progress-text">2/5 Slots Paid</span>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: '40%' }}></div>
-                </div>
-              </div>
-
               <div className="financial-box">
                 <div className="financial-row">
                   <span className="financial-label">Total Monthly Amount:</span>
-                  <span className="financial-value">SRD {member.totalReceived.toLocaleString()}</span>
+                  <span className="financial-value">
+                    SRD {member.slotsInfo?.totalMonthlyAmount.toLocaleString() || '0'}
+                  </span>
                 </div>
                 <div className="financial-row">
                   <span className="financial-label">Next Receive Month:</span>
-                  <span className="financial-value">{new Date(member.nextPayment).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                  <span className="financial-value">
+                    {formatMonthDisplay(member.slotsInfo?.nextReceiveMonth || null)}
+                  </span>
                 </div>
               </div>
 

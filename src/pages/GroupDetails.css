@@ -193,6 +193,18 @@
   font-weight: 600;
   color: #111827;
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.member-slot-count {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+  background-color: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 12px;
 }
 
 .member-details {
@@ -220,6 +232,15 @@
 
 .member-actions {
   margin-left: 16px;
+}
+
+.no-slots-available {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 /* Buttons */

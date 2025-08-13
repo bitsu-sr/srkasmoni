@@ -1,15 +1,27 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, CreditCard, Hash, DollarSign, FileText } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, CreditCard, Hash, DollarSign, FileText, Users, Clock } from 'lucide-react'
 import { Member } from '../types/member'
 import { memberService } from '../services/memberService'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import './MemberDetail.css'
 
+interface MemberSlot {
+  id: number
+  groupId: number
+  groupName: string
+  groupDescription: string | null
+  monthlyAmount: number
+  assignedMonthDate: string
+  assignedMonthFormatted: string
+  isFuture: boolean
+}
+
 const MemberDetail = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [member, setMember] = useState<Member | null>(null)
+  const [memberSlots, setMemberSlots] = useState<MemberSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -23,8 +35,12 @@ const MemberDetail = () => {
   const loadMember = async (memberId: number) => {
     try {
       setLoading(true)
-      const memberData = await memberService.getMemberById(memberId)
+      const [memberData, slotsData] = await Promise.all([
+        memberService.getMemberById(memberId),
+        memberService.getMemberSlotsDetails(memberId)
+      ])
       setMember(memberData)
+      setMemberSlots(slotsData)
     } catch (err) {
       setError('Failed to load member details')
       console.error('Error loading member:', err)
@@ -271,6 +287,74 @@ const MemberDetail = () => {
                   {new Date(member.updated_at).toLocaleDateString()}
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Slot Details */}
+          <div className="detail-section full-width">
+            <h2 className="section-title">
+              <Users size={20} />
+              Slot Details
+            </h2>
+            <div className="slots-content">
+              {memberSlots.length === 0 ? (
+                <div className="no-slots">
+                  <Clock size={48} />
+                  <p>No slots assigned to this member yet.</p>
+                </div>
+              ) : (
+                <div className="slots-table-container">
+                  <table className="slots-table">
+                    <thead>
+                      <tr>
+                        <th>Group</th>
+                        <th>Month</th>
+                        <th>Monthly Amount</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {memberSlots.map((slot) => (
+                        <tr key={slot.id} className={slot.isFuture ? 'future-slot' : 'past-slot'}>
+                          <td>
+                            <div className="group-info">
+                              <div className="group-name">{slot.groupName}</div>
+                              {slot.groupDescription && (
+                                <div className="group-description">{slot.groupDescription}</div>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <span className="month-date">{slot.assignedMonthFormatted}</span>
+                          </td>
+                          <td>
+                            <span className="monthly-amount">
+                              SRD {slot.monthlyAmount.toLocaleString()}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`status-badge ${slot.isFuture ? 'future' : 'completed'}`}>
+                              {slot.isFuture ? 'Upcoming' : 'Completed'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="slots-summary">
+                        <td colSpan={2}>
+                          <strong>Total Slots: {memberSlots.length}</strong>
+                        </td>
+                        <td colSpan={2}>
+                          <strong>
+                            Total Monthly Amount: SRD {memberSlots.reduce((sum, slot) => sum + slot.monthlyAmount, 0).toLocaleString()}
+                          </strong>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
 

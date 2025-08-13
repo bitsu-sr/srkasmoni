@@ -179,6 +179,11 @@
   color: white;
 }
 
+.status-tag.inactive {
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
 .member-menu {
   display: flex;
   gap: 8px;

@@ -9,7 +9,7 @@ import './MemberSelectionModal.css'
 interface MemberSelectionModalProps {
   isOpen: boolean
   onClose: () => void
-  onAddMember: (memberData: GroupMemberFormData) => void
+  onAddMember: (memberData: GroupMemberFormData) => Promise<void>
   groupId: number
 }
 
@@ -21,17 +21,20 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
 }) => {
   const [members, setMembers] = useState<Member[]>([])
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
-  const [availableMonths, setAvailableMonths] = useState<string[]>([])
+  const [allMonths, setAllMonths] = useState<{ month: string; isReserved: boolean; reservedBy?: string }[]>([])
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [addingMember, setAddingMember] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
       loadMembers()
-      loadAvailableMonths()
+      loadAllMonths()
+      setSuccessMessage('') // Clear any previous success messages
     }
   }, [isOpen, groupId])
 
@@ -61,45 +64,79 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
     }
   }
 
-  const loadAvailableMonths = async () => {
+  const loadAllMonths = async () => {
     try {
-      const months = await groupService.getAvailableMonths(groupId)
-      setAvailableMonths(months)
-      if (months.length > 0) {
-        setSelectedMonth(months[0])
+      const months = await groupService.getAllGroupMonths(groupId)
+      setAllMonths(months)
+      // Set the first available month as selected
+      const firstAvailable = months.find(m => !m.isReserved)
+      if (firstAvailable) {
+        setSelectedMonth(firstAvailable.month)
       }
     } catch (err) {
-      setError('Failed to load available months')
-      console.error('Error loading available months:', err)
+      setError('Failed to load months')
+      console.error('Error loading months:', err)
     }
   }
 
   const handleMemberSelect = (member: Member) => {
     setSelectedMember(member)
+    setSuccessMessage('') // Clear success message when selecting a new member
   }
 
   const handleMonthSelect = (month: string) => {
     setSelectedMonth(month)
   }
 
-  const handleAddMember = () => {
+  const handleAddMember = async () => {
     if (!selectedMember || !selectedMonth) {
       setError('Please select both a member and a month')
       return
     }
 
-    onAddMember({
-      memberId: selectedMember.id,
-      assignedMonthDate: selectedMonth
-    })
+    try {
+      setError('') // Clear any previous errors
+      setSuccessMessage('') // Clear any previous success messages
+      setAddingMember(true) // Show loading state
+      
+      await onAddMember({
+        memberId: selectedMember.id,
+        assignedMonthDate: selectedMonth
+      })
 
-    // Reset form
-    setSelectedMember(null)
-    setSelectedMonth(availableMonths[0] || '')
-    setSearchTerm('')
-    onClose()
+      // Success! Reset only the month selection, keep the member selected
+      const firstAvailable = allMonths.find(m => !m.isReserved)
+      setSelectedMonth(firstAvailable?.month || '')
+      setSuccessMessage(`Successfully added ${selectedMember.firstName} ${selectedMember.lastName} for ${formatMonthYear(selectedMonth)}`)
+      
+      // Don't close the modal - let user add more slots or close manually
+      // Don't reset selectedMember - keep it selected for convenience
+      // Don't reset searchTerm - keep the search results
+    } catch (err: any) {
+      // Error occurred, show it to the user
+      let errorMessage = 'Failed to add member to group'
+      
+      // Handle specific database constraint errors
+      if (err?.code === '23505') {
+        if (err.message?.includes('group_id, member_id')) {
+          errorMessage = 'This member is already in this group. You can add multiple slots to the same member.'
+        } else if (err.message?.includes('group_id, assigned_month_date')) {
+          errorMessage = 'This month is already assigned to another member in this group.'
+        }
+      }
+      
+      setError(errorMessage)
+      console.error('Error adding member:', err)
+    } finally {
+      setAddingMember(false) // Reset loading state
+    }
   }
 
+  // Handle errors from the parent component
+  useEffect(() => {
+    // This will be called when the parent component sets an error
+    // We can add error handling here if needed
+  }, [])
 
 
   if (!isOpen) return null
@@ -116,6 +153,7 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
 
         <div className="modal-body">
           {error && <div className="error-banner">{error}</div>}
+          {successMessage && <div className="success-banner">{successMessage}</div>}
 
           {/* Search Members */}
           <div className="search-section">
@@ -168,19 +206,27 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
           <div className="month-selection-section">
             <h3>Select Month</h3>
             <div className="months-grid">
-              {availableMonths.map((month) => (
+              {allMonths.map((monthData) => (
                 <button
-                  key={month}
-                  className={`month-button ${selectedMonth === month ? 'selected' : ''}`}
-                  onClick={() => handleMonthSelect(month)}
+                  key={monthData.month}
+                  className={`month-button ${selectedMonth === monthData.month ? 'selected' : ''} ${monthData.isReserved ? 'reserved' : ''}`}
+                  onClick={() => !monthData.isReserved && handleMonthSelect(monthData.month)}
+                  disabled={monthData.isReserved}
+                  title={monthData.isReserved ? `Reserved by ${monthData.reservedBy}` : undefined}
                 >
-                  {formatMonthYear(month)}
+                  {formatMonthYear(monthData.month)}
+                  {monthData.isReserved && (
+                    <div className="reserved-indicator">
+                      <span className="reserved-text">Reserved</span>
+                      <span className="reserved-by">{monthData.reservedBy}</span>
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
-            {availableMonths.length === 0 && (
+            {allMonths.length === 0 && (
               <div className="no-months">
-                <p>No available months for this group</p>
+                <p>No months available for this group</p>
               </div>
             )}
           </div>
@@ -213,9 +259,16 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
             type="button"
             className="btn btn-primary"
             onClick={handleAddMember}
-            disabled={!selectedMember || !selectedMonth}
+            disabled={!selectedMember || !selectedMonth || addingMember}
           >
-            Add Member
+            {addingMember ? 'Adding...' : 'Add Member'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-success"
+            onClick={onClose}
+          >
+            Done
           </button>
         </div>
       </div>

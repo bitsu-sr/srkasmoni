@@ -165,5 +165,135 @@ export const memberService = {
       console.error('Error searching members:', error)
       throw error
     }
+  },
+
+  async getMemberSlotsInfo(memberId: number): Promise<{
+    totalSlots: number
+    totalMonthlyAmount: number
+    nextReceiveMonth: string | null
+    isActive: boolean
+  }> {
+    try {
+      // Get all slots for the member across all groups
+      const { data: slotsData, error: slotsError } = await supabase
+        .from('group_members')
+        .select(`
+          assigned_month_date,
+          group:groups(monthly_amount)
+        `)
+        .eq('member_id', memberId)
+
+      if (slotsError) throw slotsError
+
+      if (!slotsData || slotsData.length === 0) {
+        return {
+          totalSlots: 0,
+          totalMonthlyAmount: 0,
+          nextReceiveMonth: null,
+          isActive: false
+        }
+      }
+
+      const totalSlots = slotsData.length
+      const totalMonthlyAmount = slotsData.reduce((sum: number, slot: any) => {
+        return sum + (slot.group?.monthly_amount || 0)
+      }, 0)
+
+      // Find the next receive month (closest future month)
+      const now = new Date()
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      
+      const futureMonths = slotsData
+        .map((slot: any) => slot.assigned_month_date)
+        .filter((month: string) => month >= currentMonth)
+        .sort()
+
+      const nextReceiveMonth = futureMonths.length > 0 ? futureMonths[0] : null
+
+      return {
+        totalSlots,
+        totalMonthlyAmount,
+        nextReceiveMonth,
+        isActive: totalSlots > 0
+      }
+    } catch (error) {
+      console.error('Error fetching member slots info:', error)
+      return {
+        totalSlots: 0,
+        totalMonthlyAmount: 0,
+        nextReceiveMonth: null,
+        isActive: false
+      }
+    }
+  },
+
+  async getMemberSlotsDetails(memberId: number): Promise<{
+    id: number
+    groupId: number
+    groupName: string
+    groupDescription: string | null
+    monthlyAmount: number
+    assignedMonthDate: string
+    assignedMonthFormatted: string
+    isFuture: boolean
+  }[]> {
+    try {
+      // Get all slots for the member with detailed group information
+      const { data: slotsData, error: slotsError } = await supabase
+        .from('group_members')
+        .select(`
+          id,
+          group_id,
+          assigned_month_date,
+          group:groups(
+            name,
+            description,
+            monthly_amount
+          )
+        `)
+        .eq('member_id', memberId)
+        .order('assigned_month_date', { ascending: true })
+
+      if (slotsError) throw slotsError
+
+      if (!slotsData || slotsData.length === 0) {
+        return []
+      }
+
+      const now = new Date()
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+      return slotsData.map((slot: any) => {
+        const monthDate = slot.assigned_month_date
+        const isFuture = monthDate >= currentMonth
+        
+        // Format the month for display
+        let assignedMonthFormatted = monthDate
+        try {
+          const [year, month] = monthDate.split('-')
+          const date = new Date(parseInt(year), parseInt(month) - 1)
+          assignedMonthFormatted = date.toLocaleDateString('en-US', { 
+            month: 'long', 
+            year: 'numeric' 
+          })
+        } catch (error) {
+          // Keep original format if parsing fails
+        }
+
+        return {
+          id: slot.id,
+          groupId: slot.group_id,
+          groupName: slot.group?.name || 'Unknown Group',
+          groupDescription: slot.group?.description,
+          monthlyAmount: slot.group?.monthly_amount || 0,
+          assignedMonthDate: monthDate,
+          assignedMonthFormatted,
+          isFuture
+        }
+      })
+    } catch (error) {
+      console.error('Error fetching member slots details:', error)
+      return []
+    }
   }
 }

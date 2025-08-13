@@ -143,3 +143,4 @@ Potential improvements for future versions:
 - Automated month progression
 - Payment reminders and notifications
 
+
