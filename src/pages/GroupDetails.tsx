@@ -8,15 +8,29 @@ import {
   Calendar, 
   DollarSign, 
   Plus,
-  UserX
+  UserX,
+  Download,
+  Upload
 } from 'lucide-react'
 import type { Group, GroupMember, GroupMemberFormData } from '../types/member'
 import { groupService } from '../services/groupService'
+import { memberService } from '../services/memberService'
 import MemberSelectionModal from '../components/MemberSelectionModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import GroupModal from '../components/GroupModal'
 import { formatDateRange, calculateDuration, formatMonthYear } from '../utils/dateUtils'
 import './GroupDetails.css'
+
+interface CSVImportResult {
+  success: number
+  errors: string[]
+  total: number
+}
+
+interface CSVMemberData {
+  memberId: number
+  assignedMonthDate: string
+}
 
 const GroupDetails = () => {
   const { id } = useParams<{ id: string }>()
@@ -25,6 +39,8 @@ const GroupDetails = () => {
   const [members, setMembers] = useState<GroupMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
   
   // Modal states
   const [showMemberModal, setShowMemberModal] = useState(false)
@@ -123,6 +139,184 @@ const GroupDetails = () => {
     }
   }
 
+  // CSV Import Functions
+  const downloadSampleCSV = () => {
+    if (!group) return
+
+    const sampleData = [
+      {
+        memberId: '1',
+        assignedMonthDate: '2024-01'
+      },
+      {
+        memberId: '2',
+        assignedMonthDate: '2024-02'
+      },
+      {
+        memberId: '3',
+        assignedMonthDate: '2024-03'
+      }
+    ]
+
+    const csvContent = [
+      // Header row
+      'memberId,assignedMonthDate',
+      // Data rows
+      ...sampleData.map(row => 
+        Object.values(row).map(value => `"${value}"`).join(',')
+      )
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `group_${group.id}_members_sample.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const parseCSV = (csvText: string): CSVMemberData[] => {
+    const lines = csvText.split('\n').filter(line => line.trim())
+    if (lines.length < 2) throw new Error('CSV file must have at least a header row and one data row')
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+    const data: CSVMemberData[] = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i]
+      const values = line.split(',').map(v => v.trim().replace(/"/g, ''))
+      
+      if (values.length !== headers.length) {
+        throw new Error(`Row ${i + 1} has ${values.length} values but expected ${headers.length}`)
+      }
+
+      const row: any = {}
+      headers.forEach((header, index) => {
+        row[header] = values[index]
+      })
+
+      // Validate required fields
+      const requiredFields = ['memberId', 'assignedMonthDate']
+      for (const field of requiredFields) {
+        if (!row[field] || row[field].trim() === '') {
+          throw new Error(`Row ${i + 1}: Missing required field '${field}'`)
+        }
+      }
+
+      // Validate memberId is a number
+      const memberId = parseInt(row.memberId)
+      if (isNaN(memberId) || memberId <= 0) {
+        throw new Error(`Row ${i + 1}: Invalid member ID '${row.memberId}'`)
+      }
+
+      // Validate month date format (YYYY-MM)
+      if (!/^\d{4}-\d{2}$/.test(row.assignedMonthDate)) {
+        throw new Error(`Row ${i + 1}: Invalid month date format '${row.assignedMonthDate}'. Use YYYY-MM format`)
+      }
+
+      // Validate month is within group period
+      if (group) {
+        const monthDate = row.assignedMonthDate
+        if (group.startDate && group.endDate) {
+          const [startYear, startMonth] = group.startDate.split('-').map(Number)
+          const [endYear, endMonth] = group.endDate.split('-').map(Number)
+          const [monthYear, month] = monthDate.split('-').map(Number)
+          
+          if (monthYear < startYear || (monthYear === startYear && month < startMonth) ||
+              monthYear > endYear || (monthYear === endYear && month > endMonth)) {
+            throw new Error(`Row ${i + 1}: Month '${monthDate}' is outside the group period`)
+          }
+        }
+      }
+
+      data.push({
+        memberId,
+        assignedMonthDate: row.assignedMonthDate
+      })
+    }
+
+    return data
+  }
+
+  const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !group) return
+
+    try {
+      setIsImporting(true)
+      setCsvImportResult(null)
+
+      const text = await file.text()
+      const membersToImport = parseCSV(text)
+      
+      // Check if group has enough available slots
+      const totalSlots = members.length
+      const availableSlots = group.maxMembers - totalSlots
+      if (membersToImport.length > availableSlots) {
+        setCsvImportResult({
+          success: 0,
+          errors: [`Cannot import ${membersToImport.length} members. Group only has ${availableSlots} available slots.`],
+          total: membersToImport.length
+        })
+        event.target.value = ''
+        return
+      }
+      
+      const results: CSVImportResult = {
+        success: 0,
+        errors: [],
+        total: membersToImport.length
+      }
+
+      for (const memberData of membersToImport) {
+        try {
+          // Check if member exists
+          const member = await memberService.getMemberById(memberData.memberId)
+          if (!member) {
+            results.errors.push(`Row ${results.success + results.errors.length + 1}: Member with ID ${memberData.memberId} not found`)
+            continue
+          }
+
+          // Check if slot is already taken
+          const existingMembers = await groupService.getGroupMembers(group.id)
+          const isSlotTaken = existingMembers.some(m => m.assignedMonthDate === memberData.assignedMonthDate)
+          if (isSlotTaken) {
+            results.errors.push(`Row ${results.success + results.errors.length + 1}: Month ${memberData.assignedMonthDate} is already assigned`)
+            continue
+          }
+
+          // Add member to group
+          await groupService.addMemberToGroup(group.id, memberData)
+          results.success++
+        } catch (error: any) {
+          const errorMsg = `Row ${results.success + results.errors.length + 1}: Failed to import member ${memberData.memberId} for month ${memberData.assignedMonthDate}: ${error.message || 'Unknown error'}`
+          results.errors.push(errorMsg)
+        }
+      }
+
+      setCsvImportResult(results)
+      
+      // Reload members if any were successfully imported
+      if (results.success > 0) {
+        const updatedMembers = await groupService.getGroupMembers(group.id)
+        setMembers(updatedMembers)
+      }
+      
+      // Clear the file input
+      event.target.value = ''
+    } catch (error: any) {
+      setCsvImportResult({
+        success: 0,
+        errors: [error.message || 'Failed to parse CSV file'],
+        total: 0
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
 
 
   if (loading) {
@@ -255,6 +449,77 @@ const GroupDetails = () => {
               )
             })()}
           </div>
+
+          {/* CSV Import Section */}
+          <div className="csv-import-section">
+            <div className="csv-import-buttons">
+              <button className="btn btn-secondary btn-compact" onClick={downloadSampleCSV}>
+                <Download size={16} />
+                Download Sample CSV
+              </button>
+              <div className="file-upload-wrapper">
+                <input
+                  type="file"
+                  id="csv-upload"
+                  accept=".csv"
+                  onChange={handleCSVImport}
+                  disabled={isImporting}
+                  style={{ display: 'none' }}
+                />
+                <label htmlFor="csv-upload" className="btn btn-secondary btn-compact">
+                  <Upload size={16} />
+                  {isImporting ? 'Importing...' : 'Import CSV'}
+                </label>
+              </div>
+            </div>
+            <div className="csv-import-info">
+              <p>
+                Import members to this group using a CSV file with columns: <code>memberId,assignedMonthDate</code>
+                {(() => {
+                  const totalSlots = members.length
+                  const availableSlots = group.maxMembers - totalSlots
+                  return availableSlots > 0 ? 
+                    ` • Available slots: ${availableSlots}` : 
+                    ' • No available slots'
+                })()}
+              </p>
+              <p className="csv-import-note">
+                <strong>Note:</strong> memberId must be an existing member ID, and assignedMonthDate must be in YYYY-MM format within the group period.
+              </p>
+            </div>
+          </div>
+
+          {/* CSV Import Results */}
+          {csvImportResult && (
+            <div className={`csv-import-result ${csvImportResult.success > 0 ? 'success' : 'error'}`}>
+              <div className="result-header">
+                <h3>CSV Import Results</h3>
+                <button 
+                  className="close-result" 
+                  onClick={() => setCsvImportResult(null)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="result-summary">
+                <p>
+                  <strong>Total:</strong> {csvImportResult.total} | 
+                  <strong>Success:</strong> {csvImportResult.success} | 
+                  <strong>Errors:</strong> {csvImportResult.errors.length}
+                </p>
+              </div>
+              {csvImportResult.errors.length > 0 && (
+                <div className="result-errors">
+                  <h4>Import Errors:</h4>
+                  <ul>
+                    {csvImportResult.errors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           {members.length === 0 ? (
             <div className="empty-members">

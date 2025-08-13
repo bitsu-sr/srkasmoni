@@ -98,9 +98,10 @@
 }
 
 .filters-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
+  align-items: center;
 }
 
 .filter-select {
@@ -120,6 +121,62 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Sorting Controls */
+.sorting-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.sort-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: #f8fafc;
+}
+
+.sort-btn.active {
+  border-color: #3b82f6;
+  background: #3b82f6;
+  color: white;
+}
+
+.sort-btn.active:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.sort-btn svg {
+  flex-shrink: 0;
+}
+
+.sort-btn.clear-sort {
+  border-color: #9ca3af;
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.sort-btn.clear-sort:hover {
+  border-color: #6b7280;
+  background: #e5e7eb;
+  color: #374151;
+}
+
 .member-count {
   text-align: center;
   color: #6b7280;
@@ -129,6 +186,13 @@
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   margin-bottom: 24px;
+}
+
+.sort-info {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #9ca3af;
 }
 
 /* Members Grid */

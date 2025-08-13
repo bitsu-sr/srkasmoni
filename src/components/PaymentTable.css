@@ -1,0 +1,228 @@
+.payment-table-container {
+  background: var(--secondary);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--shadow);
+  overflow: hidden;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 600px;
+}
+
+.payment-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.payment-table th {
+  background: #f8fafc;
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.payment-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.payment-table tbody tr:hover {
+  background: rgba(22, 101, 52, 0.02);
+}
+
+.payment-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.status-received {
+  background: #d1fae5;
+  color: #10b981;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+.status-settled {
+  background: #dbeafe;
+  color: #3b82f6;
+}
+
+.status-not-paid {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+/* Amount Column */
+.amount {
+  font-weight: 600;
+  color: var(--primary);
+  font-family: 'Courier New', monospace;
+}
+
+/* Actions Column */
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #6b7280;
+  background: transparent;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.action-btn.view:hover {
+  background: #dbeafe;
+  color: #3b82f6;
+}
+
+.action-btn.edit:hover {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+.action-btn.delete:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+/* Empty State */
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.empty-state p {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .payment-table th,
+  .payment-table td {
+    padding: 12px 8px;
+    font-size: 0.8rem;
+  }
+
+  .status-badge {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+  }
+
+  .action-btn {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 768px) {
+  .payment-table-container {
+    border-radius: 8px;
+  }
+
+  .table-responsive {
+    max-height: 500px;
+  }
+
+  .payment-table th,
+  .payment-table td {
+    padding: 10px 6px;
+    font-size: 0.75rem;
+  }
+
+  /* Hide less important columns on mobile */
+  .payment-table th:nth-child(6),
+  .payment-table th:nth-child(7),
+  .payment-table th:nth-child(8),
+  .payment-table td:nth-child(6),
+  .payment-table td:nth-child(7),
+  .payment-table td:nth-child(8) {
+    display: none;
+  }
+
+  .status-badge {
+    padding: 3px 6px;
+    font-size: 0.65rem;
+  }
+
+  .action-btn {
+    width: 24px;
+    height: 24px;
+  }
+
+  .action-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .payment-table th,
+  .payment-table td {
+    padding: 8px 4px;
+    font-size: 0.7rem;
+  }
+
+  /* Hide more columns on very small screens */
+  .payment-table th:nth-child(3),
+  .payment-table th:nth-child(5),
+  .payment-table td:nth-child(3),
+  .payment-table td:nth-child(5) {
+    display: none;
+  }
+
+  .status-badge {
+    padding: 2px 4px;
+    font-size: 0.6rem;
+  }
+
+  .action-btn {
+    width: 20px;
+    height: 20px;
+  }
+
+  .action-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+}

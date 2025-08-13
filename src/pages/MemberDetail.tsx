@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, CreditCard, Hash, DollarSign, FileText, Users, Clock } from 'lucide-react'
-import { Member } from '../types/member'
+
 import { memberService } from '../services/memberService'
+import { getMemberWithStatus, MemberWithStatus, getMemberStatusText, getMemberStatusBadgeClass } from '../services/memberStatusService'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
+import MemberPaymentHistory from '../components/MemberPaymentHistory'
 import './MemberDetail.css'
 
 interface MemberSlot {
@@ -20,7 +22,7 @@ interface MemberSlot {
 const MemberDetail = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [member, setMember] = useState<Member | null>(null)
+  const [member, setMember] = useState<MemberWithStatus | null>(null)
   const [memberSlots, setMemberSlots] = useState<MemberSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -35,12 +37,17 @@ const MemberDetail = () => {
   const loadMember = async (memberId: number) => {
     try {
       setLoading(true)
-      const [memberData, slotsData] = await Promise.all([
-        memberService.getMemberById(memberId),
+      const [memberWithStatus, slotsData] = await Promise.all([
+        getMemberWithStatus(memberId),
         memberService.getMemberSlotsDetails(memberId)
       ])
-      setMember(memberData)
-      setMemberSlots(slotsData)
+      
+      if (memberWithStatus) {
+        setMember(memberWithStatus)
+        setMemberSlots(slotsData)
+      } else {
+        setError('Member not found')
+      }
     } catch (err) {
       setError('Failed to load member details')
       console.error('Error loading member:', err)
@@ -124,7 +131,9 @@ const MemberDetail = () => {
               <div className="member-info-large">
                 <h1 className="member-name-large">{member.firstName} {member.lastName}</h1>
                 <div className="member-status">
-                  <span className="status-badge active">ACTIVE MEMBER</span>
+                  <span className={`status-badge ${getMemberStatusBadgeClass(member.statusInfo)}`}>
+                    {getMemberStatusText(member.statusInfo)}
+                  </span>
                   <span className="member-id">ID: {member.nationalId}</span>
                 </div>
               </div>
@@ -133,6 +142,46 @@ const MemberDetail = () => {
         </div>
 
         <div className="member-details-grid">
+          {/* Member Status Overview */}
+          <div className="detail-section">
+            <h2 className="section-title">
+              <Users size={20} />
+              Member Status Overview
+            </h2>
+            <div className="detail-grid">
+              <div className="detail-item">
+                <span className="detail-label">Status</span>
+                <span className={`detail-value status-${getMemberStatusBadgeClass(member.statusInfo)}`}>
+                  {getMemberStatusText(member.statusInfo)}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Total Slots</span>
+                <span className="detail-value">{member.statusInfo.totalSlots}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Active Slots</span>
+                <span className="detail-value">{member.statusInfo.activeSlots}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Total Monthly Amount</span>
+                <span className="detail-value amount">
+                  SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Next Receive Month</span>
+                <span className="detail-value">
+                  <Calendar size={16} />
+                  {member.statusInfo.nextReceiveMonth ? 
+                    new Date(member.statusInfo.nextReceiveMonth).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 
+                    'No upcoming slots'
+                  }
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Personal Information */}
           <div className="detail-section">
             <h2 className="section-title">
@@ -355,6 +404,20 @@ const MemberDetail = () => {
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Payment History */}
+          <div className="detail-section full-width">
+            <h2 className="section-title">
+              <DollarSign size={20} />
+              Payment History
+            </h2>
+            <div className="payment-history-content">
+              <MemberPaymentHistory
+                memberId={member.id}
+                memberName={`${member.firstName} ${member.lastName}`}
+              />
             </div>
           </div>
 

@@ -32,7 +32,41 @@
 .page-actions {
   margin: 32px 0;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 24px;
+}
+
+.csv-import-section {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.page-actions .btn.btn-primary {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  white-space: nowrap;
+  min-width: fit-content;
+  padding: 10px 16px !important;
+}
+
+.file-upload-wrapper {
+  position: relative;
+}
+
+.file-upload-wrapper input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.file-upload-wrapper label {
+  cursor: pointer;
+  margin: 0;
 }
 
 /* Error Banner */
@@ -65,6 +99,95 @@
 
 .error-close:hover {
   background-color: #fee2e2;
+}
+
+/* CSV Import Results */
+.csv-import-result {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.csv-import-result.success {
+  border: 1px solid #dcfce7;
+  background-color: #f0fdf4;
+}
+
+.csv-import-result.error {
+  border: 1px solid #fecaca;
+  background-color: #fef2f2;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.result-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.close-result {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.close-result:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.result-summary {
+  padding: 16px 20px;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.result-summary p {
+  margin: 0;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.result-errors {
+  padding: 16px 20px;
+  background-color: white;
+}
+
+.result-errors h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.result-errors ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.result-errors li {
+  margin-bottom: 4px;
 }
 
 /* Groups Grid */

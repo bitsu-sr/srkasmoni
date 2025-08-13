@@ -1,106 +1,130 @@
-import { Plus, Filter, Search, DollarSign, User, CheckCircle, Clock, AlertTriangle, XCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, DollarSign, CheckCircle, Clock, XCircle } from 'lucide-react'
+import type { Payment, PaymentFormData, PaymentStats, PaymentFilters as PaymentFiltersType } from '../types/payment'
+import { paymentService } from '../services/paymentService'
+import PaymentModal from '../components/PaymentModal'
+import PaymentTable from '../components/PaymentTable'
+import PaymentFilters from '../components/PaymentFilters'
+import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import './Payments.css'
 
 const Payments = () => {
-  // Mock data - will be replaced with real data later
-  const payments = [
-    {
-      id: 1,
-      member: 'John Doe',
-      group: 'Group A',
-      amount: 2000,
-      date: '2024-01-15',
-      dueDate: '2024-01-28',
-      status: 'received',
-      paymentMethod: 'bank_transfer',
-      notes: 'Payment confirmed via bank transfer'
-    },
-    {
-      id: 2,
-      member: 'Jane Smith',
-      group: 'Group B',
-      amount: 1500,
-      date: '2024-01-20',
-      dueDate: '2024-01-28',
-      status: 'pending',
-      paymentMethod: 'bank_transfer',
-      notes: 'Proof of payment sent via WhatsApp'
-    },
-    {
-      id: 3,
-      member: 'Mike Johnson',
-      group: 'Group C',
-      amount: 3000,
-      date: '2024-01-10',
-      dueDate: '2024-01-28',
-      status: 'overdue',
-      paymentMethod: 'cash',
-      notes: 'No payment received yet'
-    },
-    {
-      id: 4,
-      member: 'Sarah Wilson',
-      group: 'Group A',
-      amount: 2000,
-      date: '2024-01-18',
-      dueDate: '2024-01-28',
-      status: 'received',
-      paymentMethod: 'cash',
-      notes: 'Cash payment received'
-    }
-  ]
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState<PaymentStats>({
+    totalPayments: 0,
+    totalAmount: 0,
+    receivedAmount: 0,
+    pendingAmount: 0,
+    notPaidAmount: 0,
+    settledAmount: 0,
+    cashPayments: 0,
+    bankTransferPayments: 0
+  })
+  const [filters, setFilters] = useState<PaymentFiltersType>({})
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
+  const [deletingPayment, setDeletingPayment] = useState<Payment | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'received':
-        return <CheckCircle size={16} className="status-icon received" />
-      case 'pending':
-        return <Clock size={16} className="status-icon pending" />
-      case 'overdue':
-        return <AlertTriangle size={16} className="status-icon overdue" />
-      case 'cancelled':
-        return <XCircle size={16} className="status-icon cancelled" />
-      default:
-        return <Clock size={16} className="status-icon pending" />
+  // Load payments and stats on component mount
+  useEffect(() => {
+    loadPayments()
+    loadStats()
+  }, [filters])
+
+  const loadPayments = async () => {
+    try {
+      setIsLoading(true)
+      const data = await paymentService.getPayments(filters)
+      setPayments(data)
+    } catch (error) {
+      console.error('Error loading payments:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case 'received':
-        return 'status-received'
-      case 'pending':
-        return 'status-pending'
-      case 'overdue':
-        return 'status-overdue'
-      case 'cancelled':
-        return 'status-cancelled'
-      default:
-        return 'status-pending'
+  const loadStats = async () => {
+    try {
+      const data = await paymentService.getPaymentStats()
+      setStats(data)
+    } catch (error) {
+      console.error('Error loading payment stats:', error)
     }
   }
 
-  const getPaymentMethodIcon = (method: string) => {
-    switch (method) {
-      case 'bank_transfer':
-        return <DollarSign size={16} />
-      case 'cash':
-        return <DollarSign size={16} />
-      default:
-        return <DollarSign size={16} />
+  const handleAddPayment = () => {
+    setEditingPayment(null)
+    setIsModalOpen(true)
+  }
+
+  const handleEditPayment = (payment: Payment) => {
+    setEditingPayment(payment)
+    setIsModalOpen(true)
+  }
+
+  const handleDeletePayment = (payment: Payment) => {
+    setDeletingPayment(payment)
+  }
+
+  const handleViewPayment = (payment: Payment) => {
+    // For now, just open in edit mode
+    // TODO: Implement view-only mode
+    handleEditPayment(payment)
+  }
+
+  const handleSavePayment = async (paymentData: PaymentFormData) => {
+    try {
+      if (editingPayment) {
+        await paymentService.updatePayment(editingPayment.id, paymentData)
+      } else {
+        await paymentService.createPayment(paymentData)
+      }
+      
+      setIsModalOpen(false)
+      setEditingPayment(null)
+      await loadPayments()
+      await loadStats()
+    } catch (error) {
+      console.error('Error saving payment:', error)
     }
   }
 
-  const getPaymentMethodLabel = (method: string) => {
-    switch (method) {
-      case 'bank_transfer':
-        return 'Bank Transfer'
-      case 'cash':
-        return 'Cash'
-      default:
-        return 'Unknown'
+  const handleConfirmDelete = async () => {
+    if (!deletingPayment) return
+
+    try {
+      setIsDeleting(true)
+      await paymentService.deletePayment(deletingPayment.id)
+      setDeletingPayment(null)
+      await loadPayments()
+      await loadStats()
+    } catch (error) {
+      console.error('Error deleting payment:', error)
+    } finally {
+      setIsDeleting(false)
     }
   }
+
+  const handleFiltersChange = (newFilters: PaymentFiltersType) => {
+    setFilters(newFilters)
+  }
+
+  const handleClearFilters = () => {
+    setFilters({})
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setEditingPayment(null)
+  }
+
+  const closeDeleteModal = () => {
+    setDeletingPayment(null)
+  }
+
+
 
   return (
     <div className="payments">
@@ -115,19 +139,9 @@ const Payments = () => {
         {/* Header Actions */}
         <div className="page-actions">
           <div className="actions-left">
-            <button className="btn">
+            <button className="btn" onClick={handleAddPayment}>
               <Plus size={20} />
               Record Payment
-            </button>
-          </div>
-          <div className="actions-right">
-            <div className="search-box">
-              <Search size={20} />
-              <input type="text" placeholder="Search payments..." />
-            </div>
-            <button className="btn btn-secondary">
-              <Filter size={20} />
-              Filter
             </button>
           </div>
         </div>
@@ -140,8 +154,8 @@ const Payments = () => {
             </div>
             <div className="summary-content">
               <h3>Received</h3>
-              <div className="summary-value">SRD 4,000</div>
-              <div className="summary-count">2 payments</div>
+              <div className="summary-value">SRD {stats.receivedAmount.toLocaleString()}</div>
+              <div className="summary-count">{stats.totalPayments} payments</div>
             </div>
           </div>
           <div className="summary-card">
@@ -150,102 +164,98 @@ const Payments = () => {
             </div>
             <div className="summary-content">
               <h3>Pending</h3>
-              <div className="summary-value">SRD 1,500</div>
-              <div className="summary-count">1 payment</div>
+              <div className="summary-value">SRD {stats.pendingAmount.toLocaleString()}</div>
+              <div className="summary-count">{stats.totalPayments} payments</div>
             </div>
           </div>
           <div className="summary-card">
-            <div className="summary-icon overdue">
-              <AlertTriangle size={24} />
+            <div className="summary-icon not-paid">
+              <XCircle size={24} />
             </div>
             <div className="summary-content">
-              <h3>Overdue</h3>
-              <div className="summary-value">SRD 3,000</div>
-              <div className="summary-count">1 payment</div>
+              <h3>Not Paid</h3>
+              <div className="summary-value">SRD {stats.notPaidAmount.toLocaleString()}</div>
+              <div className="summary-count">{stats.totalPayments} payments</div>
+            </div>
+          </div>
+          <div className="summary-card">
+            <div className="summary-icon settled">
+              <CheckCircle size={24} />
+            </div>
+            <div className="summary-content">
+              <h3>Settled</h3>
+              <div className="summary-value">SRD {stats.settledAmount.toLocaleString()}</div>
+              <div className="summary-count">{stats.totalPayments} payments</div>
             </div>
           </div>
         </div>
 
-        {/* Payments List */}
-        <div className="payments-list">
-          <div className="list-header">
-            <h2>Recent Payments</h2>
-          </div>
-          {payments.map((payment) => (
-            <div key={payment.id} className="payment-card">
-              <div className="payment-header">
-                <div className="payment-member">
-                  <User size={20} />
-                  <span>{payment.member}</span>
-                </div>
-                <div className={`payment-status ${getStatusClass(payment.status)}`}>
-                  {getStatusIcon(payment.status)}
-                  <span>{payment.status}</span>
-                </div>
-              </div>
+        {/* Payment Filters */}
+        <PaymentFilters
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          onClearFilters={handleClearFilters}
+        />
 
-              <div className="payment-details">
-                <div className="detail-row">
-                  <div className="detail-item">
-                    <span className="detail-label">Group:</span>
-                    <span>{payment.group}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Amount:</span>
-                    <span className="amount">SRD {payment.amount.toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="detail-row">
-                  <div className="detail-item">
-                    <span className="detail-label">Payment Date:</span>
-                    <span>{payment.date}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="detail-label">Due Date:</span>
-                    <span>{payment.dueDate}</span>
-                  </div>
-                </div>
-                <div className="detail-row">
-                  <div className="detail-item">
-                    <span className="detail-label">Method:</span>
-                    <span className="payment-method">
-                      {getPaymentMethodIcon(payment.paymentMethod)}
-                      {getPaymentMethodLabel(payment.paymentMethod)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {payment.notes && (
-                <div className="payment-notes">
-                  <span className="notes-label">Notes:</span>
-                  <span className="notes-text">{payment.notes}</span>
-                </div>
-              )}
-
-              <div className="payment-actions">
-                <button className="btn btn-secondary">View Details</button>
-                {payment.status === 'pending' && (
-                  <button className="btn">Confirm Payment</button>
-                )}
-                {payment.status === 'overdue' && (
-                  <button className="btn">Send Reminder</button>
-                )}
-              </div>
+        {/* Payments Table */}
+        <div className="payments-table-section">
+          <div className="section-header">
+            <h2>All Payments</h2>
+            <div className="section-actions">
+              <span className="total-count">
+                {payments.length} payment{payments.length !== 1 ? 's' : ''}
+              </span>
             </div>
-          ))}
+          </div>
+          
+          {isLoading ? (
+            <div className="loading-state">
+              <div className="spinner"></div>
+              <p>Loading payments...</p>
+            </div>
+          ) : (
+            <PaymentTable
+              payments={payments}
+              onEdit={handleEditPayment}
+              onDelete={handleDeletePayment}
+              onView={handleViewPayment}
+            />
+          )}
         </div>
 
         {/* Empty State */}
-        {payments.length === 0 && (
+        {!isLoading && payments.length === 0 && (
           <div className="empty-state">
             <DollarSign size={64} className="empty-icon" />
-            <h3>No Payments Yet</h3>
-            <p>Record your first payment to get started</p>
-            <button className="btn">Record Payment</button>
+            <h3>No Payments Found</h3>
+            <p>No payments match your current filters. Try adjusting your search criteria or record your first payment.</p>
+            <button className="btn" onClick={handleAddPayment}>Record Payment</button>
           </div>
         )}
       </div>
+
+      {/* Payment Modal */}
+      {isModalOpen && (
+        <PaymentModal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          onSave={handleSavePayment}
+          payment={editingPayment || undefined}
+          isEditing={!!editingPayment}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingPayment && (
+        <DeleteConfirmModal
+          isOpen={!!deletingPayment}
+          onClose={closeDeleteModal}
+          onConfirm={handleConfirmDelete}
+          itemName={deletingPayment ? `${deletingPayment.member?.firstName} ${deletingPayment.member?.lastName}` : ''}
+          itemType="Payment"
+          isLoading={isDeleting}
+        />
+      )}
     </div>
   )
 }

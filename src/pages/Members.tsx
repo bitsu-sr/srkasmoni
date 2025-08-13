@@ -1,20 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload } from 'lucide-react'
+import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Member, MemberFormData, MemberFilters } from '../types/member'
 import { memberService } from '../services/memberService'
+import { getAllMembersWithStatus, getMemberWithStatus, MemberWithStatus } from '../services/memberStatusService'
 import MemberModal from '../components/MemberModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import './Members.css'
 
-interface MemberWithSlots extends Member {
-  slotsInfo?: {
-    totalSlots: number
-    totalMonthlyAmount: number
-    nextReceiveMonth: string | null
-    isActive: boolean
-  }
-}
+// Using the centralized MemberWithStatus interface from memberStatusService
 
 interface CSVImportResult {
   success: number
@@ -22,9 +16,17 @@ interface CSVImportResult {
   total: number
 }
 
+type SortField = 'name' | 'status'
+type SortDirection = 'asc' | 'desc'
+
+interface SortConfig {
+  field: SortField
+  direction: SortDirection
+}
+
 const Members = () => {
   const navigate = useNavigate()
-  const [members, setMembers] = useState<MemberWithSlots[]>([])
+  const [members, setMembers] = useState<MemberWithStatus[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<Member | null>(null)
@@ -35,6 +37,10 @@ const Members = () => {
     search: '',
     location: ''
   })
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    field: 'name',
+    direction: 'asc'
+  })
   const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
   const [isImporting, setIsImporting] = useState(false)
 
@@ -43,22 +49,8 @@ const Members = () => {
     const loadMembers = async () => {
       try {
         setIsLoadingMembers(true)
-        const data = await memberService.getAllMembers()
-        
-        // Load slots info for each member
-        const membersWithSlots = await Promise.all(
-          data.map(async (member) => {
-            try {
-              const slotsInfo = await memberService.getMemberSlotsInfo(member.id)
-              return { ...member, slotsInfo }
-            } catch (error) {
-              console.error(`Failed to load slots info for member ${member.id}:`, error)
-              return { ...member, slotsInfo: undefined }
-            }
-          })
-        )
-        
-        setMembers(membersWithSlots)
+        const data = await getAllMembersWithStatus()
+        setMembers(data)
       } catch (error) {
         console.error('Failed to load members:', error)
         // Fallback to empty array if Supabase is not configured
@@ -71,9 +63,9 @@ const Members = () => {
     loadMembers()
   }, [])
 
-  // Filter members based on search and filters
-  const filteredMembers = useMemo(() => {
-    return members.filter(member => {
+  // Filter and sort members based on search, filters, and sort configuration
+  const filteredAndSortedMembers = useMemo(() => {
+    let filtered = members.filter(member => {
       const matchesSearch = 
         member.firstName.toLowerCase().includes(filters.search.toLowerCase()) ||
         member.lastName.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -86,25 +78,51 @@ const Members = () => {
 
       return matchesSearch && matchesCity
     })
-  }, [members, filters])
+
+    // Sort the filtered members
+    filtered.sort((a, b) => {
+      if (sortConfig.field === 'name') {
+        const aName = `${a.firstName} ${a.lastName}`.toLowerCase()
+        const bName = `${b.firstName} ${b.lastName}`.toLowerCase()
+        
+        if (sortConfig.direction === 'asc') {
+          return aName.localeCompare(bName)
+        } else {
+          return bName.localeCompare(aName)
+        }
+      } else if (sortConfig.field === 'status') {
+        const aStatus = a.statusInfo.isActive ? 1 : 0
+        const bStatus = b.statusInfo.isActive ? 1 : 0
+        
+        if (sortConfig.direction === 'asc') {
+          return aStatus - bStatus
+        } else {
+          return bStatus - aStatus
+        }
+      }
+      return 0
+    })
+
+    return filtered
+  }, [members, filters, sortConfig])
 
   const handleSaveMember = async (memberData: MemberFormData) => {
     try {
       setIsLoading(true)
       if (editingMember) {
         const updatedMember = await memberService.updateMember(editingMember.id, memberData)
-        // Reload slots info for the updated member
-        const slotsInfo = await memberService.getMemberSlotsInfo(updatedMember.id)
-        const memberWithSlots = { ...updatedMember, slotsInfo }
-        
-        setMembers(prev => prev.map(m => m.id === editingMember.id ? memberWithSlots : m))
+        // Reload status info for the updated member
+        const memberWithStatus = await getMemberWithStatus(updatedMember.id)
+        if (memberWithStatus) {
+          setMembers(prev => prev.map(m => m.id === editingMember.id ? memberWithStatus : m))
+        }
       } else {
         const newMember = await memberService.createMember(memberData)
-        // Load slots info for the new member
-        const slotsInfo = await memberService.getMemberSlotsInfo(newMember.id)
-        const memberWithSlots = { ...newMember, slotsInfo }
-        
-        setMembers(prev => [...prev, memberWithSlots])
+        // Load status info for the new member
+        const memberWithStatus = await getMemberWithStatus(newMember.id)
+        if (memberWithStatus) {
+          setMembers(prev => [...prev, memberWithStatus])
+        }
       }
       setIsModalOpen(false)
       setEditingMember(null)
@@ -299,20 +317,21 @@ const Members = () => {
         total: membersToImport.length
       }
 
-      for (const memberData of membersToImport) {
-        try {
-          const newMember = await memberService.createMember(memberData)
-          results.success++
-          
-          // Add to local state with slots info
-          const slotsInfo = await memberService.getMemberSlotsInfo(newMember.id)
-          const memberWithSlots = { ...newMember, slotsInfo }
-          setMembers(prev => [...prev, memberWithSlots])
-        } catch (error: any) {
-          const errorMsg = `Failed to import ${memberData.firstName} ${memberData.lastName}: ${error.message || 'Unknown error'}`
-          results.errors.push(errorMsg)
+              for (const memberData of membersToImport) {
+          try {
+            const newMember = await memberService.createMember(memberData)
+            results.success++
+            
+            // Add to local state with status info
+            const memberWithStatus = await getMemberWithStatus(newMember.id)
+            if (memberWithStatus) {
+              setMembers(prev => [...prev, memberWithStatus])
+            }
+          } catch (error: any) {
+            const errorMsg = `Failed to import ${memberData.firstName} ${memberData.lastName}: ${error.message || 'Unknown error'}`
+            results.errors.push(errorMsg)
+          }
         }
-      }
 
       setCsvImportResult(results)
       
@@ -436,23 +455,86 @@ const Members = () => {
                 <option key={city} value={city}>{city}</option>
               ))}
             </select>
+
+            {/* Sorting Controls */}
+            <div className="sorting-controls">
+              <button
+                className={`sort-btn ${sortConfig.field === 'name' ? 'active' : ''}`}
+                onClick={() => {
+                  if (sortConfig.field === 'name') {
+                    setSortConfig(prev => ({
+                      ...prev,
+                      direction: prev.direction === 'asc' ? 'desc' : 'asc'
+                    }))
+                  } else {
+                    setSortConfig({ field: 'name', direction: 'asc' })
+                  }
+                }}
+                title="Sort by name (click to change direction)"
+              >
+                Name
+                {sortConfig.field === 'name' ? (
+                  sortConfig.direction === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                ) : (
+                  <ArrowUpDown size={16} />
+                )}
+              </button>
+
+              <button
+                className={`sort-btn ${sortConfig.field === 'status' ? 'active' : ''}`}
+                onClick={() => {
+                  if (sortConfig.field === 'status') {
+                    setSortConfig(prev => ({
+                      ...prev,
+                      direction: prev.direction === 'asc' ? 'desc' : 'asc'
+                    }))
+                  } else {
+                    setSortConfig({ field: 'status', direction: 'asc' })
+                  }
+                }}
+                title="Sort by status (click to change direction)"
+              >
+                Status
+                {sortConfig.field === 'status' ? (
+                  sortConfig.direction === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                ) : (
+                  <ArrowUpDown size={16} />
+                )}
+              </button>
+
+              {(sortConfig.field !== 'name' || sortConfig.direction !== 'asc') && (
+                <button
+                  className="sort-btn clear-sort"
+                  onClick={() => setSortConfig({ field: 'name', direction: 'asc' })}
+                  title="Reset to default sorting (Name A-Z)"
+                >
+                  Reset Sort
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="member-count">
-          {filteredMembers.length} member{filteredMembers.length !== 1 ? 's' : ''} found
+          {filteredAndSortedMembers.length} member{filteredAndSortedMembers.length !== 1 ? 's' : ''} found
+          {filteredAndSortedMembers.length > 0 && (
+            <span className="sort-info">
+              • Sorted by {sortConfig.field === 'name' ? 'Name' : 'Status'} 
+              ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
+            </span>
+          )}
         </div>
 
         {/* Members Grid */}
         <div className="members-grid">
-          {filteredMembers.map((member) => (
+          {filteredAndSortedMembers.map((member) => (
             <div key={member.id} className="member-card">
               <div className="member-header">
                 <div className="member-info">
                   <h3 className="member-name">{member.firstName} {member.lastName}</h3>
                   <div className="status-tags">
-                    <span className={`status-tag ${member.slotsInfo?.isActive ? 'active' : 'inactive'}`}>
-                      {member.slotsInfo?.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    <span className={`status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
+                      {member.statusInfo.isActive ? 'ACTIVE' : 'INACTIVE'}
                     </span>
                   </div>
                 </div>
@@ -465,7 +547,7 @@ const Members = () => {
 
               <div className="member-details">
                 <div className="detail-item">
-                  <span className="detail-label">Slots: {member.slotsInfo?.totalSlots || 0}</span>
+                  <span className="detail-label">Slots: {member.statusInfo.totalSlots}</span>
                 </div>
                 <div className="detail-item">
                   <span className="detail-label">National ID: {member.nationalId}</span>
@@ -476,13 +558,13 @@ const Members = () => {
                 <div className="financial-row">
                   <span className="financial-label">Total Monthly Amount:</span>
                   <span className="financial-value">
-                    SRD {member.slotsInfo?.totalMonthlyAmount.toLocaleString() || '0'}
+                    SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
                   </span>
                 </div>
                 <div className="financial-row">
                   <span className="financial-label">Next Receive Month:</span>
                   <span className="financial-value">
-                    {formatMonthDisplay(member.slotsInfo?.nextReceiveMonth || null)}
+                    {formatMonthDisplay(member.statusInfo.nextReceiveMonth)}
                   </span>
                 </div>
               </div>
@@ -505,7 +587,7 @@ const Members = () => {
         </div>
 
         {/* Empty State */}
-        {filteredMembers.length === 0 && (
+        {filteredAndSortedMembers.length === 0 && (
           <div className="empty-state">
             <User size={64} className="empty-icon" />
             <h3>No Members Found</h3>

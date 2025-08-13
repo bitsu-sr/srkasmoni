@@ -1,5 +1,9 @@
-import { useState } from 'react'
-import { User, Bell, Shield, Palette, Globe, Database, Download, Upload, Trash2, Save, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { User, Bell, Shield, Palette, Globe, Database, Download, Upload, Trash2, Save, X, Building2, Plus, Edit } from 'lucide-react'
+import type { Bank, BankFormData } from '../types/bank'
+import { bankService } from '../services/bankService'
+import BankModal from '../components/BankModal'
+import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import './Settings.css'
 
 interface FormData {
@@ -34,6 +38,80 @@ const Settings = () => {
       marketing: false
     }
   })
+
+  // Banks state
+  const [banks, setBanks] = useState<Bank[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  
+  // Modal states
+  const [showBankModal, setShowBankModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedBank, setSelectedBank] = useState<Bank | null>(null)
+  const [bankModalMode, setBankModalMode] = useState<'create' | 'edit'>('create')
+
+  // Load banks when banks tab is active
+  useEffect(() => {
+    if (activeTab === 'banks') {
+      loadBanks()
+    }
+  }, [activeTab])
+
+  const loadBanks = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const banksData = await bankService.getAllBanks()
+      setBanks(banksData)
+    } catch (err) {
+      setError('Failed to load banks')
+      console.error('Error loading banks:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const openBankModal = (mode: 'create' | 'edit', bank?: Bank) => {
+    setBankModalMode(mode)
+    setSelectedBank(bank || null)
+    setShowBankModal(true)
+  }
+
+  const openDeleteModal = (bank: Bank) => {
+    setSelectedBank(bank)
+    setShowDeleteModal(true)
+  }
+
+  const handleBankSave = async (bankData: BankFormData) => {
+    try {
+      if (bankModalMode === 'create') {
+        await bankService.createBank(bankData)
+      } else if (selectedBank) {
+        await bankService.updateBank(selectedBank.id, bankData)
+      }
+      
+      setShowBankModal(false)
+      setSelectedBank(null)
+      loadBanks() // Refresh the banks list
+    } catch (err) {
+      setError('Failed to save bank')
+      console.error('Error saving bank:', err)
+    }
+  }
+
+  const handleBankDelete = async () => {
+    try {
+      if (!selectedBank) return
+      
+      await bankService.deleteBank(selectedBank.id)
+      setShowDeleteModal(false)
+      setSelectedBank(null)
+      loadBanks() // Refresh the banks list
+    } catch (err) {
+      setError('Failed to delete bank')
+      console.error('Error deleting bank:', err)
+    }
+  }
 
   const handleInputChange = (field: keyof FormData | 'notifications.payments' | 'notifications.reminders' | 'notifications.updates' | 'notifications.marketing', value: any) => {
     if (field.includes('.')) {
@@ -86,7 +164,8 @@ const Settings = () => {
     { id: 'security', label: 'Security', icon: Shield },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'language', label: 'Language', icon: Globe },
-    { id: 'data', label: 'Data & Export', icon: Database }
+    { id: 'data', label: 'Data & Export', icon: Database },
+    { id: 'banks', label: 'Banks', icon: Building2 }
   ]
 
   return (
@@ -442,9 +521,78 @@ const Settings = () => {
                 </div>
               </div>
             )}
+
+            {/* Banks Tab */}
+            {activeTab === 'banks' && (
+              <div className="settings-tab">
+                <div className="tab-header">
+                  <h2>Manage Banks</h2>
+                  <button 
+                    className="btn btn-compact" 
+                    onClick={() => openBankModal('create')}
+                    style={{ width: 'fit-content', minWidth: 'auto' }}
+                  >
+                    <Plus size={16} />
+                    Add New Bank
+                  </button>
+                </div>
+
+                <div className="banks-section">
+                  {loading ? (
+                    <p>Loading banks...</p>
+                  ) : error ? (
+                    <p style={{ color: 'red' }}>{error}</p>
+                  ) : banks.length === 0 ? (
+                    <p>No banks added yet. Add one to get started!</p>
+                  ) : (
+                    <div className="bank-list">
+                      {banks.map((bank) => (
+                        <div key={bank.id} className="bank-item">
+                          <div className="bank-info">
+                            <h3>{bank.name}</h3>
+                            <p className="bank-short-name">{bank.shortName}</p>
+                            <p className="bank-address">{bank.address}</p>
+                          </div>
+                          <div className="bank-actions">
+                            <button className="btn btn-sm btn-secondary" onClick={() => openBankModal('edit', bank)}>
+                              <Edit size={14} />
+                            </button>
+                            <button className="btn btn-sm btn-danger" onClick={() => openDeleteModal(bank)}>
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Bank Modal */}
+      {showBankModal && (
+        <BankModal
+          isOpen={showBankModal}
+          onClose={() => setShowBankModal(false)}
+          mode={bankModalMode}
+          bank={selectedBank}
+          onSave={handleBankSave}
+        />
+      )}
+
+      {/* Delete Confirm Modal */}
+      {showDeleteModal && selectedBank && (
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleBankDelete}
+          itemName={selectedBank.name}
+          itemType="Bank"
+        />
+      )}
     </div>
   )
 }

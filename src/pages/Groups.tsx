@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye } from 'lucide-react'
-import type { Group, GroupMember } from '../types/member'
+import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye, Download, Upload } from 'lucide-react'
+import type { Group, GroupMember, GroupFormData } from '../types/member'
 import { groupService } from '../services/groupService'
 import GroupModal from '../components/GroupModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { formatDateRange, calculateDuration } from '../utils/dateUtils'
 import './Groups.css'
+
+interface CSVImportResult {
+  success: number
+  errors: string[]
+  total: number
+}
 
 const Groups = () => {
   const navigate = useNavigate()
@@ -14,6 +20,9 @@ const Groups = () => {
   const [groupMembers, setGroupMembers] = useState<{ [groupId: number]: GroupMember[] }>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -110,6 +119,202 @@ const Groups = () => {
     navigate(`/groups/${groupId}`)
   }
 
+  // CSV Import Functions
+  const downloadSampleCSV = () => {
+    const sampleData = [
+      {
+        name: 'Family Savings Group',
+        description: 'Monthly family savings for emergency fund',
+        monthlyAmount: '500',
+        maxMembers: '12',
+        duration: '12',
+        startDate: '2024-01-01',
+        endDate: '2024-12-31'
+      },
+      {
+        name: 'Business Investment Group',
+        description: 'Investment group for small business owners',
+        monthlyAmount: '1000',
+        maxMembers: '8',
+        duration: '24',
+        startDate: '2024-01-01',
+        endDate: '2025-12-31'
+      }
+    ]
+
+    const csvContent = [
+      // Header row
+      'name,description,monthlyAmount,maxMembers,duration,startDate,endDate',
+      // Data rows
+      ...sampleData.map(row => 
+        Object.values(row).map(value => `"${value}"`).join(',')
+      )
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'groups_sample.csv')
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const parseCSV = (csvText: string): GroupFormData[] => {
+    const lines = csvText.split('\n').filter(line => line.trim())
+    if (lines.length < 2) throw new Error('CSV file must have at least a header row and one data row')
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+    const data: GroupFormData[] = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i]
+      const values = line.split(',').map(v => v.trim().replace(/"/g, ''))
+      
+      if (values.length !== headers.length) {
+        throw new Error(`Row ${i + 1} has ${values.length} values but expected ${headers.length}`)
+      }
+
+      const row: any = {}
+      headers.forEach((header, index) => {
+        row[header] = values[index]
+      })
+
+      // Validate required fields
+      const requiredFields = ['name', 'monthlyAmount', 'maxMembers', 'duration', 'startDate', 'endDate']
+      for (const field of requiredFields) {
+        if (!row[field] || row[field].trim() === '') {
+          throw new Error(`Row ${i + 1}: Missing required field '${field}'`)
+        }
+      }
+
+      // Transform to GroupFormData format
+      const groupData: GroupFormData = {
+        name: row.name,
+        description: row.description || '',
+        monthlyAmount: parseFloat(row.monthlyAmount),
+        maxMembers: parseInt(row.maxMembers),
+        duration: parseInt(row.duration),
+        startDate: row.startDate,
+        endDate: row.endDate
+      }
+
+      // Validate numeric fields
+      if (isNaN(groupData.monthlyAmount) || groupData.monthlyAmount <= 0) {
+        throw new Error(`Row ${i + 1}: Invalid monthly amount '${row.monthlyAmount}'`)
+      }
+      if (isNaN(groupData.maxMembers) || groupData.maxMembers <= 0) {
+        throw new Error(`Row ${i + 1}: Invalid max members '${row.maxMembers}'`)
+      }
+      if (isNaN(groupData.duration) || groupData.duration <= 0) {
+        throw new Error(`Row ${i + 1}: Invalid duration '${row.duration}'`)
+      }
+
+      // Validate dates
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(groupData.startDate)) {
+        throw new Error(`Row ${i + 1}: Invalid start date format '${row.startDate}'. Use YYYY-MM-DD format`)
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(groupData.endDate)) {
+        throw new Error(`Row ${i + 1}: Invalid end date format '${row.endDate}'. Use YYYY-MM-DD format`)
+      }
+
+      data.push(groupData)
+    }
+
+    return data
+  }
+
+  const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      setIsImporting(true)
+      setCsvImportResult(null)
+
+      const text = await file.text()
+      const groupsToImport = parseCSV(text)
+      
+      const results: CSVImportResult = {
+        success: 0,
+        errors: [],
+        total: groupsToImport.length
+      }
+
+      for (const groupData of groupsToImport) {
+        try {
+          const newGroup = await groupService.createGroup(groupData)
+          results.success++
+          
+          // Add to local state
+          setGroups(prev => [...prev, newGroup])
+          setGroupMembers(prev => ({ ...prev, [newGroup.id]: [] }))
+        } catch (error: any) {
+          const errorMsg = `Failed to import group '${groupData.name}': ${error.message || 'Unknown error'}`
+          results.errors.push(errorMsg)
+        }
+      }
+
+      setCsvImportResult(results)
+      
+      // Clear the file input
+      event.target.value = ''
+    } catch (error: any) {
+      setCsvImportResult({
+        success: 0,
+        errors: [error.message || 'Failed to parse CSV file'],
+        total: 0
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const exportGroupsToCSV = () => {
+    if (groups.length === 0) {
+      setError('No groups to export')
+      return
+    }
+
+    try {
+      setIsExporting(true)
+      
+      const csvContent = [
+        // Header row
+        'name,description,monthlyAmount,maxMembers,duration,startDate,endDate',
+        // Data rows
+        ...groups.map(group => 
+          [
+            `"${group.name}"`,
+            `"${group.description || ''}"`,
+            group.monthlyAmount.toString(),
+            group.maxMembers.toString(),
+            group.duration.toString(),
+            group.startDate,
+            group.endDate
+          ].join(',')
+        )
+      ].join('\n')
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `groups_export_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      setError('Failed to export groups')
+      console.error('Error exporting groups:', error)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
 
 
   if (loading) {
@@ -134,6 +339,34 @@ const Groups = () => {
       <div className="container">
         {/* Header Actions */}
         <div className="page-actions">
+          <div className="csv-import-section">
+            <button className="btn btn-secondary" onClick={downloadSampleCSV}>
+              <Download size={20} />
+              Download Sample CSV
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={exportGroupsToCSV}
+              disabled={isExporting || groups.length === 0}
+            >
+              <Download size={20} />
+              {isExporting ? 'Exporting...' : 'Export Groups'}
+            </button>
+            <div className="file-upload-wrapper">
+              <input
+                type="file"
+                id="csv-upload"
+                accept=".csv"
+                onChange={handleCSVImport}
+                disabled={isImporting}
+                style={{ display: 'none' }}
+              />
+              <label htmlFor="csv-upload" className="btn btn-secondary">
+                <Upload size={20} />
+                {isImporting ? 'Importing...' : 'Import CSV'}
+              </label>
+            </div> 
+          </div>
           <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
             <Plus size={20} />
             Create New Group
@@ -145,6 +378,38 @@ const Groups = () => {
           <div className="error-banner">
             {error}
             <button className="error-close" onClick={() => setError('')}>×</button>
+          </div>
+        )}
+
+        {/* CSV Import Results */}
+        {csvImportResult && (
+          <div className={`csv-import-result ${csvImportResult.success > 0 ? 'success' : 'error'}`}>
+            <div className="result-header">
+              <h3>CSV Import Results</h3>
+              <button 
+                className="close-result" 
+                onClick={() => setCsvImportResult(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="result-summary">
+              <p>
+                <strong>Total:</strong> {csvImportResult.total} | 
+                <strong>Success:</strong> {csvImportResult.success} | 
+                <strong>Errors:</strong> {csvImportResult.errors.length}
+              </p>
+            </div>
+            {csvImportResult.errors.length > 0 && (
+              <div className="result-errors">
+                <h4>Import Errors:</h4>
+                <ul>
+                  {csvImportResult.errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 

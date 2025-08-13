@@ -432,7 +432,6 @@ input:checked + .toggle-slider:before {
 @media (max-width: 1024px) {
   .settings-container {
     grid-template-columns: 1fr;
-    gap: 20px;
   }
   
   .settings-sidebar {
@@ -447,8 +446,8 @@ input:checked + .toggle-slider:before {
   }
   
   .settings-nav-item {
+    flex-shrink: 0;
     white-space: nowrap;
-    min-width: fit-content;
   }
 }
 
@@ -464,12 +463,24 @@ input:checked + .toggle-slider:before {
   }
   
   .profile-section {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     text-align: center;
   }
   
   .profile-avatar {
-    margin: 0 auto;
+    margin-bottom: 20px;
+  }
+  
+  .profile-form {
+    width: 100%;
+  }
+  
+  .notifications-section,
+  .security-section,
+  .appearance-section,
+  .language-section,
+  .data-section {
+    gap: 16px;
   }
   
   .notification-item,
@@ -479,7 +490,7 @@ input:checked + .toggle-slider:before {
   .data-item {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 12px;
   }
   
   .data-actions {
@@ -489,20 +500,108 @@ input:checked + .toggle-slider:before {
   
   .data-actions .btn {
     width: 100%;
+    justify-content: center;
   }
-  
-  .theme-options {
+}
+
+/* Banks Section Styles */
+.banks-section {
+  margin-top: 20px;
+}
+
+.bank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bank-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.bank-item:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.bank-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bank-short-name {
+  margin: 0 0 4px 0;
+  font-size: 0.875rem;
+  color: var(--primary);
+  font-weight: 500;
+  background: var(--accent);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.bank-address {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.bank-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.bank-actions .btn {
+  padding: 8px;
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bank-actions .btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Compact button for Add New Bank */
+.settings-content .tab-header .btn.btn-compact {
+  padding: 8px 12px !important;
+  font-size: 0.875rem !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: unset !important;
+  max-width: none !important;
+  flex-shrink: 0 !important;
+  box-sizing: content-box !important;
+  flex: none !important;
+  flex-basis: auto !important;
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Responsive Design for Banks */
+@media (max-width: 768px) {
+  .bank-item {
     flex-direction: column;
-    gap: 12px;
+    align-items: flex-start;
+    gap: 16px;
   }
   
-  .edit-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .edit-actions .btn {
-    width: 100%;
+  .bank-actions {
+    align-self: flex-end;
   }
 }
 
