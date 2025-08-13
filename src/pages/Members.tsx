@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Edit, Trash2, User, Phone, CreditCard, Hash, MoreVertical, Eye } from 'lucide-react'
+import { Plus, Search, Trash2, User, MoreVertical, Eye } from 'lucide-react'
 import { Member, MemberFormData, MemberFilters } from '../types/member'
 import { memberService } from '../services/memberService'
 import MemberModal from '../components/MemberModal'
@@ -77,10 +77,7 @@ const Members = () => {
     }
   }
 
-  const handleEditMember = (member: Member) => {
-    setEditingMember(member)
-    setIsModalOpen(true)
-  }
+
 
   const handleDeleteMember = (member: Member) => {
     setDeletingMember(member)

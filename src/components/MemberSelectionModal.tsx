@@ -3,6 +3,7 @@ import { X, Search, Users } from 'lucide-react'
 import type { Member, GroupMemberFormData } from '../types/member'
 import { memberService } from '../services/memberService'
 import { groupService } from '../services/groupService'
+import { formatMonthYear } from '../utils/dateUtils'
 import './MemberSelectionModal.css'
 
 interface MemberSelectionModalProps {
@@ -20,9 +21,9 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
 }) => {
   const [members, setMembers] = useState<Member[]>([])
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
-  const [availableMonths, setAvailableMonths] = useState<number[]>([])
+  const [availableMonths, setAvailableMonths] = useState<string[]>([])
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState<number>(0)
+  const [selectedMonth, setSelectedMonth] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -77,7 +78,7 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
     setSelectedMember(member)
   }
 
-  const handleMonthSelect = (month: number) => {
+  const handleMonthSelect = (month: string) => {
     setSelectedMonth(month)
   }
 
@@ -89,20 +90,17 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
 
     onAddMember({
       memberId: selectedMember.id,
-      assignedMonth: selectedMonth
+      assignedMonthDate: selectedMonth
     })
 
     // Reset form
     setSelectedMember(null)
-    setSelectedMonth(availableMonths[0] || 0)
+    setSelectedMonth(availableMonths[0] || '')
     setSearchTerm('')
     onClose()
   }
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ]
+
 
   if (!isOpen) return null
 
@@ -159,11 +157,7 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
                         {member.city} • {member.phone}
                       </div>
                     </div>
-                    <div className="member-status">
-                      <span className={`status-badge status-${member.status}`}>
-                        {member.status}
-                      </span>
-                    </div>
+
                   </div>
                 ))
               )}
@@ -180,7 +174,7 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
                   className={`month-button ${selectedMonth === month ? 'selected' : ''}`}
                   onClick={() => handleMonthSelect(month)}
                 >
-                  {monthNames[month - 1]}
+                  {formatMonthYear(month)}
                 </button>
               ))}
             </div>
@@ -204,7 +198,7 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
                 </div>
                 <div className="summary-item">
                   <span className="summary-label">Assigned Month:</span>
-                  <span className="summary-value">{monthNames[selectedMonth - 1]}</span>
+                  <span className="summary-value">{formatMonthYear(selectedMonth)}</span>
                 </div>
               </div>
             </div>

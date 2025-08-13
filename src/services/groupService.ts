@@ -25,7 +25,7 @@ const transformGroupMemberRow = (row: GroupMemberRow): GroupMember => ({
   id: row.id,
   groupId: row.group_id,
   memberId: row.member_id,
-  assignedMonthDate: row.assigned_month || row.assigned_month_date, // Support both old and new field names
+  assignedMonthDate: row.assigned_month, // Use old field name until database migration is complete
   member: {} as any, // Will be populated when joining with members table
   createdAt: row.created_at
 })
@@ -149,7 +149,7 @@ export const groupService = {
         .order('assigned_month', { ascending: true }) // Use old field name for now
 
       if (error) throw error
-      return data.map(row => ({
+      return data.map((row: any) => ({
         ...transformGroupMemberRow(row),
         member: row.member as any
       }))
@@ -209,7 +209,7 @@ export const groupService = {
 
       if (error) throw error
 
-      const usedMonths = new Set(assignedMonths.map(row => row.assigned_month))
+      const usedMonths = new Set(assignedMonths.map((row: any) => row.assigned_month))
       const availableMonths: string[] = []
 
       if (group.startDate && group.endDate) {
@@ -222,7 +222,9 @@ export const groupService = {
           const month = String(currentDate.getMonth() + 1).padStart(2, '0')
           const monthDate = `${year}-${month}`
           
-          if (!usedMonths.has(monthDate)) {
+          // Convert month number to month date string for comparison
+          const monthNumber = currentDate.getMonth() + 1
+          if (!usedMonths.has(monthNumber)) {
             availableMonths.push(monthDate)
           }
           currentDate.setMonth(currentDate.getMonth() + 1)

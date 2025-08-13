@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye } from 'lucide-react'
 import type { Group, GroupMember } from '../types/member'
@@ -110,10 +110,7 @@ const Groups = () => {
     navigate(`/groups/${groupId}`)
   }
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ]
+
 
   if (loading) {
     return (
