@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Search, Users } from 'lucide-react'
 import type { Member, GroupMemberFormData } from '../types/member'
 import { memberService } from '../services/memberService'

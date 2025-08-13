@@ -213,22 +213,33 @@ export const groupService = {
       const availableMonths: string[] = []
 
       if (group.startDate && group.endDate) {
-        const startDate = new Date(group.startDate + '-01')
-        const endDate = new Date(group.endDate + '-01')
-        let currentDate = new Date(startDate)
+        // Parse start and end dates
+        const [startYear, startMonth] = group.startDate.split('-').map(Number)
+        const [endYear, endMonth] = group.endDate.split('-').map(Number)
         
-        while (currentDate <= endDate) {
-          const year = currentDate.getFullYear()
-          const month = String(currentDate.getMonth() + 1).padStart(2, '0')
-          const monthDate = `${year}-${month}`
+        console.log(`getAvailableMonths: Group ${groupId} - Start: ${startYear}-${startMonth}, End: ${endYear}-${endMonth}`)
+        
+        let currentYear = startYear
+        let currentMonth = startMonth
+        
+        // Generate all months from start to end
+        while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+          const monthDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
           
-          // Convert month number to month date string for comparison
-          const monthNumber = currentDate.getMonth() + 1
-          if (!usedMonths.has(monthNumber)) {
+          // Check if this month is already assigned (using month number for now)
+          if (!usedMonths.has(currentMonth)) {
             availableMonths.push(monthDate)
           }
-          currentDate.setMonth(currentDate.getMonth() + 1)
+          
+          // Move to next month
+          currentMonth++
+          if (currentMonth > 12) {
+            currentMonth = 1
+            currentYear++
+          }
         }
+        
+        console.log(`getAvailableMonths: Generated ${availableMonths.length} available months:`, availableMonths)
       }
 
       return availableMonths
