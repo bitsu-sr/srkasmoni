@@ -15,6 +15,7 @@ import {
 import type { Group, GroupMember, GroupMemberFormData } from '../types/member'
 import { groupService } from '../services/groupService'
 import { memberService } from '../services/memberService'
+import { paymentService } from '../services/paymentService'
 import MemberSelectionModal from '../components/MemberSelectionModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import GroupModal from '../components/GroupModal'
@@ -41,6 +42,7 @@ const GroupDetails = () => {
   const [error, setError] = useState('')
   const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
   const [isImporting, setIsImporting] = useState(false)
+  const [paidSlotsCount, setPaidSlotsCount] = useState<Map<number, number>>(new Map())
   
   // Modal states
   const [showMemberModal, setShowMemberModal] = useState(false)
@@ -64,6 +66,9 @@ const GroupDetails = () => {
       if (groupData) {
         setGroup(groupData)
         setMembers(membersData)
+        
+        // Load paid slots count for all members
+        await loadPaidSlotsCount(groupId, membersData)
       } else {
         setError('Group not found')
       }
@@ -72,6 +77,26 @@ const GroupDetails = () => {
       console.error('Error loading group data:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadPaidSlotsCount = async (groupId: number, membersData: GroupMember[]) => {
+    try {
+      const paidCounts = new Map<number, number>()
+      
+      // Get unique member IDs
+      const uniqueMemberIds = new Set(membersData.map(m => m.memberId))
+      
+      // Load paid slots count for each member
+      for (const memberId of uniqueMemberIds) {
+        const count = await paymentService.getMemberPaidSlotsCount(memberId, groupId)
+        paidCounts.set(memberId, count)
+      }
+      
+      setPaidSlotsCount(paidCounts)
+    } catch (err) {
+      console.error('Error loading paid slots count:', err)
+      // Don't fail the entire load, just log the error
     }
   }
 
@@ -546,19 +571,17 @@ const GroupDetails = () => {
                 return Array.from(memberSlots.entries()).map(([memberId, memberSlots]) => {
                   const firstMember = memberSlots[0]
                   const totalSlots = memberSlots.length
-                  const totalAmount = totalSlots * (group?.monthlyAmount || 0)
+                  const groupDuration = group?.startDate && group?.endDate ? 
+                    calculateDuration(group.startDate, group.endDate) : 0
+                  const totalAmount = totalSlots * (group?.monthlyAmount || 0) * groupDuration
 
                   return (
                     <div key={memberId} className="member-card">
                       <div className="member-info">
-                        <div className="member-name">
+                        <div className="member-name" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                           {firstMember.member?.firstName} {firstMember.member?.lastName}
-                          <span className="member-slot-count">({totalSlots} slot{totalSlots !== 1 ? 's' : ''})</span>
                         </div>
                         <div className="member-details">
-                          <span className="member-recipient">
-                            Recipient: {firstMember.member?.firstName} {firstMember.member?.lastName}
-                          </span>
                           <span className="member-slots">
                             Payment Months: {memberSlots.map(slot => 
                               formatMonthYear(typeof slot.assignedMonthDate === 'string' 
@@ -569,6 +592,10 @@ const GroupDetails = () => {
                           </span>
                           <span className="member-amount">
                             Total Receives: SRD {totalAmount.toLocaleString()}
+                          </span>
+                          <span className="member-slot-count">Slot{totalSlots !== 1 ? 's' : ''}: {totalSlots} </span>
+                          <span className="member-slots-paid">
+                            Slots Paid: {paidSlotsCount.get(memberId) || 0}/{totalSlots}
                           </span>
                         </div>
                       </div>

@@ -190,11 +190,12 @@
 }
 
 .member-name {
-  font-weight: 600;
-  color: #111827;
+  font-weight: 700;
+  color: #1d2711;
   margin-bottom: 4px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -228,6 +229,11 @@
 .member-amount {
   color: #dc2626;
   font-weight: 600;
+}
+
+.member-slots-paid {
+  color: #059669;
+  font-weight: 500;
 }
 
 .member-actions {

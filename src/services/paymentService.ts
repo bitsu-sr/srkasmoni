@@ -415,5 +415,21 @@ export const paymentService = {
     }))
 
     return transformedPayments
+  },
+
+  // Get count of paid slots for a member in a specific group
+  async getMemberPaidSlotsCount(memberId: number, groupId: number): Promise<number> {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('member_id', memberId)
+      .eq('group_id', groupId)
+      .eq('status', 'received')
+
+    if (error) {
+      throw new Error(`Failed to fetch paid slots count: ${error.message}`)
+    }
+
+    return data?.length || 0
   }
 }
