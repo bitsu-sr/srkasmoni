@@ -26,7 +26,7 @@ export interface Payment {
 export interface PaymentFormData {
   memberId: number
   groupId: number
-  slotId: number
+  slotId: number | string
   paymentDate: string
   amount: number
   paymentMethod: 'cash' | 'bank_transfer'

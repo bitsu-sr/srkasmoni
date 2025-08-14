@@ -317,6 +317,45 @@ export const paymentService = {
     }
   },
 
+  // Check for duplicate payment
+  async checkDuplicatePayment(paymentData: PaymentFormData): Promise<boolean> {
+    try {
+      // First, let's check if we have a real slot_id
+      if (paymentData.slotId && typeof paymentData.slotId === 'number' && paymentData.slotId > 0) {
+        // Check by slot_id (most precise)
+        const { data, error } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('member_id', paymentData.memberId)
+          .eq('group_id', paymentData.groupId)
+          .eq('slot_id', paymentData.slotId)
+
+        if (error) {
+          throw new Error(`Failed to check for duplicate payment: ${error.message}`)
+        }
+
+        return (data || []).length > 0
+      } else {
+        // For composite IDs or when slot_id is not available, check by member_id and group_id
+        // This will catch any existing payment for this member in this group
+        const { data, error } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('member_id', paymentData.memberId)
+          .eq('group_id', paymentData.groupId)
+
+        if (error) {
+          throw new Error(`Failed to check for duplicate payment: ${error.message}`)
+        }
+
+        return (data || []).length > 0
+      }
+    } catch (error) {
+      console.error('Error checking for duplicate payment:', error)
+      throw error
+    }
+  },
+
   // Get payment statistics
   async getPaymentStats(): Promise<PaymentStats> {
     const { data, error } = await supabase

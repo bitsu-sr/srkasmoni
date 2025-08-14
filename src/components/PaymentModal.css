@@ -180,6 +180,23 @@
   height: 16px;
 }
 
+/* Duplicate Payment Warning */
+.duplicate-warning {
+  background-color: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 20px 0;
+}
+
+.duplicate-warning p {
+  margin: 0;
+  color: #92400e;
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
 /* Form Actions */
 .form-actions {
   display: flex;

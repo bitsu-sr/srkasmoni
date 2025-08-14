@@ -60,6 +60,40 @@ export const paymentSlotService = {
   // Get available slots for a member in a specific group
   async getMemberSlots(memberId: number, groupId: number): Promise<PaymentSlot[]> {
     try {
+      // Get slots from payment_slots table for this member and group
+      const { data: slotsData, error: slotsError } = await supabase
+        .from('payment_slots')
+        .select('*')
+        .eq('member_id', memberId)
+        .eq('group_id', groupId)
+        .order('month_date', { ascending: true })
+
+      if (slotsError) {
+        throw new Error(`Failed to fetch member slots: ${slotsError.message}`)
+      }
+
+      // Transform the database data to match our PaymentSlot interface
+      const transformedSlots: PaymentSlot[] = (slotsData || []).map((slot: any) => ({
+        id: slot.id, // Use the actual database slot ID
+        groupId: slot.group_id,
+        memberId: slot.member_id,
+        monthDate: slot.month_date,
+        amount: slot.amount,
+        dueDate: slot.due_date,
+        createdAt: slot.created_at
+      }))
+      
+      console.log(`Found ${transformedSlots.length} slots for member ${memberId} in group ${groupId}`)
+      return transformedSlots
+    } catch (error) {
+      console.error('Error in getMemberSlots:', error)
+      throw error
+    }
+  },
+
+  // Get available month assignments for a member in a group (for new payments)
+  async getAvailableMonthAssignments(memberId: number, groupId: number): Promise<PaymentSlot[]> {
+    try {
       // First, get the group's monthly amount
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
@@ -73,7 +107,7 @@ export const paymentSlotService = {
 
       const monthlyAmount = groupData?.monthly_amount || 0
 
-      // Get assigned_month_date from group_members table where group_id = 4 AND member_id = 5
+      // Get assigned_month_date from group_members table
       const { data, error } = await supabase
         .from('group_members')
         .select('assigned_month_date')
@@ -81,14 +115,15 @@ export const paymentSlotService = {
         .eq('group_id', groupId)
 
       if (error) {
-        throw new Error(`Failed to fetch member slots: ${error.message}`)
+        throw new Error(`Failed to fetch member month assignments: ${error.message}`)
       }
 
       // Transform the assigned_month_date to PaymentSlot format
+      // Use a unique identifier based on the combination of group_id, member_id, and month_date
       const transformedSlots: PaymentSlot[] = (data || [])
         .filter((item: any) => item.assigned_month_date) // Only include items with assigned_month_date
-        .map((item: any, index: number) => ({
-          id: index + 1, // Generate temporary ID
+        .map((item: any) => ({
+          id: `${groupId}_${memberId}_${item.assigned_month_date}`, // Unique identifier
           groupId: groupId,
           memberId: memberId,
           monthDate: item.assigned_month_date, // Use assigned_month_date from group_members
@@ -97,10 +132,10 @@ export const paymentSlotService = {
           createdAt: new Date().toISOString()
         }))
       
-      console.log(`Found ${transformedSlots.length} assigned slots for member ${memberId} in group ${groupId} with monthly amount ${monthlyAmount}`)
+      console.log(`Found ${transformedSlots.length} available month assignments for member ${memberId} in group ${groupId}`)
       return transformedSlots
     } catch (error) {
-      console.error('Error in getMemberSlots:', error)
+      console.error('Error in getAvailableMonthAssignments:', error)
       throw error
     }
   },
@@ -308,5 +343,173 @@ export const paymentSlotService = {
     
     const [month, year] = displayDate.split('-')
     return `${year}-${month}`
+  },
+
+  // Get unpaid slots for a specific month in a group
+  async getUnpaidSlotsForMonth(groupId: number, monthDate: string): Promise<any[]> {
+    try {
+      // Get all slots for the group and month that don't have associated payments
+      const { data, error } = await supabase
+        .from('payment_slots')
+        .select(`
+          *,
+          member:members(id, first_name, last_name),
+          group:groups(id, name, monthly_amount)
+        `)
+        .eq('group_id', groupId)
+        .eq('month_date', monthDate)
+        .not('id', 'in', `(
+          SELECT DISTINCT slot_id 
+          FROM payments 
+          WHERE slot_id IS NOT NULL
+        )`)
+
+      if (error) {
+        throw new Error(`Failed to fetch unpaid slots: ${error.message}`)
+      }
+
+      // Transform the data to match our interface
+      const transformedSlots = (data || []).map((slot: any) => ({
+        id: slot.id,
+        groupId: slot.group_id,
+        memberId: slot.member_id,
+        monthDate: slot.month_date,
+        amount: slot.amount,
+        dueDate: slot.due_date,
+        createdAt: slot.created_at,
+        member: {
+          id: slot.member.id,
+          firstName: slot.member.first_name,
+          lastName: slot.member.last_name
+        },
+        group: {
+          id: slot.group.id,
+          name: slot.group.name,
+          monthlyAmount: slot.group.monthly_amount
+        }
+      }))
+
+      return transformedSlots
+    } catch (error) {
+      console.error('Error in getUnpaidSlotsForMonth:', error)
+      throw error
+    }
+  },
+
+  // Get ALL unpaid slots for a group (regardless of month)
+  async getAllUnpaidSlotsForGroup(groupId: number): Promise<any[]> {
+    try {
+      // Get all slots for the group that don't have associated payments
+      const { data, error } = await supabase
+        .from('payment_slots')
+        .select(`
+          *,
+          member:members(id, first_name, last_name),
+          group:groups(id, name, monthly_amount)
+        `)
+        .eq('group_id', groupId)
+        .not('id', 'in', `(
+          SELECT DISTINCT slot_id 
+          FROM payments 
+          WHERE slot_id IS NOT NULL
+        )`)
+
+      if (error) {
+        throw new Error(`Failed to fetch unpaid slots: ${error.message}`)
+      }
+
+      // Transform the data to match our interface
+      const transformedSlots = (data || []).map((slot: any) => ({
+        id: slot.id,
+        groupId: slot.group_id,
+        memberId: slot.member_id,
+        monthDate: slot.month_date,
+        amount: slot.amount,
+        dueDate: slot.due_date,
+        createdAt: slot.created_at,
+        member: {
+          id: slot.member.id,
+          firstName: slot.member.first_name,
+          lastName: slot.member.last_name
+        },
+        group: {
+          id: slot.group.id,
+          name: slot.group.name,
+          monthlyAmount: slot.group.monthly_amount
+        }
+      }))
+
+      return transformedSlots
+    } catch (error) {
+      console.error('Error in getAllUnpaidSlotsForGroup:', error)
+      throw error
+    }
+  },
+
+  // Get slots that are NOT paid in the current month (payment_date filter)
+  async getSlotsNotPaidInCurrentMonth(groupId: number, currentMonth: string): Promise<any[]> {
+    try {
+      // Get all slots for the group
+      const { data: slotsData, error: slotsError } = await supabase
+        .from('payment_slots')
+        .select(`
+          *,
+          member:members(id, first_name, last_name),
+          group:groups(id, name, monthly_amount)
+        `)
+        .eq('group_id', groupId)
+
+      if (slotsError) {
+        throw new Error(`Failed to fetch slots: ${slotsError.message}`)
+      }
+
+      // Get payments for these slots that were made in the current month
+      const slotIds = slotsData.map((slot: any) => slot.id)
+      
+      if (slotIds.length === 0) return []
+
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('slot_id, payment_date')
+        .in('slot_id', slotIds)
+        .gte('payment_date', `${currentMonth}-01`)
+        .lt('payment_date', `${currentMonth}-32`) // This will get all dates in the month
+
+      if (paymentsError) {
+        throw new Error(`Failed to fetch payments: ${paymentsError.message}`)
+      }
+
+      // Create a set of slot IDs that were paid in the current month
+      const paidSlotIds = new Set(paymentsData.map((payment: any) => payment.slot_id))
+
+      // Filter out slots that were paid in the current month
+      const unpaidSlots = slotsData.filter((slot: any) => !paidSlotIds.has(slot.id))
+
+      // Transform the data to match our interface
+      const transformedSlots = unpaidSlots.map((slot: any) => ({
+        id: slot.id,
+        groupId: slot.group_id,
+        memberId: slot.member_id,
+        monthDate: slot.month_date,
+        amount: slot.amount,
+        dueDate: slot.due_date,
+        createdAt: slot.created_at,
+        member: {
+          id: slot.member.id,
+          firstName: slot.member.first_name,
+          lastName: slot.member.last_name
+        },
+        group: {
+          id: slot.group.id,
+          name: slot.group.name,
+          monthlyAmount: slot.group.monthly_amount
+        }
+      }))
+
+      return transformedSlots
+    } catch (error) {
+      console.error('Error in getSlotsNotPaidInCurrentMonth:', error)
+      throw error
+    }
   }
 }

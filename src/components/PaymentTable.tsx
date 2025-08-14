@@ -57,8 +57,8 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView }: PaymentTableProps)
   }
 
   const formatSlot = (slot: any) => {
-    if (!slot || !slot.month_date) return 'N/A'
-    return paymentSlotService.formatMonthDate(slot.month_date)
+    if (!slot || !slot.monthDate) return 'N/A'
+    return paymentSlotService.formatMonthDate(slot.monthDate)
   }
 
   if (payments.length === 0) {

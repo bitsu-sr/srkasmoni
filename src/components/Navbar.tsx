@@ -14,6 +14,10 @@ const Navbar = () => {
     { path: '/members', label: 'Members', icon: UserCheck },
     { path: '/payments', label: 'Payments', icon: CreditCard },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+  ]
+
+  const hamburgerItems = [
+    { path: '/payments-due', label: 'Payments Due', icon: CreditCard },
     { path: '/settings', label: 'Settings', icon: Settings },
   ]
 
@@ -33,7 +37,15 @@ const Navbar = () => {
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      // Don't close if clicking on the hamburger button or dropdown
+      const target = event.target as Node
+      const hamburgerMenu = document.querySelector('.hamburger-menu-desktop')
+      
+      if (hamburgerMenu && hamburgerMenu.contains(target)) {
+        return
+      }
+      
+      if (menuRef.current && !menuRef.current.contains(target)) {
         closeMenu()
       }
     }
@@ -72,6 +84,35 @@ const Navbar = () => {
               </Link>
             )
           })}
+          
+          {/* Hamburger Menu for Desktop */}
+          <div className="hamburger-menu-desktop">
+            <button className="hamburger-btn" onClick={toggleMenu}>
+              <Menu size={20} />
+            </button>
+            {isMenuOpen && (
+              <div className="hamburger-dropdown">
+                {hamburgerItems.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`hamburger-item ${location.pathname === item.path ? 'active' : ''}`}
+                      onClick={() => {
+                        closeMenu()
+                        // Force close after a small delay to ensure navigation happens
+                        setTimeout(() => setIsMenuOpen(false), 100)
+                      }}
+                    >
+                      <Icon className="nav-icon" />
+                      <span>{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Mobile Menu Button */}
@@ -89,6 +130,29 @@ const Navbar = () => {
               key={item.path}
               to={item.path}
               className={`mobile-nav-link ${location.pathname === item.path ? 'active' : ''}`}
+              onClick={() => {
+                closeMenu()
+                // Force close after a small delay to ensure navigation happens
+                setTimeout(() => setIsMenuOpen(false), 100)
+              }}
+            >
+              <Icon className="nav-icon" />
+              <span>{item.label}</span>
+            </Link>
+          )
+        })}
+        
+        {/* Divider */}
+        <div className="mobile-nav-divider"></div>
+        
+        {/* Hamburger Items */}
+        {hamburgerItems.map((item) => {
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`mobile-nav-link hamburger-item ${location.pathname === item.path ? 'active' : ''}`}
               onClick={() => {
                 closeMenu()
                 // Force close after a small delay to ensure navigation happens

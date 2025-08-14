@@ -104,9 +104,22 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
         assignedMonthDate: selectedMonth
       })
 
-      // Success! Reset only the month selection, keep the member selected
-      const firstAvailable = allMonths.find(m => !m.isReserved)
-      setSelectedMonth(firstAvailable?.month || '')
+      // Success! Update the local months state to mark the slot as reserved
+      setAllMonths(prevMonths => 
+        prevMonths.map(month => 
+          month.month === selectedMonth 
+            ? { 
+                ...month, 
+                isReserved: true, 
+                reservedBy: `${selectedMember.firstName} ${selectedMember.lastName}` 
+              }
+            : month
+        )
+      )
+
+      // Reset month selection to the next available month
+      const nextAvailable = allMonths.find(m => !m.isReserved && m.month !== selectedMonth)
+      setSelectedMonth(nextAvailable?.month || '')
       setSuccessMessage(`Successfully added ${selectedMember.firstName} ${selectedMember.lastName} for ${formatMonthYear(selectedMonth)}`)
       
       // Don't close the modal - let user add more slots or close manually

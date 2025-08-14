@@ -7,6 +7,7 @@ import type { GroupMember, PaymentSlot } from '../types/paymentSlot'
 import { paymentSlotService } from '../services/paymentSlotService'
 import { groupService } from '../services/groupService'
 import { bankService } from '../services/bankService'
+import { paymentService } from '../services/paymentService'
 import './PaymentModal.css'
 
 interface PaymentModalProps {
@@ -15,21 +16,22 @@ interface PaymentModalProps {
   onSave: (payment: PaymentFormData) => void
   payment?: Payment
   isEditing?: boolean
+  prefillData?: Partial<PaymentFormData>
 }
 
-const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false }: PaymentModalProps) => {
-  const [formData, setFormData] = useState<PaymentFormData>({
-    memberId: 0,
-    groupId: 0,
-    slotId: 0,
-    paymentDate: new Date().toISOString().split('T')[0],
-    amount: 0,
-    paymentMethod: 'bank_transfer',
-    status: 'pending',
-    senderBankId: undefined,
-    receiverBankId: undefined,
-    notes: ''
-  })
+const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, prefillData }: PaymentModalProps) => {
+     const [formData, setFormData] = useState<PaymentFormData>({
+     memberId: 0,
+     groupId: 0,
+     slotId: '',
+     paymentDate: new Date().toISOString().split('T')[0],
+     amount: 0,
+     paymentMethod: 'bank_transfer',
+     status: 'pending',
+     senderBankId: undefined,
+     receiverBankId: undefined,
+     notes: ''
+   })
 
   const [groups, setGroups] = useState<Group[]>([])
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([])
@@ -37,31 +39,155 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false }: P
   const [banks, setBanks] = useState<Bank[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [duplicateWarning, setDuplicateWarning] = useState<string>('')
 
-  // Load initial data
-  useEffect(() => {
-    if (isOpen) {
-      loadGroups()
-      loadBanks()
-      if (payment && isEditing) {
-        setFormData({
-          memberId: payment.memberId,
-          groupId: payment.groupId,
-          slotId: payment.slotId,
-          paymentDate: payment.paymentDate,
-          amount: payment.amount,
-          paymentMethod: payment.paymentMethod,
-          status: payment.status,
-          senderBankId: payment.senderBankId,
-          receiverBankId: payment.receiverBankId,
-          notes: payment.notes || ''
-        })
-        // Load cascading data for editing
-        loadGroupMembers(payment.groupId)
-        loadMemberSlots(payment.memberId, payment.groupId)
-      }
-    }
-  }, [isOpen, payment, isEditing])
+     // Load initial data
+   useEffect(() => {
+     if (isOpen) {
+       loadGroups()
+       loadBanks()
+       
+       if (prefillData) {
+         // Handle prefill data (e.g., from Payments Due page)
+         setFormData(prev => ({
+           ...prev,
+           ...prefillData
+         }))
+         
+                  // Load cascading data if groupId is provided
+         if (prefillData.groupId) {
+           loadGroupMembers(prefillData.groupId)
+           loadGroupMonthlyAmount(prefillData.groupId)
+         }
+         
+         // Load member slots if both groupId and memberId are provided
+         if (prefillData.groupId && prefillData.memberId) {
+           loadMemberSlots(prefillData.memberId, prefillData.groupId)
+         }
+                    } else if (payment && isEditing) {
+         // Set the form data with existing payment values
+         setFormData({
+           memberId: payment.memberId,
+           groupId: payment.groupId,
+           slotId: payment.slotId,
+           paymentDate: payment.paymentDate,
+           amount: payment.amount,
+           paymentMethod: payment.paymentMethod,
+           status: payment.status,
+           senderBankId: payment.senderBankId,
+           receiverBankId: payment.receiverBankId,
+           notes: payment.notes || ''
+         })
+         
+         // Set the member data directly from the payment to avoid clearing
+         if (payment.member) {
+           console.log('Setting member data for editing:', {
+             paymentMemberId: payment.memberId,
+             memberId: payment.member.id,
+             memberName: `${payment.member.firstName} ${payment.member.lastName}`,
+             fullPaymentMember: payment.member
+           })
+           
+           // Use payment.memberId as the member ID since payment.member.id is undefined
+           const memberId = payment.member.id || payment.memberId
+           
+           setGroupMembers([{
+             id: Date.now() + Math.random(), // Generate temporary ID
+             groupId: payment.groupId,
+             memberId: payment.memberId,
+             assignedMonthDate: '',
+             member: {
+               id: memberId, // Use the corrected member ID
+               firstName: payment.member.firstName,
+               lastName: payment.member.lastName,
+               birthDate: '',
+               birthplace: '',
+               address: '',
+               city: '',
+               phone: '',
+               email: '',
+               nationalId: '',
+               nationality: '',
+               occupation: '',
+               bankName: '',
+               accountNumber: '',
+               dateOfRegistration: '',
+               totalReceived: 0,
+               lastPayment: '',
+               nextPayment: '',
+               notes: null,
+               created_at: '',
+               updated_at: ''
+             },
+             createdAt: new Date().toISOString()
+           }])
+         }
+         
+         // Load the existing slot data for this payment
+         if (payment.slot) {
+           setMemberSlots([{
+             id: payment.slot.id,
+             groupId: payment.slot.groupId,
+             memberId: payment.slot.memberId,
+             monthDate: payment.slot.monthDate,
+             amount: payment.slot.amount,
+             dueDate: payment.slot.dueDate,
+             createdAt: payment.slot.createdAt
+           }])
+         }
+         
+         // Load cascading data for editing (but don't override existing data)
+         loadGroups()
+         loadBanks()
+       }
+     }
+   }, [isOpen, payment, isEditing, prefillData])
+
+   // Ensure amount is loaded whenever groupId changes
+   useEffect(() => {
+     if (formData.groupId && formData.groupId !== 0) {
+       console.log('Group changed, loading monthly amount for group:', formData.groupId)
+       loadGroupMonthlyAmount(formData.groupId)
+     }
+   }, [formData.groupId])
+
+   // Check for duplicate payment when form data changes
+   useEffect(() => {
+     const checkForDuplicates = async () => {
+       if (formData.memberId && formData.groupId && formData.slotId && !isEditing) {
+         try {
+           // For composite slot IDs, we need to extract the actual group, member, and month info
+           let checkData = { ...formData }
+           
+           if (typeof formData.slotId === 'string' && formData.slotId.includes('_')) {
+             // This is a composite ID, extract the actual values
+             const [groupId, memberId] = formData.slotId.split('_')
+             checkData = {
+               ...checkData,
+               groupId: parseInt(groupId),
+               memberId: parseInt(memberId),
+               slotId: 0 // We'll check by member_id and group_id instead
+             }
+           }
+           
+           // Check if a payment already exists for this member, group, and slot/month
+           const isDuplicate = await paymentService.checkDuplicatePayment(checkData)
+           if (isDuplicate) {
+             setDuplicateWarning('⚠️ A payment for this member, group, and slot already exists. Duplicate payments are not allowed.')
+           } else {
+             setDuplicateWarning('')
+           }
+         } catch (error) {
+           console.error('Error checking for duplicates:', error)
+           setDuplicateWarning('')
+         }
+       } else {
+         setDuplicateWarning('')
+       }
+     }
+
+     checkForDuplicates()
+   }, [formData.memberId, formData.groupId, formData.slotId, isEditing])
 
   const loadGroups = async () => {
     try {
@@ -81,53 +207,70 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false }: P
     }
   }
 
-  const loadGroupMembers = async (groupId: number) => {
-    if (!groupId) return
-    try {
-      const members = await paymentSlotService.getGroupMembers(groupId)
-      setGroupMembers(members)
-      // Clear member and slot selections when group changes
-      setFormData(prev => ({
-        ...prev,
-        memberId: 0,
-        slotId: 0,
-        amount: 0
-      }))
-      setMemberSlots([])
-    } catch (error) {
-      console.error('Failed to load group members:', error)
-    }
-  }
+     const loadGroupMembers = async (groupId: number) => {
+     if (!groupId) return
+     try {
+       const members = await paymentSlotService.getGroupMembers(groupId)
+       setGroupMembers(members)
+       // Clear member and slot selections when group changes
+       setFormData(prev => ({
+         ...prev,
+         memberId: 0,
+         slotId: '',
+         amount: 0
+       }))
+       setMemberSlots([])
+     } catch (error) {
+       console.error('Failed to load group members:', error)
+     }
+   }
 
   const loadMemberSlots = async (memberId: number, groupId: number) => {
     if (!memberId || !groupId) return
     try {
-      const slots = await paymentSlotService.getMemberSlots(memberId, groupId)
-      setMemberSlots(slots)
-      // Clear slot selection when member changes, but keep the amount
-      setFormData(prev => ({
-        ...prev,
-        slotId: 0
-        // Don't reset amount - it should stay as the group's monthly amount
-      }))
+      let slots
+      
+      // If we're editing an existing payment or have prefill data with a slotId, 
+      // get existing slots from payment_slots table
+      if (isEditing || (prefillData && prefillData.slotId)) {
+        slots = await paymentSlotService.getMemberSlots(memberId, groupId)
+      } else {
+        // For new payments, get available month assignments from group_members table
+        slots = await paymentSlotService.getAvailableMonthAssignments(memberId, groupId)
+      }
+      
+             setMemberSlots(slots)
+       // Clear slot selection when member changes, but keep the amount
+       setFormData(prev => ({
+         ...prev,
+         slotId: ''
+         // Don't reset amount - it should stay as the group's monthly amount
+       }))
     } catch (error) {
       console.error('Failed to load member slots:', error)
       setMemberSlots([])
     }
   }
 
-  const loadGroupMonthlyAmount = async (groupId: number) => {
-    if (!groupId) return
-    try {
-      const amount = await paymentSlotService.getGroupMonthlyAmount(groupId)
-      setFormData(prev => ({
-        ...prev,
-        amount
-      }))
-    } catch (error) {
-      console.error('Failed to load group monthly amount:', error)
-    }
-  }
+     const loadGroupMonthlyAmount = async (groupId: number) => {
+     if (!groupId) return
+     try {
+       console.log('Loading monthly amount for group:', groupId)
+       const amount = await paymentSlotService.getGroupMonthlyAmount(groupId)
+       console.log('Received monthly amount:', amount)
+       setFormData(prev => ({
+         ...prev,
+         amount
+       }))
+     } catch (error) {
+       console.error('Failed to load group monthly amount:', error)
+       // Set a default amount to prevent 0 from showing
+       setFormData(prev => ({
+         ...prev,
+         amount: 0
+       }))
+     }
+   }
 
   const handleInputChange = (field: keyof PaymentFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -147,43 +290,78 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false }: P
     }
   }
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {}
+     const validateForm = (): boolean => {
+     const newErrors: Record<string, string> = {}
 
-    if (!formData.groupId) newErrors.groupId = 'Group is required'
-    if (!formData.memberId) newErrors.memberId = 'Member is required'
-    if (!formData.slotId) newErrors.slotId = 'Slot is required'
-    if (!formData.paymentDate) newErrors.paymentDate = 'Payment date is required'
-    if (formData.amount <= 0) newErrors.amount = 'Amount must be greater than 0'
-    if (formData.paymentMethod === 'bank_transfer') {
-      if (!formData.senderBankId) newErrors.senderBankId = 'Sender bank is required for bank transfer'
-      if (!formData.receiverBankId) newErrors.receiverBankId = 'Receiver bank is required for bank transfer'
-    }
+     if (!formData.groupId) newErrors.groupId = 'Group is required'
+     if (!formData.memberId) newErrors.memberId = 'Member is required'
+     if (!formData.slotId) newErrors.slotId = 'Slot is required'
+     if (!formData.paymentDate) newErrors.paymentDate = 'Payment date is required'
+     if (formData.amount <= 0) newErrors.amount = 'Amount must be greater than 0'
+     if (formData.paymentMethod === 'bank_transfer') {
+       if (!formData.senderBankId) newErrors.senderBankId = 'Sender bank is required for bank transfer'
+       if (!formData.receiverBankId) newErrors.receiverBankId = 'Receiver bank is required for bank transfer'
+     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+     setErrors(newErrors)
+     return Object.keys(newErrors).length === 0
+   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!validateForm()) return
+     const handleSubmit = async (e: React.FormEvent) => {
+     e.preventDefault()
+     
+     if (!validateForm()) return
 
-    setIsLoading(true)
-    try {
-      await onSave(formData)
-      onClose()
-    } catch (error) {
-      console.error('Failed to save payment:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+     setIsLoading(true)
+     try {
+       // If this is a new payment and we have a composite slot ID, we need to create a payment_slot first
+       let finalFormData = { ...formData }
+       
+       if (!isEditing && typeof formData.slotId === 'string' && formData.slotId.includes('_')) {
+         // This is a new payment with a composite slot ID, create the payment_slot first
+         const [groupId, memberId, monthDate] = formData.slotId.split('_')
+         
+         try {
+           // First check if the payment slot already exists
+           const existingSlots = await paymentSlotService.getMemberSlots(parseInt(memberId), parseInt(groupId))
+           const existingSlot = existingSlots.find(slot => slot.monthDate === monthDate)
+           
+           if (existingSlot) {
+             // Use the existing slot ID
+             finalFormData.slotId = existingSlot.id
+           } else {
+             // Create a new payment slot
+             const newSlot = await paymentSlotService.createPaymentSlot({
+               groupId: parseInt(groupId),
+               memberId: parseInt(memberId),
+               monthDate: monthDate,
+               amount: formData.amount,
+               dueDate: new Date().toISOString().split('T')[0] // Set to today's date as default
+             })
+             
+             // Update the form data with the real slot ID
+             finalFormData.slotId = newSlot.id
+           }
+         } catch (error) {
+           console.error('Failed to create payment slot:', error)
+           throw new Error('Failed to create payment slot. Please try again.')
+         }
+       }
+       
+       await onSave(finalFormData)
+       onClose()
+     } catch (error) {
+       console.error('Failed to save payment:', error)
+     } finally {
+       setIsLoading(false)
+     }
+   }
 
-  const handleGroupChange = (groupId: number) => {
-    handleInputChange('groupId', groupId)
-    loadGroupMonthlyAmount(groupId)
-  }
+     const handleGroupChange = async (groupId: number) => {
+     handleInputChange('groupId', groupId)
+     // Load the monthly amount immediately when group changes
+     await loadGroupMonthlyAmount(groupId)
+   }
 
   if (!isOpen) return null
 
@@ -220,52 +398,57 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false }: P
             {errors.groupId && <span className="error-message">{errors.groupId}</span>}
           </div>
 
-          {/* Member Selection */}
-          <div className="form-group">
-            <label htmlFor="memberId">
-              <User size={16} />
-              Group Member *
-            </label>
-            <select
-              id="memberId"
-              value={formData.memberId}
-              onChange={(e) => handleInputChange('memberId', Number(e.target.value))}
-              disabled={!formData.groupId}
-              className={errors.memberId ? 'error' : ''}
-            >
-              <option value={0}>Select a member</option>
-              {groupMembers.map(member => (
-                <option key={member.id} value={member.member.id}>
-                  {member.member.firstName} {member.member.lastName}
-                </option>
-              ))}
-            </select>
-            {errors.memberId && <span className="error-message">{errors.memberId}</span>}
-          </div>
+                     {/* Member Selection */}
+           <div className="form-group">
+             <label htmlFor="memberId">
+               <User size={16} />
+               Group Member *
+             </label>
+             <select
+               id="memberId"
+               value={formData.memberId || ''}
+               onChange={(e) => handleInputChange('memberId', Number(e.target.value))}
+               disabled={!formData.groupId}
+               className={errors.memberId ? 'error' : ''}
+             >
+               <option value="">Select a member</option>
+               {groupMembers.map(member => (
+                 <option key={`member-${member.member.id}`} value={member.member.id}>
+                   {member.member.firstName} {member.member.lastName}
+                 </option>
+               ))}
+             </select>
+             {errors.memberId && <span className="error-message">{errors.memberId}</span>}
+             <small className="form-help">
+               Debug: formData.memberId = {formData.memberId}, 
+               groupMembers count = {groupMembers.length}, 
+               first member id = {groupMembers[0]?.member?.id}
+             </small>
+           </div>
 
-          {/* Slot Selection */}
-          <div className="form-group">
-            <label htmlFor="slotId">
-              <Calendar size={16} />
-              Slot (Month-Year) *
-            </label>
-            <select
-              id="slotId"
-              value={formData.slotId}
-              onChange={(e) => handleInputChange('slotId', Number(e.target.value))}
-              disabled={!formData.memberId}
-              className={errors.slotId ? 'error' : ''}
-            >
-              <option value={0}>Select a slot</option>
-              {memberSlots.map(slot => (
-                <option key={slot.id} value={slot.id}>
-                  {paymentSlotService.formatMonthDate(slot.monthDate)}
-                </option>
-              ))}
-            </select>
-            {errors.slotId && <span className="error-message">{errors.slotId}</span>}
-            <small className="form-help">Available slots: {memberSlots.length}</small>
-          </div>
+                     {/* Slot Selection */}
+           <div className="form-group">
+             <label htmlFor="slotId">
+               <Calendar size={16} />
+               Slot (Month-Year) *
+             </label>
+             <select
+               id="slotId"
+               value={formData.slotId || ''}
+               onChange={(e) => handleInputChange('slotId', e.target.value)}
+               disabled={!formData.memberId}
+               className={errors.slotId ? 'error' : ''}
+             >
+               <option value="">Select a slot</option>
+               {memberSlots.map(slot => (
+                 <option key={`slot-${slot.id}`} value={slot.id}>
+                   {paymentSlotService.formatMonthDate(slot.monthDate)}
+                 </option>
+               ))}
+             </select>
+             {errors.slotId && <span className="error-message">{errors.slotId}</span>}
+             <small className="form-help">Available slots: {memberSlots.length}</small>
+           </div>
 
           {/* Amount (Read-only) */}
           <div className="form-group">
@@ -397,15 +580,22 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false }: P
             />
           </div>
 
-          {/* Form Actions */}
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn" disabled={isLoading}>
-              {isLoading ? 'Saving...' : (isEditing ? 'Update Payment' : 'Record Payment')}
-            </button>
-          </div>
+                     {/* Duplicate Payment Warning */}
+           {duplicateWarning && (
+             <div className="duplicate-warning">
+               <p>{duplicateWarning}</p>
+             </div>
+           )}
+
+           {/* Form Actions */}
+           <div className="form-actions">
+             <button type="button" className="btn btn-secondary" onClick={onClose}>
+               Cancel
+             </button>
+             <button type="submit" className="btn" disabled={isLoading || !!duplicateWarning}>
+               {isLoading ? 'Saving...' : (isEditing ? 'Update Payment' : 'Record Payment')}
+             </button>
+           </div>
         </form>
       </div>
     </div>
