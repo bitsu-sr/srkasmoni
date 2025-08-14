@@ -32,7 +32,7 @@ const PaymentsDue = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<UnpaidSlot | null>(null)
-  const [showCurrentMonthOnly, setShowCurrentMonthOnly] = useState(false)
+  // Removed showCurrentMonthOnly since we're showing all slots now
 
   useEffect(() => {
     loadUnpaidSlots()
@@ -43,48 +43,49 @@ const PaymentsDue = () => {
       setIsLoading(true)
       setError(null)
       
-      // Get current month in YYYY-MM format
-      const now = new Date()
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-      
-      console.log('Looking for slots not paid in month:', currentMonth)
-      
       // Get all groups first
       const groups = await groupService.getAllGroups()
       console.log('Found groups:', groups.length)
       
-      const allUnpaidSlots: UnpaidSlot[] = []
+      const allSlots: UnpaidSlot[] = []
       
-      // For each group, get slots based on the filter
+      // For each group, get ALL slots (both paid and unpaid)
       for (const group of groups) {
         try {
-          console.log(`Checking group: ${group.name} (ID: ${group.id})`)
+          console.log(`Getting all slots for group: ${group.name} (ID: ${group.id})`)
           
-          let unpaidSlots: any[]
+          // Get all slots for this group (both paid and unpaid)
+          const slots = await paymentSlotService.getGroupSlots(group.id)
+          console.log(`Found ${slots.length} total slots in group ${group.name}`)
           
-          if (showCurrentMonthOnly) {
-            // Get slots that were NOT paid in the current month (payment_date filter)
-            unpaidSlots = await paymentSlotService.getSlotsNotPaidInCurrentMonth(group.id, currentMonth)
-            console.log(`Found ${unpaidSlots.length} slots not paid in current month (${currentMonth}) for group ${group.name}`)
-          } else {
-            // Get ALL unpaid slots (no associated payments)
-            unpaidSlots = await paymentSlotService.getAllUnpaidSlotsForGroup(group.id)
-            console.log(`Found ${unpaidSlots.length} unpaid slots (no payments) in group ${group.name}`)
-          }
+          // Transform slots to include member and group information
+          const transformedSlots = slots.map(slot => ({
+            ...slot,
+            member: {
+              id: slot.memberId,
+              firstName: slot.member?.first_name || '',
+              lastName: slot.member?.last_name || ''
+            },
+            group: {
+              id: group.id,
+              name: group.name,
+              monthlyAmount: group.monthlyAmount
+            }
+          }))
           
-          allUnpaidSlots.push(...unpaidSlots)
+          allSlots.push(...transformedSlots)
         } catch (error) {
-          console.error(`Error loading unpaid slots for group ${group.id}:`, error)
+          console.error(`Error loading slots for group ${group.id}:`, error)
         }
       }
       
-      console.log(`Total slots found: ${allUnpaidSlots.length}`)
-      console.log('Slots:', allUnpaidSlots)
+      console.log(`Total slots found: ${allSlots.length}`)
+      console.log('Slots:', allSlots)
       
-      setUnpaidSlots(allUnpaidSlots)
+      setUnpaidSlots(allSlots)
     } catch (error) {
-      console.error('Error loading unpaid slots:', error)
-      setError('Failed to load unpaid slots. Please try again.')
+      console.error('Error loading slots:', error)
+      setError('Failed to load slots. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -199,26 +200,14 @@ const PaymentsDue = () => {
   return (
     <div className="payments-due-container">
       <div className="page-header">
-        <div className="header-content">
-          <h1>Payments Due</h1>
-          <p>
-            {showCurrentMonthOnly 
-              ? 'Slots that were NOT paid in the current month (regardless of slot month)'
-              : 'All slots without associated payments'
-            }
-          </p>
-        </div>
+                 <div className="header-content">
+           <h1>Payments Due</h1>
+           <h2>All slots from all groups</h2>
+           <p>
+             Data from group_members table
+           </p>
+         </div>
         <div className="header-actions">
-          <div className="filter-toggle">
-            <label className="filter-label">
-              <input
-                type="checkbox"
-                checked={showCurrentMonthOnly}
-                onChange={(e) => setShowCurrentMonthOnly(e.target.checked)}
-              />
-              Current Month Only
-            </label>
-          </div>
           <button 
             onClick={loadUnpaidSlots} 
             className="refresh-btn"
@@ -226,6 +215,18 @@ const PaymentsDue = () => {
           >
             <Calendar size={20} />
           </button>
+        </div>
+      </div>
+
+      {/* Statistics Section */}
+      <div className="statistics-section">
+        <div className="stat-card">
+          <div className="stat-number">{sortedSlots.length}</div>
+          <div className="stat-label">Total Slots</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-number">SRD {sortedSlots.reduce((total, slot) => total + slot.amount, 0).toFixed(2)}</div>
+          <div className="stat-label">Total Amount Due</div>
         </div>
       </div>
 
@@ -265,7 +266,9 @@ const PaymentsDue = () => {
                   <td>{slot.member.lastName}</td>
                   <td>{slot.group.name}</td>
                   <td>{formatMonthDate(slot.monthDate)}</td>
-                  <td className="amount">${slot.amount.toFixed(2)}</td>
+                                     <td className="amount">
+                     <span className="amount-label">SRD {slot.amount.toFixed(2)}</span>
+                   </td>
                   <td>
                     <button
                       onClick={() => handleRowClick(slot)}

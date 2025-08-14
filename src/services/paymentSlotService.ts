@@ -140,33 +140,43 @@ export const paymentSlotService = {
     }
   },
 
-  // Get all slots for a specific group
-  async getGroupSlots(groupId: number): Promise<PaymentSlot[]> {
-    const { data, error } = await supabase
-      .from('payment_slots')
-      .select(`
-        *,
-        member:members(first_name, last_name)
-      `)
-      .eq('group_id', groupId)
-      .order('month_date', { ascending: true })
+  // Get all slots for a specific group from group_members table
+  async getGroupSlots(groupId: number): Promise<any[]> {
+    try {
+      // Get all members and their assigned month dates from group_members table
+      const { data, error } = await supabase
+        .from('group_members')
+        .select(`
+          member_id,
+          assigned_month_date,
+          member:members(id, first_name, last_name),
+          group:groups(id, name, monthly_amount)
+        `)
+        .eq('group_id', groupId)
+        .order('assigned_month_date', { ascending: true })
 
-    if (error) {
-      throw new Error(`Failed to fetch group slots: ${error.message}`)
+      if (error) {
+        throw new Error(`Failed to fetch group slots: ${error.message}`)
+      }
+
+      // Transform the data to include member and group information
+      const transformedSlots = (data || []).map((item: any) => ({
+        id: `${groupId}_${item.member_id}_${item.assigned_month_date}`, // Composite ID
+        groupId: groupId,
+        memberId: item.member_id,
+        monthDate: item.assigned_month_date,
+        amount: item.group?.monthly_amount || 0,
+        dueDate: '', // Not available in group_members
+        createdAt: new Date().toISOString(), // Not available in group_members
+        member: item.member
+      }))
+
+      console.log(`Found ${transformedSlots.length} slots from group_members for group ${groupId}`)
+      return transformedSlots
+    } catch (error) {
+      console.error('Error in getGroupSlots:', error)
+      throw error
     }
-
-    // Transform the database data to match our PaymentSlot interface
-    const transformedSlots: PaymentSlot[] = (data || []).map((slot: any) => ({
-      id: slot.id,
-      groupId: slot.group_id,
-      memberId: slot.member_id,
-      monthDate: slot.month_date,
-      amount: slot.amount,
-      dueDate: slot.due_date,
-      createdAt: slot.created_at
-    }))
-
-    return transformedSlots
   },
 
   // Create new payment slot
