@@ -47,6 +47,8 @@ const GroupDetails = () => {
   const [showMemberModal, setShowMemberModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showSlotRemoveModal, setShowSlotRemoveModal] = useState(false)
+  const [slotToRemove, setSlotToRemove] = useState<{ memberId: number; monthDate: string; memberName: string } | null>(null)
 
   useEffect(() => {
     if (id) {
@@ -139,6 +141,23 @@ const GroupDetails = () => {
     } catch (err) {
       setError('Failed to remove slot')
       console.error('Error removing slot:', err)
+    }
+  }
+
+  const confirmRemoveSlot = (memberId: number, monthDate: string, memberName: string) => {
+    setSlotToRemove({ memberId, monthDate, memberName })
+    setShowSlotRemoveModal(true)
+  }
+
+  const executeRemoveSlot = async () => {
+    if (!slotToRemove) return
+    
+    try {
+      await handleRemoveSlot(slotToRemove.memberId, slotToRemove.monthDate)
+      setShowSlotRemoveModal(false)
+      setSlotToRemove(null)
+    } catch (err) {
+      // Error is already handled in handleRemoveSlot
     }
   }
 
@@ -608,7 +627,7 @@ const GroupDetails = () => {
                     <div className="slot-actions">
                       <button
                         className="btn btn-danger btn-sm"
-                        onClick={() => handleRemoveSlot(slot.memberId, monthDate)}
+                        onClick={() => confirmRemoveSlot(slot.memberId, monthDate, `${slot.member?.firstName} ${slot.member?.lastName}`)}
                         title="Remove this slot"
                       >
                         <Trash2 size={16} />
@@ -644,6 +663,17 @@ const GroupDetails = () => {
         onConfirm={handleDeleteGroup}
         itemName={group.name}
         itemType="Group"
+      />
+
+      <DeleteConfirmModal
+        isOpen={showSlotRemoveModal}
+        onClose={() => {
+          setShowSlotRemoveModal(false)
+          setSlotToRemove(null)
+        }}
+        onConfirm={executeRemoveSlot}
+        itemName={`${slotToRemove?.memberName}'s slot for ${slotToRemove?.monthDate ? formatMonthYear(slotToRemove.monthDate) : 'this month'}`}
+        itemType="Slot"
       />
     </div>
   )
