@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye, Download, Upload } from 'lucide-react'
+import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye, Download, Upload, CheckCircle } from 'lucide-react'
 import type { Group, GroupMember, GroupFormData } from '../types/member'
 import { groupService } from '../services/groupService'
+import { paymentService } from '../services/paymentService'
 import GroupModal from '../components/GroupModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { formatDateRange, calculateDuration } from '../utils/dateUtils'
@@ -18,6 +19,7 @@ const Groups = () => {
   const navigate = useNavigate()
   const [groups, setGroups] = useState<Group[]>([])
   const [groupMembers, setGroupMembers] = useState<{ [groupId: number]: GroupMember[] }>({})
+  const [groupSlotsInfo, setGroupSlotsInfo] = useState<{ [groupId: number]: { paid: number; total: number } }>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
@@ -42,6 +44,9 @@ const Groups = () => {
       
       // Load member counts for each group
       const membersData: { [groupId: number]: GroupMember[] } = {}
+      // Load slots information for each group
+      const slotsData: { [groupId: number]: { paid: number; total: number } } = {}
+      
       for (const group of groupsData) {
         try {
           const members = await groupService.getGroupMembers(group.id)
@@ -50,8 +55,18 @@ const Groups = () => {
           console.error(`Error loading members for group ${group.id}:`, err)
           membersData[group.id] = []
         }
+        
+        try {
+          const slotsInfo = await paymentService.getGroupPaidSlotsCount(group.id)
+          slotsData[group.id] = slotsInfo
+        } catch (err) {
+          console.error(`Error loading slots info for group ${group.id}:`, err)
+          slotsData[group.id] = { paid: 0, total: 0 }
+        }
       }
+      
       setGroupMembers(membersData)
+      setGroupSlotsInfo(slotsData)
     } catch (err) {
       setError('Failed to load groups')
       console.error('Error loading groups:', err)
@@ -65,6 +80,7 @@ const Groups = () => {
       const newGroup = await groupService.createGroup(groupData)
       setGroups(prev => [...prev, newGroup])
       setGroupMembers(prev => ({ ...prev, [newGroup.id]: [] }))
+      setGroupSlotsInfo(prev => ({ ...prev, [newGroup.id]: { paid: 0, total: 0 } }))
       setShowCreateModal(false)
     } catch (err) {
       setError('Failed to create group')
@@ -96,6 +112,11 @@ const Groups = () => {
         const newMembers = { ...prev }
         delete newMembers[selectedGroup.id]
         return newMembers
+      })
+      setGroupSlotsInfo(prev => {
+        const newSlots = { ...prev }
+        delete newSlots[selectedGroup.id]
+        return newSlots
       })
       setShowDeleteModal(false)
       setSelectedGroup(null)
@@ -129,7 +150,10 @@ const Groups = () => {
         maxMembers: '12',
         duration: '12',
         startDate: '2024-01-01',
-        endDate: '2024-12-31'
+        endDate: '2024-12-31',
+        paymentDeadlineDay: '29',
+        lateFinePercentage: '5.00',
+        lateFineFixedAmount: '100'
       },
       {
         name: 'Business Investment Group',
@@ -138,13 +162,16 @@ const Groups = () => {
         maxMembers: '8',
         duration: '24',
         startDate: '2024-01-01',
-        endDate: '2025-12-31'
+        endDate: '2025-12-31',
+        paymentDeadlineDay: '29',
+        lateFinePercentage: '10.00',
+        lateFineFixedAmount: '100'
       }
     ]
 
     const csvContent = [
       // Header row
-      'name,description,monthlyAmount,maxMembers,duration,startDate,endDate',
+      'name,description,monthlyAmount,maxMembers,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
       // Data rows
       ...sampleData.map(row => 
         Object.values(row).map(value => `"${value}"`).join(',')
@@ -183,7 +210,7 @@ const Groups = () => {
       })
 
       // Validate required fields
-      const requiredFields = ['name', 'monthlyAmount', 'maxMembers', 'duration', 'startDate', 'endDate']
+      const requiredFields = ['name', 'monthlyAmount', 'maxMembers', 'duration', 'startDate', 'endDate', 'paymentDeadlineDay']
       for (const field of requiredFields) {
         if (!row[field] || row[field].trim() === '') {
           throw new Error(`Row ${i + 1}: Missing required field '${field}'`)
@@ -198,7 +225,10 @@ const Groups = () => {
         maxMembers: parseInt(row.maxMembers),
         duration: parseInt(row.duration),
         startDate: row.startDate,
-        endDate: row.endDate
+        endDate: row.endDate,
+        paymentDeadlineDay: parseInt(row.paymentDeadlineDay) || 29,
+        lateFinePercentage: parseFloat(row.lateFinePercentage) || 5.00,
+        lateFineFixedAmount: parseFloat(row.lateFineFixedAmount) || 100
       }
 
       // Validate numeric fields
@@ -210,6 +240,15 @@ const Groups = () => {
       }
       if (isNaN(groupData.duration) || groupData.duration <= 0) {
         throw new Error(`Row ${i + 1}: Invalid duration '${row.duration}'`)
+      }
+      if (isNaN(groupData.paymentDeadlineDay) || groupData.paymentDeadlineDay < 1 || groupData.paymentDeadlineDay > 31) {
+        throw new Error(`Row ${i + 1}: Invalid payment deadline day '${row.paymentDeadlineDay}'. Must be between 1 and 31`)
+      }
+      if (isNaN(groupData.lateFinePercentage) || groupData.lateFinePercentage < 0 || groupData.lateFinePercentage > 100) {
+        throw new Error(`Row ${i + 1}: Invalid late fine percentage '${row.lateFinePercentage}'. Must be between 0 and 100`)
+      }
+      if (isNaN(groupData.lateFineFixedAmount) || groupData.lateFineFixedAmount < 0) {
+        throw new Error(`Row ${i + 1}: Invalid late fine amount '${row.lateFineFixedAmount}'. Must be non-negative`)
       }
 
       // Validate dates
@@ -251,6 +290,7 @@ const Groups = () => {
           // Add to local state
           setGroups(prev => [...prev, newGroup])
           setGroupMembers(prev => ({ ...prev, [newGroup.id]: [] }))
+          setGroupSlotsInfo(prev => ({ ...prev, [newGroup.id]: { paid: 0, total: 0 } }))
         } catch (error: any) {
           const errorMsg = `Failed to import group '${groupData.name}': ${error.message || 'Unknown error'}`
           results.errors.push(errorMsg)
@@ -283,7 +323,7 @@ const Groups = () => {
       
       const csvContent = [
         // Header row
-        'name,description,monthlyAmount,maxMembers,duration,startDate,endDate',
+        'name,description,monthlyAmount,maxMembers,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
         // Data rows
         ...groups.map(group => 
           [
@@ -293,7 +333,10 @@ const Groups = () => {
             group.maxMembers.toString(),
             group.duration.toString(),
             group.startDate,
-            group.endDate
+            group.endDate,
+            group.paymentDeadlineDay.toString(),
+            group.lateFinePercentage.toString(),
+            group.lateFineFixedAmount.toString()
           ].join(',')
         )
       ].join('\n')
@@ -471,6 +514,50 @@ const Groups = () => {
                     <div className="stat-item">
                       <DollarSign size={16} />
                       <span>SRD {group.monthlyAmount.toLocaleString()}/month</span>
+                    </div>
+                    <div className="stat-item">
+                      <CheckCircle size={16} />
+                      <span>
+                        Slots Paid: {groupSlotsInfo[group.id]?.paid || 0} / {groupSlotsInfo[group.id]?.total || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="stat-row">
+                    <div className="stat-item">
+                      <Calendar size={16} />
+                      <span>Due: {group.paymentDeadlineDay}th</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="fine-info">
+                        {group.lateFineFixedAmount > 0 
+                          ? `Fine: SRD ${group.lateFineFixedAmount}`
+                          : `Fine: ${group.lateFinePercentage}%`
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Payment Progress Bar */}
+                  <div className="payment-progress">
+                    <div className="progress-header">
+                      <span className="progress-label">Payment Progress</span>
+                      <span className="progress-percentage">
+                        {groupSlotsInfo[group.id]?.total > 0 
+                          ? Math.round((groupSlotsInfo[group.id]?.paid || 0) / groupSlotsInfo[group.id]?.total * 100)
+                          : 0
+                        }%
+                      </span>
+                    </div>
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill"
+                        style={{
+                          width: `${groupSlotsInfo[group.id]?.total > 0 
+                            ? (groupSlotsInfo[group.id]?.paid || 0) / groupSlotsInfo[group.id]?.total * 100
+                            : 0
+                          }%`
+                        }}
+                      ></div>
                     </div>
                   </div>
                 </div>

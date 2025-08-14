@@ -10,6 +10,9 @@ export interface Payment {
   receiverBankId?: number
   status: 'not_paid' | 'pending' | 'received' | 'settled'
   notes?: string
+  fineAmount: number
+  isLatePayment: boolean
+  paymentDeadline: string
   createdAt: string
   updatedAt: string
   // Joined data
@@ -31,6 +34,9 @@ export interface PaymentFormData {
   receiverBankId?: number
   status: 'not_paid' | 'pending' | 'received' | 'settled'
   notes?: string
+  fineAmount?: number
+  isLatePayment?: boolean
+  paymentDeadline?: string
 }
 
 export interface PaymentFilters {

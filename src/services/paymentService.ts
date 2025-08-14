@@ -58,6 +58,9 @@ export const paymentService = {
       receiverBankId: payment.receiver_bank_id,
       status: payment.status,
       notes: payment.notes,
+      fineAmount: payment.fine_amount || 0,
+      isLatePayment: payment.is_late_payment || false,
+      paymentDeadline: payment.payment_deadline || '',
       createdAt: payment.created_at,
       updatedAt: payment.updated_at,
       // Transform joined data
@@ -93,6 +96,9 @@ export const paymentService = {
         duration: 0,
         startDate: '',
         endDate: '',
+        paymentDeadlineDay: 25,
+        lateFinePercentage: 5.00,
+        lateFineFixedAmount: 0,
         createdAt: '',
         updatedAt: ''
       } : undefined,
@@ -160,6 +166,9 @@ export const paymentService = {
       receiverBankId: data.receiver_bank_id,
       status: data.status,
       notes: data.notes,
+      fineAmount: data.fine_amount || 0,
+      isLatePayment: data.is_late_payment || false,
+      paymentDeadline: data.payment_deadline || '',
       createdAt: data.created_at,
       updatedAt: data.updated_at,
       // Transform joined data
@@ -195,6 +204,9 @@ export const paymentService = {
         duration: 0,
         startDate: '',
         endDate: '',
+        paymentDeadlineDay: 25,
+        lateFinePercentage: 5.00,
+        lateFineFixedAmount: 0,
         createdAt: '',
         updatedAt: ''
       } : undefined,
@@ -241,7 +253,10 @@ export const paymentService = {
       status: paymentData.status,
       sender_bank_id: paymentData.senderBankId,
       receiver_bank_id: paymentData.receiverBankId,
-      notes: paymentData.notes
+      notes: paymentData.notes,
+      fine_amount: paymentData.fineAmount || 0,
+      is_late_payment: paymentData.isLatePayment || false,
+      payment_deadline: paymentData.paymentDeadline || null
     }
 
     const { data, error } = await supabase
@@ -272,6 +287,9 @@ export const paymentService = {
     if (paymentData.senderBankId !== undefined) dbPaymentData.sender_bank_id = paymentData.senderBankId
     if (paymentData.receiverBankId !== undefined) dbPaymentData.receiver_bank_id = paymentData.receiverBankId
     if (paymentData.notes !== undefined) dbPaymentData.notes = paymentData.notes
+    if (paymentData.fineAmount !== undefined) dbPaymentData.fine_amount = paymentData.fineAmount
+    if (paymentData.isLatePayment !== undefined) dbPaymentData.is_late_payment = paymentData.isLatePayment
+    if (paymentData.paymentDeadline !== undefined) dbPaymentData.payment_deadline = paymentData.paymentDeadline
 
     const { data, error } = await supabase
       .from('payments')
@@ -379,6 +397,9 @@ export const paymentService = {
       receiverBankId: payment.receiver_bank_id,
       status: payment.status,
       notes: payment.notes,
+      fineAmount: payment.fine_amount || 0,
+      isLatePayment: payment.is_late_payment || false,
+      paymentDeadline: payment.payment_deadline || '',
       createdAt: payment.created_at,
       updatedAt: payment.updated_at,
       // Transform joined data
@@ -392,6 +413,9 @@ export const paymentService = {
         duration: 0,
         startDate: '',
         endDate: '',
+        paymentDeadlineDay: 25,
+        lateFinePercentage: 5.00,
+        lateFineFixedAmount: 0,
         createdAt: '',
         updatedAt: ''
       } : undefined,
@@ -431,5 +455,64 @@ export const paymentService = {
     }
 
     return data?.length || 0
+  },
+
+  // Get count of paid slots for a specific group
+  async getGroupPaidSlotsCount(groupId: number): Promise<{ paid: number; total: number }> {
+    try {
+      // Get total slots for the group (from group_members table)
+      const { data: totalSlots, error: totalError } = await supabase
+        .from('group_members')
+        .select('id')
+        .eq('group_id', groupId)
+
+      if (totalError) {
+        throw new Error(`Failed to fetch total slots: ${totalError.message}`)
+      }
+
+      const total = totalSlots?.length || 0
+
+      // Get paid slots count (from payments table with status 'received')
+      const { data: paidSlots, error: paidError } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('status', 'received')
+
+      if (paidError) {
+        throw new Error(`Failed to fetch paid slots: ${paidError.message}`)
+      }
+
+      const paid = paidSlots?.length || 0
+
+      return { paid, total }
+    } catch (error) {
+      console.error('Error getting group paid slots count:', error)
+      return { paid: 0, total: 0 }
+    }
+  },
+
+  // Check if a specific slot is paid
+  async isSlotPaid(groupId: number, memberId: number): Promise<boolean> {
+    try {
+      // For now, we'll check if there's any payment for this member in this group
+      // In the future, this could be enhanced to check specific month dates
+      const { data, error } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('member_id', memberId)
+        .eq('status', 'received')
+        .single()
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        throw new Error(`Failed to check slot payment status: ${error.message}`)
+      }
+
+      return !!data
+    } catch (error) {
+      console.error('Error checking slot payment status:', error)
+      return false
+    }
   }
 }

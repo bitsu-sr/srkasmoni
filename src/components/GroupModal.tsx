@@ -39,7 +39,10 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
     maxMembers: 1,
     duration: 6, // Default to 6 months based on default dates
     startDate: getDefaultStartDate(),
-    endDate: getDefaultEndDate()
+    endDate: getDefaultEndDate(),
+    paymentDeadlineDay: 29,
+    lateFinePercentage: 5.00,
+    lateFineFixedAmount: 100
   })
 
   const [errors, setErrors] = useState<{ [K in keyof GroupFormData]?: string }>({})
@@ -54,7 +57,10 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
         maxMembers: group.maxMembers,
         duration: calculatedDuration as number,
         startDate: group.startDate,
-        endDate: group.endDate
+        endDate: group.endDate,
+        paymentDeadlineDay: group.paymentDeadlineDay,
+        lateFinePercentage: group.lateFinePercentage,
+        lateFineFixedAmount: group.lateFineFixedAmount
       })
     } else {
       setFormData({
@@ -64,7 +70,10 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
         maxMembers: 1,
         duration: 6, // Default to 6 months based on default dates
         startDate: getDefaultStartDate(),
-        endDate: getDefaultEndDate()
+        endDate: getDefaultEndDate(),
+        paymentDeadlineDay: 29,
+        lateFinePercentage: 5.00,
+        lateFineFixedAmount: 100
       })
     }
     setErrors({})
@@ -103,6 +112,18 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
       if (startDate >= endDate) {
         newErrors.endDate = 'End date must be after start date'
       }
+    }
+
+    if (formData.paymentDeadlineDay < 1 || formData.paymentDeadlineDay > 31) {
+      newErrors.paymentDeadlineDay = 'Payment deadline day must be between 1 and 31'
+    }
+
+    if (formData.lateFinePercentage < 0 || formData.lateFinePercentage > 100) {
+      newErrors.lateFinePercentage = 'Late fine percentage must be between 0 and 100'
+    }
+
+    if (formData.lateFineFixedAmount < 0) {
+      newErrors.lateFineFixedAmount = 'Late fine amount cannot be negative'
     }
 
     setErrors(newErrors)
@@ -248,6 +269,53 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
             <div className="calculated-value">
               {formData.duration} month{formData.duration !== 1 ? 's' : ''}
             </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="paymentDeadlineDay">Payment Deadline Day *</label>
+              <input
+                type="number"
+                id="paymentDeadlineDay"
+                value={formData.paymentDeadlineDay}
+                onChange={(e) => handleInputChange('paymentDeadlineDay', parseInt(e.target.value) || 25)}
+                className={errors.paymentDeadlineDay ? 'error' : ''}
+                placeholder="25"
+                min="1"
+                max="31"
+              />
+              <small className="form-hint">Day of month when payment is due (1-31)</small>
+              {errors.paymentDeadlineDay && <span className="error-message">{errors.paymentDeadlineDay}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="lateFinePercentage">Late Fine Percentage (%)</label>
+              <input
+                type="number"
+                id="lateFinePercentage"
+                value={formData.lateFinePercentage}
+                onChange={(e) => handleInputChange('lateFinePercentage', parseFloat(e.target.value) || 0)}
+                placeholder="5.00"
+                min="0"
+                max="100"
+                step="0.01"
+              />
+              <small className="form-hint">Percentage fine for late payments (0-100%)</small>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="lateFineFixedAmount">Fixed Late Fine Amount (SRD)</label>
+            <input
+              type="number"
+              id="lateFineFixedAmount"
+              value={formData.lateFineFixedAmount}
+              onChange={(e) => handleInputChange('lateFineFixedAmount', parseFloat(e.target.value) || 0)}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+            />
+            <small className="form-hint">Fixed fine amount (if set, overrides percentage)</small>
           </div>
 
           <div className="modal-actions">

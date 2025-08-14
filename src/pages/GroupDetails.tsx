@@ -8,7 +8,6 @@ import {
   Calendar, 
   DollarSign, 
   Plus,
-  UserX,
   Download,
   Upload
 } from 'lucide-react'
@@ -42,7 +41,7 @@ const GroupDetails = () => {
   const [error, setError] = useState('')
   const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
   const [isImporting, setIsImporting] = useState(false)
-  const [paidSlotsCount, setPaidSlotsCount] = useState<Map<number, number>>(new Map())
+  const [slotPaymentStatus, setSlotPaymentStatus] = useState<Map<string, boolean>>(new Map())
   
   // Modal states
   const [showMemberModal, setShowMemberModal] = useState(false)
@@ -82,20 +81,22 @@ const GroupDetails = () => {
 
   const loadPaidSlotsCount = async (groupId: number, membersData: GroupMember[]) => {
     try {
-      const paidCounts = new Map<number, number>()
-      
-      // Get unique member IDs
-      const uniqueMemberIds = new Set(membersData.map(m => m.memberId))
-      
-      // Load paid slots count for each member
-      for (const memberId of uniqueMemberIds) {
-        const count = await paymentService.getMemberPaidSlotsCount(memberId, groupId)
-        paidCounts.set(memberId, count)
+      const slotStatus = new Map<string, boolean>()
+
+      // Load payment status for each individual slot
+      for (const member of membersData) {
+        const monthDate = typeof member.assignedMonthDate === 'string' 
+          ? member.assignedMonthDate 
+          : `2024-${String(member.assignedMonthDate).padStart(2, '0')}`
+        
+        const isPaid = await paymentService.isSlotPaid(groupId, member.memberId)
+        const slotKey = `${member.memberId}-${monthDate}`
+        slotStatus.set(slotKey, isPaid)
       }
       
-      setPaidSlotsCount(paidCounts)
+      setSlotPaymentStatus(slotStatus)
     } catch (err) {
-      console.error('Error loading paid slots count:', err)
+      console.error('Error loading slot payment status:', err)
       // Don't fail the entire load, just log the error
     }
   }
@@ -125,17 +126,19 @@ const GroupDetails = () => {
     }
   }
 
-  const handleRemoveMember = async (memberId: number) => {
+  const handleRemoveSlot = async (memberId: number, monthDate: string) => {
     try {
       if (!group) return
       
-      await groupService.removeMemberFromGroup(group.id, memberId)
+      await groupService.removeMemberSlot(group.id, memberId, monthDate)
       // Reload members
       const updatedMembers = await groupService.getGroupMembers(group.id)
       setMembers(updatedMembers)
+      // Reload payment status
+      await loadPaidSlotsCount(group.id, updatedMembers)
     } catch (err) {
-      setError('Failed to remove member from group')
-      console.error('Error removing member:', err)
+      setError('Failed to remove slot')
+      console.error('Error removing slot:', err)
     }
   }
 
@@ -455,10 +458,10 @@ const GroupDetails = () => {
           </div>
         </div>
 
-        {/* Members Section */}
+        {/* Slots Section */}
         <div className="members-section">
           <div className="section-header">
-            <h2>Group Members</h2>
+            <h2>Group Slots</h2>
             {(() => {
               const totalSlots = members.length
               const hasAvailableSlots = totalSlots < group.maxMembers
@@ -549,69 +552,71 @@ const GroupDetails = () => {
           {members.length === 0 ? (
             <div className="empty-members">
               <Users size={64} className="empty-icon" />
-              <h3>No Members Yet</h3>
-              <p>This group doesn't have any members yet. Add the first member to get started. Each member can reserve multiple monthly slots.</p>
+              <h3>No Slots Yet</h3>
+              <p>This group doesn't have any slots assigned yet. Add the first member slot to get started. Each member can reserve multiple monthly slots.</p>
               <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
                 <Plus size={16} />
-                Add First Member
+                Add First Slot
               </button>
             </div>
           ) : (
-            <div className="members-grid">
-              {(() => {
-                // Group members by member ID to show multiple slots per member
-                const memberSlots = new Map<number, GroupMember[]>()
-                members.forEach(member => {
-                  if (!memberSlots.has(member.memberId)) {
-                    memberSlots.set(member.memberId, [])
-                  }
-                  memberSlots.get(member.memberId)!.push(member)
-                })
+            <div className="slots-grid">
+              {members.map((slot) => {
+                const monthDate = typeof slot.assignedMonthDate === 'string' 
+                  ? slot.assignedMonthDate 
+                  : `2024-${String(slot.assignedMonthDate).padStart(2, '0')}`
+                
+                const slotKey = `${slot.memberId}-${monthDate}`
+                const isPaid = slotPaymentStatus.get(slotKey) || false
+                const groupDuration = group?.startDate && group?.endDate ? 
+                  calculateDuration(group.startDate, group.endDate) : 0
+                const slotAmount = (group?.monthlyAmount || 0) * groupDuration
 
-                return Array.from(memberSlots.entries()).map(([memberId, memberSlots]) => {
-                  const firstMember = memberSlots[0]
-                  const totalSlots = memberSlots.length
-                  const groupDuration = group?.startDate && group?.endDate ? 
-                    calculateDuration(group.startDate, group.endDate) : 0
-                  const totalAmount = totalSlots * (group?.monthlyAmount || 0) * groupDuration
-
-                  return (
-                    <div key={memberId} className="member-card">
-                      <div className="member-info">
-                        <div className="member-name" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-                          {firstMember.member?.firstName} {firstMember.member?.lastName}
+                return (
+                  <div key={slot.id} className="slot-card">
+                    <div className="slot-info">
+                      <div className="slot-header">
+                        <div className="slot-month">
+                          {formatMonthYear(monthDate)}
+                        </div>
+                        <div className="slot-payment-status">
+                          {isPaid ? (
+                            <span className="status-paid">Paid</span>
+                          ) : (
+                            <span className="status-unpaid">Unpaid</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="slot-member">
+                        <div className="member-name">
+                          {slot.member?.firstName} {slot.member?.lastName}
                         </div>
                         <div className="member-details">
-                          <span className="member-slots">
-                            Payment Months: {memberSlots.map(slot => 
-                              formatMonthYear(typeof slot.assignedMonthDate === 'string' 
-                                ? slot.assignedMonthDate
-                                : `2024-${String(slot.assignedMonthDate).padStart(2, '0')}`
-                              )
-                            ).join(', ')}
-                          </span>
-                          <span className="member-amount">
-                            Total Receives: SRD {totalAmount.toLocaleString()}
-                          </span>
-                          <span className="member-slot-count">Slot{totalSlots !== 1 ? 's' : ''}: {totalSlots} </span>
-                          <span className="member-slots-paid">
-                            Slots Paid: {paidSlotsCount.get(memberId) || 0}/{totalSlots}
-                          </span>
+                          <span className="member-phone">{slot.member?.phone}</span>
+                          <span className="member-email">{slot.member?.email}</span>
                         </div>
                       </div>
-                      <div className="member-actions">
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleRemoveMember(memberId)}
-                          title="Remove all slots for this member"
-                        >
-                          <UserX size={16} />
-                        </button>
+                      <div className="slot-details">
+                        <span className="slot-amount">
+                          Receives: SRD {slotAmount.toLocaleString()}
+                        </span>
+                        <span className="slot-duration">
+                          Duration: {groupDuration} month{groupDuration !== 1 ? 's' : ''}
+                        </span>
                       </div>
                     </div>
-                  )
-                })
-              })()}
+                    <div className="slot-actions">
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleRemoveSlot(slot.memberId, monthDate)}
+                        title="Remove this slot"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

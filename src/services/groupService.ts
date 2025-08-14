@@ -2,8 +2,39 @@ import { supabase } from '../lib/supabase'
 import type { Database } from '../lib/supabase'
 import type { Group, GroupFormData, GroupMember, GroupMemberFormData } from '../types/member'
 
-type GroupRow = Database['public']['Tables']['groups']['Row']
-type GroupUpdate = Database['public']['Tables']['groups']['Update']
+// Custom interfaces for database rows with new fields
+interface GroupRow {
+  id: number
+  name: string
+  description: string | null
+  monthly_amount: number
+  max_members: number
+  duration: number
+  start_date: string
+  end_date: string
+  payment_deadline_day: number
+  late_fine_percentage: number
+  late_fine_fixed_amount: number
+  created_at: string
+  updated_at: string
+}
+
+interface GroupUpdate {
+  id?: number
+  name?: string
+  description?: string | null
+  monthly_amount?: number
+  max_members?: number
+  duration?: number
+  start_date?: string
+  end_date?: string
+  payment_deadline_day?: number
+  late_fine_percentage?: number
+  late_fine_fixed_amount?: number
+  created_at?: string
+  updated_at?: string
+}
+
 type GroupMemberRow = Database['public']['Tables']['group_members']['Row']
 
 // Transform database row to Group interface
@@ -16,6 +47,9 @@ const transformGroupRow = (row: GroupRow): Group => ({
   duration: row.duration,
   startDate: row.start_date,
   endDate: row.end_date,
+  paymentDeadlineDay: row.payment_deadline_day || 25,
+  lateFinePercentage: row.late_fine_percentage || 5.00,
+  lateFineFixedAmount: row.late_fine_fixed_amount || 0,
   createdAt: row.created_at,
   updatedAt: row.updated_at
 })
@@ -106,6 +140,9 @@ export const groupService = {
           duration: groupData.duration,
           start_date: groupData.startDate,
           end_date: groupData.endDate,
+          payment_deadline_day: groupData.paymentDeadlineDay,
+          late_fine_percentage: groupData.lateFinePercentage,
+          late_fine_fixed_amount: groupData.lateFineFixedAmount,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -132,6 +169,9 @@ export const groupService = {
       if (updates.duration !== undefined) updateData.duration = updates.duration
       if (updates.startDate !== undefined) updateData.start_date = updates.startDate
       if (updates.endDate !== undefined) updateData.end_date = updates.endDate
+      if (updates.paymentDeadlineDay !== undefined) updateData.payment_deadline_day = updates.paymentDeadlineDay
+      if (updates.lateFinePercentage !== undefined) updateData.late_fine_percentage = updates.lateFinePercentage
+      if (updates.lateFineFixedAmount !== undefined) updateData.late_fine_fixed_amount = updates.lateFineFixedAmount
       
       updateData.updated_at = new Date().toISOString()
       

@@ -57,6 +57,9 @@ export interface Group {
   duration: number
   startDate: string
   endDate: string
+  paymentDeadlineDay: number
+  lateFinePercentage: number
+  lateFineFixedAmount: number
   createdAt: string
   updatedAt: string
 }
@@ -69,6 +72,9 @@ export interface GroupFormData {
   duration: number
   startDate: string
   endDate: string
+  paymentDeadlineDay: number
+  lateFinePercentage: number
+  lateFineFixedAmount: number
 }
 
 export interface GroupMember {
