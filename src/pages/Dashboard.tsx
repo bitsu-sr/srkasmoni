@@ -148,7 +148,12 @@ const Dashboard = () => {
       setRecentPayments(recentPayments)
       setRecentMembers(recentMembers)
       setRecentGroups(recentGroups)
-      setDashboardGroups(dashboardGroupsData)
+      
+      // Sort dashboard groups by name in ascending order
+      const sortedGroups = [...dashboardGroupsData].sort((a, b) => 
+        a.name.localeCompare(b.name)
+      )
+      setDashboardGroups(sortedGroups)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
     } finally {
@@ -168,6 +173,21 @@ const Dashboard = () => {
     }
     
     return (endYear - startYear) * 12 + (endMonth - startMonth) + 1
+  }
+
+  // Helper function to format month-year
+  const formatMonthYear = (dateString: string): string => {
+    if (!dateString) return 'N/A'
+    
+    const [year, month] = dateString.split('-').map(Number)
+    if (isNaN(year) || isNaN(month)) return 'N/A'
+    
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ]
+    
+    return `${monthNames[month - 1]} ${year}`
   }
 
   // Helper function to format relative time
@@ -465,7 +485,7 @@ const Dashboard = () => {
                        <span>Period:</span>
                        <span>
                          {group.startDate && group.endDate ? 
-                           `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
+                           `${formatMonthYear(group.startDate)} - ${formatMonthYear(group.endDate)}`
                            : 'N/A'
                          }
                        </span>

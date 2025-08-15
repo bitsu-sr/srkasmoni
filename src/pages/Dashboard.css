@@ -168,6 +168,8 @@
   border-radius: 12px;
   padding: 1.5rem;
   transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .dashboard-group-card:hover {
@@ -214,7 +216,9 @@
 
 .dashboard-group-card .payment-progress {
   margin: 1rem 0;
-  padding: 0.75rem 0;
+  padding: 12px 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dashboard-group-card .progress-header {
@@ -242,6 +246,8 @@
   background-color: #e5e7eb;
   border-radius: 4px;
   overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
 }
 
 .dashboard-group-card .progress-fill {
