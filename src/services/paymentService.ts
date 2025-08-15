@@ -191,6 +191,7 @@ export const paymentService = {
         totalReceived: 0,
         lastPayment: '',
         nextPayment: '',
+        status: 'pending',
         notes: '',
         created_at: '',
         updated_at: ''
@@ -412,7 +413,11 @@ export const paymentService = {
       notPaidAmount: 0,
       settledAmount: 0,
       cashPayments: 0,
-      bankTransferPayments: 0
+      bankTransferPayments: 0,
+      receivedCount: 0,
+      pendingCount: 0,
+      notPaidCount: 0,
+      settledCount: 0
     }
 
     data?.forEach((payment: any) => {
@@ -421,15 +426,19 @@ export const paymentService = {
       switch (payment.status) {
         case 'received':
           stats.receivedAmount += payment.amount || 0
+          stats.receivedCount++
           break
         case 'pending':
           stats.pendingAmount += payment.amount || 0
+          stats.pendingCount++
           break
         case 'not_paid':
           stats.notPaidAmount += payment.amount || 0
+          stats.notPaidCount++
           break
         case 'settled':
           stats.settledAmount += payment.amount || 0
+          stats.settledCount++
           break
       }
 

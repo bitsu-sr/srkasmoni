@@ -115,6 +115,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                totalReceived: 0,
                lastPayment: '',
                nextPayment: '',
+               status: 'pending',
                notes: null,
                created_at: '',
                updated_at: ''

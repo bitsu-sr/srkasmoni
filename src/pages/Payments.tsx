@@ -19,7 +19,11 @@ const Payments = () => {
     notPaidAmount: 0,
     settledAmount: 0,
     cashPayments: 0,
-    bankTransferPayments: 0
+    bankTransferPayments: 0,
+    receivedCount: 0,
+    pendingCount: 0,
+    notPaidCount: 0,
+    settledCount: 0
   })
   const [filters, setFilters] = useState<PaymentFiltersType>({})
   const [isModalOpen, setIsModalOpen] = useState(false)

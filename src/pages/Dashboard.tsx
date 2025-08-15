@@ -10,6 +10,13 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const [stats, setStats] = useState([
     {
+      title: 'Total Amount Expected',
+      value: 'SRD 0',
+      change: '0%',
+      icon: Calendar,
+      color: 'info'
+    },
+    {
       title: 'Total Amount Paid',
       value: 'SRD 0',
       change: '0%',
@@ -24,10 +31,10 @@ const Dashboard = () => {
       color: 'primary'
     },
     {
-      title: 'Total Amount Expected',
+      title: 'Pending Payments',
       value: 'SRD 0',
-      change: '0%',
-      icon: Calendar,
+      change: '0',
+      icon: CreditCard,
       color: 'info'
     },
     {
@@ -45,11 +52,11 @@ const Dashboard = () => {
       color: 'success'
     },
     {
-      title: 'Pending Payments',
-      value: 'SRD 0',
+      title: 'Active Members',
+      value: '0/0',
       change: '0',
-      icon: CreditCard,
-      color: 'info'
+      icon: UserPlus,
+      color: 'primary'
     }
   ])
 
@@ -67,24 +74,33 @@ const Dashboard = () => {
     try {
       setLoading(true)
       
-      // Fetch all data in parallel
-      const [
-        paymentStats, 
-        groups, 
-        overduePaymentsData, 
-        recentPayments, 
-        recentMembers, 
-        recentGroups,
-        dashboardGroupsData
-      ] = await Promise.all([
-        paymentService.getPaymentStats(),
-        groupService.getAllGroups(),
-        paymentService.getOverduePayments(),
-        paymentService.getRecentPayments(5),
-        memberService.getRecentMembers(3),
-        groupService.getRecentGroups(3),
-        groupService.getDashboardGroups()
-      ])
+             // Fetch all data in parallel
+               const [
+          paymentStats, 
+          groups, 
+          overduePaymentsData, 
+          recentPayments, 
+          recentMembers, 
+          recentGroups,
+          dashboardGroupsData,
+          totalMembers,
+          activeMembers
+        ] = await Promise.all([
+          paymentService.getPaymentStats(),
+          groupService.getAllGroups(),
+          paymentService.getOverduePayments(),
+          paymentService.getRecentPayments(5),
+          memberService.getRecentMembers(3),
+          groupService.getRecentGroups(3),
+          groupService.getDashboardGroups(),
+          memberService.getTotalMemberCount(),
+          memberService.getActiveMemberCount()
+        ])
+
+        console.log('📊 Dashboard data received:')
+        console.log('👥 Total Members:', totalMembers)
+        console.log('✅ Active Members:', activeMembers)
+        console.log('📈 Active/Total ratio:', `${activeMembers}/${totalMembers}`)
 
       // Calculate total expected amount (all groups monthly amounts * duration)
       let totalExpected = 0
@@ -95,54 +111,65 @@ const Dashboard = () => {
         }
       })
 
-      // Calculate percentage changes (simplified - could be enhanced with historical data)
-      const totalPaid = paymentStats.receivedAmount + paymentStats.settledAmount
-      const totalPending = paymentStats.pendingAmount
+                          // Calculate percentage changes (simplified - could be enhanced with historical data)
+        const totalPaid = paymentStats.receivedAmount + paymentStats.pendingAmount + paymentStats.settledAmount
+        const totalPending = paymentStats.pendingAmount
 
-      const newStats = [
-        {
-          title: 'Total Amount Paid',
-          value: `SRD ${(totalPaid).toLocaleString()}`,
-          change: totalPaid > 0 ? '+100%' : '0%',
-          icon: DollarSign,
-          color: 'success'
-        },
-        {
-          title: 'Total Amount Received',
-          value: `SRD ${paymentStats.receivedAmount.toLocaleString()}`,
-          change: paymentStats.receivedAmount > 0 ? '+100%' : '0%',
-          icon: TrendingUp,
-          color: 'primary'
-        },
-        {
-          title: 'Total Amount Expected',
-          value: `SRD ${totalExpected.toLocaleString()}`,
-          change: totalExpected > 0 ? '+100%' : '0%',
-          icon: Calendar,
-          color: 'info'
-        },
-        {
-          title: 'Overdue Payments',
-          value: `SRD ${overduePaymentsData.amount.toLocaleString()}`,
-          change: overduePaymentsData.count > 0 ? `+${overduePaymentsData.count}` : '0',
-          icon: AlertTriangle,
-          color: 'warning'
-        },
-        {
-          title: 'Active Groups',
-          value: groups.length.toString(),
-          change: groups.length > 0 ? `+${groups.length}` : '0',
-          icon: Users,
-          color: 'success'
-        },
-        {
-          title: 'Pending Payments',
-          value: `SRD ${totalPending.toLocaleString()}`,
-          change: totalPending > 0 ? `+${Math.ceil(totalPending / 1000)}` : '0',
-          icon: CreditCard,
-          color: 'info'
-        }
-      ]
+             // Calculate percentages
+             const paidPercentage = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0
+             const receivedPercentage = totalPaid > 0 ? Math.round((paymentStats.receivedAmount / totalPaid) * 100) : 0
+
+             const newStats = [
+         {
+           title: 'Total Amount Expected',
+           value: `SRD ${totalExpected.toLocaleString()}`,
+           change: totalExpected > 0 ? '+100%' : '0%',
+           icon: Calendar,
+           color: 'info'
+         },
+         {
+           title: 'Total Amount Paid',
+           value: `SRD ${(totalPaid).toLocaleString()}`,
+           change: totalPaid > 0 ? `+${paidPercentage}%` : '0%',
+           icon: DollarSign,
+           color: 'success'
+         },
+         {
+           title: 'Total Amount Received',
+           value: `SRD ${paymentStats.receivedAmount.toLocaleString()}`,
+           change: paymentStats.receivedAmount > 0 ? `+${receivedPercentage}%` : '0%',
+           icon: TrendingUp,
+           color: 'primary'
+         },
+         {
+           title: 'Pending Payments',
+           value: `SRD ${totalPending.toLocaleString()}`,
+           change: paymentStats.pendingCount > 0 ? `+${paymentStats.pendingCount}` : '0',
+           icon: CreditCard,
+           color: 'info'
+         },
+         {
+           title: 'Overdue Payments',
+           value: `SRD ${overduePaymentsData.amount.toLocaleString()}`,
+           change: overduePaymentsData.count > 0 ? `+${overduePaymentsData.count}` : '0',
+           icon: AlertTriangle,
+           color: 'warning'
+         },
+         {
+           title: 'Active Groups',
+           value: groups.length.toString(),
+           change: groups.length > 0 ? `+${groups.length}` : '0',
+           icon: Users,
+           color: 'success'
+         },
+         {
+           title: 'Active Members',
+           value: `${activeMembers}/${totalMembers}`,
+           change: activeMembers > 0 ? `+${activeMembers}` : '0',
+           icon: UserPlus,
+           color: 'primary'
+         }
+       ]
 
       setStats(newStats)
       setRecentPayments(recentPayments)
@@ -234,30 +261,30 @@ const Dashboard = () => {
       </div>
 
       <div className="container">
-        {/* Stats Grid */}
-        <div className="grid grid-3">
-          {loading ? (
-            // Loading skeleton - keeping exact same structure
-            Array.from({ length: 6 }).map((_, index) => {
-              const IconComponent = [DollarSign, TrendingUp, Calendar, AlertTriangle, Users, CreditCard][index]
-              return (
-                <div key={index} className={`stat-card stat-${['success', 'primary', 'info', 'warning', 'success', 'info'][index]}`}>
-                  <div className="stat-header">
-                    <div className="stat-icon">
-                      <IconComponent size={24} />
-                    </div>
-                    <div className="stat-change">
-                      <span className={`change-${['success', 'primary', 'info', 'warning', 'success', 'info'][index]}`}>...</span>
-                    </div>
-                  </div>
-                  <div className="stat-content">
-                    <h3 className="stat-title">Loading...</h3>
-                    <div className="stat-value">SRD 0</div>
-                  </div>
-                </div>
-              )
-            })
-          ) : (
+                 {/* Stats Grid */}
+         <div className="grid grid-3">
+           {loading ? (
+             // Loading skeleton - keeping exact same structure
+             Array.from({ length: 7 }).map((_, index) => {
+               const IconComponent = [Calendar, DollarSign, TrendingUp, CreditCard, AlertTriangle, Users, UserPlus][index]
+               return (
+                 <div key={index} className={`stat-card stat-${['info', 'success', 'primary', 'info', 'warning', 'success', 'primary'][index]}`}>
+                   <div className="stat-header">
+                     <div className="stat-icon">
+                       <IconComponent size={24} />
+                     </div>
+                     <div className="stat-change">
+                       <span className={`change-${['success', 'primary', 'info', 'warning', 'success', 'primary', 'info'][index]}`}>...</span>
+                     </div>
+                   </div>
+                   <div className="stat-content">
+                     <h3 className="stat-title">Loading...</h3>
+                     <div className="stat-value">SRD 0</div>
+                   </div>
+                 </div>
+               )
+             })
+           ) : (
             stats.map((stat, index) => {
               const Icon = stat.icon
               return (

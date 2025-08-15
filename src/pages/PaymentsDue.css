@@ -58,27 +58,100 @@
 
 .stat-card {
   flex: 1;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   padding: 1.5rem;
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card-default {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-color: #e2e8f0;
+}
+
+.stat-card-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #10b981;
+  color: white;
+}
+
+.stat-card-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-color: #ef4444;
+  color: white;
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
   border-radius: 0.5rem;
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.stat-card-default .stat-icon {
+  background: rgba(30, 41, 59, 0.1);
+  color: #1e293b;
+}
+
+.stat-card-success .stat-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.stat-card-danger .stat-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.stat-content {
+  flex: 1;
+  text-align: left;
 }
 
 .stat-number {
   font-size: 2rem;
   font-weight: 700;
-  color: #1e293b;
   margin-bottom: 0.5rem;
   font-family: 'Courier New', monospace;
 }
 
+.stat-card-default .stat-number {
+  color: #1e293b;
+}
+
+.stat-card-success .stat-number,
+.stat-card-danger .stat-number {
+  color: white;
+}
+
 .stat-label {
   font-size: 0.875rem;
-  color: #64748b;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.stat-card-default .stat-label {
+  color: #64748b;
+}
+
+.stat-card-success .stat-label,
+.stat-card-danger .stat-label {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .filter-toggle {
@@ -193,6 +266,13 @@
   position: relative;
 }
 
+.payments-due-table th:first-child {
+  width: 60px;
+  text-align: center;
+  font-weight: 700;
+  color: #6b7280;
+}
+
 .payments-due-table th.sortable {
   cursor: pointer;
   user-select: none;
@@ -213,6 +293,14 @@
   padding: 1rem;
   border-bottom: 1px solid #f3f4f6;
   vertical-align: middle;
+}
+
+.payments-due-table td.row-number {
+  text-align: center;
+  font-weight: 600;
+  color: #6b7280;
+  font-family: 'Courier New', monospace;
+  width: 60px;
 }
 
 .payments-due-table tbody tr {

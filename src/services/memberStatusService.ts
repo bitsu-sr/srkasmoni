@@ -28,6 +28,7 @@ export interface MemberWithStatus {
   totalReceived: number
   lastPayment: string
   nextPayment: string
+  status: string
   notes: string | null
   created_at: string
   updated_at: string
@@ -100,6 +101,7 @@ export const getMemberWithStatus = async (memberId: number): Promise<MemberWithS
       totalReceived: member.totalReceived,
       lastPayment: member.lastPayment,
       nextPayment: member.nextPayment,
+      status: member.status,
       notes: member.notes,
       created_at: member.created_at,
       updated_at: member.updated_at,

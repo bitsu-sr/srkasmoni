@@ -427,27 +427,33 @@ export const groupService = {
           // Get next recipient (member with slot in current month)
           const currentMonth = new Date().toISOString().split('T')[0].substring(0, 7) // YYYY-MM format
           
-          // First get the group member record
-          const { data: groupMemberData, error: memberError } = await supabase
-            .from('group_members')
-            .select('member_id')
-            .eq('group_id', group.id)
-            .eq('assigned_month_date', currentMonth)
-            .limit(1)
-            .single()
-
           let nextRecipient = 'No recipient this month'
-          if (!memberError && groupMemberData?.member_id) {
-            // Then get the member details
-            const { data: memberData, error: memberDetailsError } = await supabase
-              .from('members')
-              .select('first_name, last_name')
-              .eq('id', groupMemberData.member_id)
+          
+          try {
+            // First get the group member record
+            const { data: groupMemberData, error: memberError } = await supabase
+              .from('group_members')
+              .select('member_id')
+              .eq('group_id', group.id)
+              .eq('assigned_month_date', currentMonth)
+              .limit(1)
               .single()
-            
-            if (!memberDetailsError && memberData) {
-              nextRecipient = `${memberData.first_name} ${memberData.last_name}`
+
+            if (!memberError && groupMemberData?.member_id) {
+              // Then get the member details
+              const { data: memberData, error: memberDetailsError } = await supabase
+                .from('members')
+                .select('first_name, last_name')
+                .eq('id', groupMemberData.member_id)
+                .single()
+              
+              if (!memberDetailsError && memberData) {
+                nextRecipient = `${memberData.first_name} ${memberData.last_name}`
+              }
             }
+          } catch (error) {
+            console.warn(`Error getting next recipient for group ${group.id}:`, error)
+            nextRecipient = 'Error loading data'
           }
 
           dashboardGroups.push({

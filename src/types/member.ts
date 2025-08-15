@@ -17,6 +17,7 @@ export interface Member {
   totalReceived: number
   lastPayment: string
   nextPayment: string
+  status: string
   notes: string | null
   created_at: string
   updated_at: string

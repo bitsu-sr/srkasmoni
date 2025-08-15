@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Plus } from 'lucide-react'
+import { Calendar, Plus, CreditCard, DollarSign, AlertTriangle } from 'lucide-react'
 import type { PaymentSlot } from '../types/paymentSlot'
 
 import { paymentSlotService } from '../services/paymentSlotService'
@@ -34,7 +34,29 @@ const PaymentsDue = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<UnpaidSlot | null>(null)
   const [slotsWithPayments, setSlotsWithPayments] = useState<Set<string>>(new Set())
+  const [totalAmount, setTotalAmount] = useState(0)
+  const [totalAmountPaid, setTotalAmountPaid] = useState(0)
   // Removed showCurrentMonthOnly since we're showing all slots now
+
+  // Calculate total amounts for summary cards
+  const calculateTotalAmounts = async (groups: any[]) => {
+    try {
+      // Calculate Total Amount: Sum of all members' monthly amounts across all groups
+      let totalAmount = 0
+      for (const group of groups) {
+        const groupMembers = await groupService.getGroupMembers(group.id)
+        totalAmount += groupMembers.length * group.monthlyAmount
+      }
+      setTotalAmount(totalAmount)
+
+      // Calculate Total Amount Paid: Sum of all payments (pending + received + settled, excluding not_paid)
+      const paymentStats = await paymentService.getPaymentStats()
+      const totalAmountPaid = paymentStats.pendingAmount + paymentStats.receivedAmount + paymentStats.settledAmount
+      setTotalAmountPaid(totalAmountPaid)
+    } catch (error) {
+      console.error('Error calculating total amounts:', error)
+    }
+  }
 
   useEffect(() => {
     loadUnpaidSlots()
@@ -80,6 +102,9 @@ const PaymentsDue = () => {
           console.error(`Error loading slots for group ${group.id}:`, error)
         }
       }
+      
+      // Calculate total amounts
+      await calculateTotalAmounts(groups)
       
              console.log(`Total slots found: ${allSlots.length}`)
        console.log('Slots:', allSlots)
@@ -241,13 +266,41 @@ const PaymentsDue = () => {
 
       {/* Statistics Section */}
       <div className="statistics-section">
-        <div className="stat-card">
-          <div className="stat-number">{sortedSlots.length}</div>
-          <div className="stat-label">Total Slots</div>
+        <div className="stat-card stat-card-default">
+          <div className="stat-icon">
+            <CreditCard size={24} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-number">{sortedSlots.length}</div>
+            <div className="stat-label">Total Slots</div>
+          </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-number">SRD {sortedSlots.reduce((total, slot) => total + slot.amount, 0).toFixed(2)}</div>
-          <div className="stat-label">Total Amount Due</div>
+        <div className="stat-card stat-card-default">
+          <div className="stat-icon">
+            <Calendar size={24} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-number">SRD {totalAmount.toFixed(2)}</div>
+            <div className="stat-label">Total Amount</div>
+          </div>
+        </div>
+        <div className="stat-card stat-card-success">
+          <div className="stat-icon">
+            <DollarSign size={24} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-number">SRD {totalAmountPaid.toFixed(2)}</div>
+            <div className="stat-label">Total Amount Paid</div>
+          </div>
+        </div>
+        <div className="stat-card stat-card-danger">
+          <div className="stat-icon">
+            <AlertTriangle size={24} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-number">SRD {Math.max(0, totalAmount - totalAmountPaid).toFixed(2)}</div>
+            <div className="stat-label">Total Amount Due</div>
+          </div>
         </div>
       </div>
 
@@ -262,6 +315,7 @@ const PaymentsDue = () => {
           <table className="payments-due-table">
             <thead>
               <tr>
+                <th>#</th>
                 <th onClick={() => handleSort('firstName')} className="sortable">
                   First Name{getSortIconDisplay('firstName')}
                 </th>
@@ -281,7 +335,7 @@ const PaymentsDue = () => {
               </tr>
             </thead>
             <tbody>
-                             {sortedSlots.map((slot) => {
+                             {sortedSlots.map((slot, index) => {
                  const slotKey = `${slot.groupId}-${slot.memberId}-${slot.monthDate}`
                  const hasPayment = slotsWithPayments.has(slotKey)
                  
@@ -290,6 +344,7 @@ const PaymentsDue = () => {
                      key={slotKey} 
                      className={`table-row ${hasPayment ? 'has-payment' : ''}`}
                    >
+                     <td className="row-number">{index + 1}</td>
                      <td>{slot.member.firstName}</td>
                      <td>{slot.member.lastName}</td>
                      <td>{slot.group.name}</td>
@@ -307,7 +362,7 @@ const PaymentsDue = () => {
                          disabled={hasPayment}
                        >
                          <Plus size={16} />
-                         {hasPayment ? 'Paid' : 'Add Payment'}
+                                                  {hasPayment ? 'Paid' : 'Add Payment'}
                        </button>
                      </td>
                    </tr>

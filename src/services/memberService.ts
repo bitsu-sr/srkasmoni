@@ -21,6 +21,7 @@ const transformMemberRow = (row: any): Member => ({
   totalReceived: row.total_received || 0,
   lastPayment: row.last_payment || '',
   nextPayment: row.next_payment || '',
+  status: row.status || 'pending',
   notes: row.notes,
   created_at: row.created_at,
   updated_at: row.updated_at
@@ -326,6 +327,37 @@ export const memberService = {
     } catch (error) {
       console.error('Error fetching recent members:', error)
       return []
+    }
+  },
+
+  // Get active member count for dashboard (members who have slots in groups)
+  async getActiveMemberCount(): Promise<number> {
+    try {
+      console.log('🔍 Fetching active member count...')
+      
+      // Use the same logic as getMemberSlotsInfo - count distinct members who have slots
+      // First get all member_ids from group_members
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('member_id')
+
+      if (error) {
+        console.error('❌ Error fetching active member count:', error)
+        throw error
+      }
+      
+      // Use Set to get unique member IDs
+      const uniqueMemberIds = new Set(data?.map((row: { member_id: number }) => row.member_id) || [])
+      const activeCount = uniqueMemberIds.size
+      
+      console.log('📊 Active member count data:', data)
+      console.log('🔢 Unique member IDs:', Array.from(uniqueMemberIds))
+      console.log('🔢 Active member count result:', activeCount)
+      
+      return activeCount
+    } catch (error) {
+      console.error('❌ Error in getActiveMemberCount:', error)
+      return 0
     }
   }
 }

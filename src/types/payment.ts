@@ -58,6 +58,10 @@ export interface PaymentStats {
   settledAmount: number
   cashPayments: number
   bankTransferPayments: number
+  receivedCount: number
+  pendingCount: number
+  notPaidCount: number
+  settledCount: number
 }
 
 // Import types from existing files
