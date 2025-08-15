@@ -317,6 +317,44 @@ export const paymentService = {
     }
   },
 
+  // Check if a slot has an existing payment
+  async checkSlotHasPayment(groupId: number, memberId: number, monthDate: string): Promise<boolean> {
+    try {
+      // First check if there's a payment_slot record
+      const { data: slotData, error: slotError } = await supabase
+        .from('payment_slots')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('member_id', memberId)
+        .eq('month_date', monthDate)
+
+      if (slotError) {
+        throw new Error(`Failed to check payment slot: ${slotError.message}`)
+      }
+
+      if (!slotData || slotData.length === 0) {
+        return false // No slot record found
+      }
+
+      const slotId = slotData[0].id
+
+      // Check if there's a payment for this slot
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('slot_id', slotId)
+
+      if (paymentError) {
+        throw new Error(`Failed to check payment: ${paymentError.message}`)
+      }
+
+      return (paymentData || []).length > 0
+    } catch (error) {
+      console.error('Error checking if slot has payment:', error)
+      throw error
+    }
+  },
+
   // Check for duplicate payment
   async checkDuplicatePayment(paymentData: PaymentFormData): Promise<boolean> {
     try {
@@ -552,6 +590,147 @@ export const paymentService = {
     } catch (error) {
       console.error('Error checking slot payment status:', error)
       return false
+    }
+  },
+
+  // Get recent payments for dashboard
+  async getRecentPayments(limit: number = 5): Promise<Payment[]> {
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .select(`
+          *,
+          member:members(first_name, last_name),
+          group:groups(name),
+          slot:payment_slots(month_date)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      if (error) {
+        throw new Error(`Failed to fetch recent payments: ${error.message}`)
+      }
+
+      // Transform the data to match frontend interface
+      const transformedPayments: Payment[] = (data || []).map((payment: any) => ({
+        id: payment.id,
+        memberId: payment.member_id,
+        groupId: payment.group_id,
+        slotId: payment.slot_id,
+        paymentDate: payment.payment_date,
+        amount: payment.amount,
+        paymentMethod: payment.payment_method,
+        senderBankId: payment.sender_bank_id,
+        receiverBankId: payment.receiver_bank_id,
+        status: payment.status,
+        notes: payment.notes,
+        fineAmount: payment.fine_amount || 0,
+        isLatePayment: payment.is_late_payment || false,
+        paymentDeadline: payment.payment_deadline || '',
+        createdAt: payment.created_at,
+        updatedAt: payment.updated_at,
+        member: payment.member ? {
+          id: payment.member.id,
+          firstName: payment.member.first_name,
+          lastName: payment.member.last_name,
+          birthDate: '',
+          birthplace: '',
+          address: '',
+          city: '',
+          phone: '',
+          email: '',
+          nationalId: '',
+          nationality: '',
+          occupation: '',
+          bankName: '',
+          accountNumber: '',
+          dateOfRegistration: '',
+          totalReceived: 0,
+          lastPayment: '',
+          nextPayment: '',
+          notes: '',
+          created_at: '',
+          updated_at: ''
+        } : undefined,
+        group: payment.group ? {
+          id: payment.group.id,
+          name: payment.group.name,
+          description: null,
+          monthlyAmount: 0,
+          maxMembers: 0,
+          duration: 0,
+          startDate: '',
+          endDate: '',
+          paymentDeadlineDay: 25,
+          lateFinePercentage: 5.00,
+          lateFineFixedAmount: 0,
+          createdAt: '',
+          updatedAt: ''
+        } : undefined,
+        slot: payment.slot ? {
+          id: payment.slot.id,
+          groupId: payment.slot.group_id,
+          memberId: payment.slot.member_id,
+          monthDate: payment.slot.month_date,
+          amount: payment.slot.amount,
+          dueDate: payment.slot.due_date,
+          createdAt: payment.slot.created_at
+        } : undefined,
+        senderBank: undefined,
+        receiverBank: undefined
+      }))
+
+      return transformedPayments
+    } catch (error) {
+      console.error('Error fetching recent payments:', error)
+      throw error
+    }
+  },
+
+  // Get overdue payments for dashboard
+  async getOverduePayments(): Promise<{ count: number; amount: number }> {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      
+      const { data, error } = await supabase
+        .from('payment_slots')
+        .select(`
+          id,
+          amount,
+          due_date,
+          group_id,
+          member_id,
+          member:members(first_name, last_name),
+          group:groups(name)
+        `)
+        .lt('due_date', today)
+
+      if (error) {
+        throw new Error(`Failed to fetch overdue payments: ${error.message}`)
+      }
+
+      // Filter out slots that already have payments
+      const overdueSlots = data || []
+      let totalOverdueAmount = 0
+      let overdueCount = 0
+
+      for (const slot of overdueSlots) {
+        const hasPayment = await this.checkSlotHasPayment(
+          slot.group_id,
+          slot.member_id,
+          slot.month_date
+        )
+        
+        if (!hasPayment) {
+          totalOverdueAmount += slot.amount || 0
+          overdueCount++
+        }
+      }
+
+      return { count: overdueCount, amount: totalOverdueAmount }
+    } catch (error) {
+      console.error('Error fetching overdue payments:', error)
+      return { count: 0, amount: 0 }
     }
   }
 }

@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import type { Database } from '../lib/supabase'
 import type { Group, GroupFormData, GroupMember, GroupMemberFormData } from '../types/member'
+import { paymentService } from './paymentService'
 
 // Custom interfaces for database rows with new fields
 interface GroupRow {
@@ -369,6 +370,99 @@ export const groupService = {
     } catch (error) {
       console.error('Error getting available months:', error)
       throw error
+    }
+  },
+
+  // Get active groups count for dashboard
+  async getActiveGroupsCount(): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('groups')
+        .select('*', { count: 'exact', head: true })
+
+      if (error) throw error
+      return count || 0
+    } catch (error) {
+      console.error('Error fetching active groups count:', error)
+      return 0
+    }
+  },
+
+  // Get recent groups for dashboard
+  async getRecentGroups(limit: number = 3): Promise<Group[]> {
+    try {
+      const { data, error } = await supabase
+        .from('groups')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      if (error) throw error
+      return data ? data.map(transformGroupRow) : []
+    } catch (error) {
+      console.error('Error fetching recent groups:', error)
+      return []
+    }
+  },
+
+  // Get dashboard groups with next recipient info
+  async getDashboardGroups(): Promise<Array<Group & { nextRecipient?: string; slotsPaid: number; slotsTotal: number }>> {
+    try {
+      const { data: groups, error: groupsError } = await supabase
+        .from('groups')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (groupsError) throw groupsError
+
+      if (!groups || groups.length === 0) return []
+
+      const dashboardGroups = []
+
+      for (const group of groups) {
+        try {
+          // Get slots info
+          const slotsInfo = await paymentService.getGroupPaidSlotsCount(group.id)
+          
+          // Get next recipient (member with slot in current month)
+          const currentMonth = new Date().toISOString().split('T')[0].substring(0, 7) // YYYY-MM format
+          
+          const { data: nextRecipientData, error: recipientError } = await supabase
+            .from('group_members')
+            .select(`
+              member:members(first_name, last_name)
+            `)
+            .eq('group_id', group.id)
+            .eq('assigned_month_date', currentMonth)
+            .limit(1)
+            .single()
+
+          let nextRecipient = 'No recipient this month'
+          if (!recipientError && nextRecipientData?.member) {
+            nextRecipient = `${nextRecipientData.member.first_name} ${nextRecipientData.member.last_name}`
+          }
+
+          dashboardGroups.push({
+            ...transformGroupRow(group),
+            nextRecipient,
+            slotsPaid: slotsInfo.paid,
+            slotsTotal: slotsInfo.total
+          })
+        } catch (error) {
+          console.error(`Error getting dashboard info for group ${group.id}:`, error)
+          dashboardGroups.push({
+            ...transformGroupRow(group),
+            nextRecipient: 'Error loading data',
+            slotsPaid: 0,
+            slotsTotal: 0
+          })
+        }
+      }
+
+      return dashboardGroups
+    } catch (error) {
+      console.error('Error fetching dashboard groups:', error)
+      return []
     }
   }
 }

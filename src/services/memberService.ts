@@ -295,5 +295,37 @@ export const memberService = {
       console.error('Error fetching member slots details:', error)
       return []
     }
+  },
+
+  // Get total member count for dashboard
+  async getTotalMemberCount(): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+
+      if (error) throw error
+      return count || 0
+    } catch (error) {
+      console.error('Error fetching member count:', error)
+      return 0
+    }
+  },
+
+  // Get recent member registrations for dashboard
+  async getRecentMembers(limit: number = 3): Promise<Member[]> {
+    try {
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      if (error) throw error
+      return data ? data.map(transformMemberRow) : []
+    } catch (error) {
+      console.error('Error fetching recent members:', error)
+      return []
+    }
   }
 }

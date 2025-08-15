@@ -4,6 +4,7 @@ import type { PaymentSlot } from '../types/paymentSlot'
 
 import { paymentSlotService } from '../services/paymentSlotService'
 import { groupService } from '../services/groupService'
+import { paymentService } from '../services/paymentService'
 import PaymentModal from '../components/PaymentModal'
 import type { PaymentFormData } from '../types/payment'
 import './PaymentsDue.css'
@@ -28,10 +29,11 @@ const PaymentsDue = () => {
   const [unpaidSlots, setUnpaidSlots] = useState<UnpaidSlot[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<SortField>('firstName')
+  const [sortField, setSortField] = useState<SortField>('group')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<UnpaidSlot | null>(null)
+  const [slotsWithPayments, setSlotsWithPayments] = useState<Set<string>>(new Set())
   // Removed showCurrentMonthOnly since we're showing all slots now
 
   useEffect(() => {
@@ -79,10 +81,31 @@ const PaymentsDue = () => {
         }
       }
       
-      console.log(`Total slots found: ${allSlots.length}`)
-      console.log('Slots:', allSlots)
-      
-      setUnpaidSlots(allSlots)
+             console.log(`Total slots found: ${allSlots.length}`)
+       console.log('Slots:', allSlots)
+       
+       // Check payment status for each slot
+       const slotsWithPaymentsSet = new Set<string>()
+       
+       for (const slot of allSlots) {
+         try {
+           const hasPayment = await paymentService.checkSlotHasPayment(
+             slot.groupId,
+             slot.memberId,
+             slot.monthDate
+           )
+           
+           if (hasPayment) {
+             const slotKey = `${slot.groupId}-${slot.memberId}-${slot.monthDate}`
+             slotsWithPaymentsSet.add(slotKey)
+           }
+         } catch (error) {
+           console.error(`Error checking payment status for slot:`, error)
+         }
+       }
+       
+       setSlotsWithPayments(slotsWithPaymentsSet)
+       setUnpaidSlots(allSlots)
     } catch (error) {
       console.error('Error loading slots:', error)
       setError('Failed to load slots. Please try again.')
@@ -200,13 +223,11 @@ const PaymentsDue = () => {
   return (
     <div className="payments-due-container">
       <div className="page-header">
-                 <div className="header-content">
-           <h1>Payments Due</h1>
-           <h2>All slots from all groups</h2>
-           <p>
-             Data from group_members table
-           </p>
-         </div>
+        <div className="header-content">
+          <h1>Payments Due</h1>
+          <h2>All slots from all groups</h2>
+          <p>Data from group_members table</p>
+        </div>
         <div className="header-actions">
           <button 
             onClick={loadUnpaidSlots} 
@@ -260,27 +281,38 @@ const PaymentsDue = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedSlots.map((slot) => (
-                <tr key={`${slot.groupId}-${slot.memberId}-${slot.monthDate}`} className="table-row">
-                  <td>{slot.member.firstName}</td>
-                  <td>{slot.member.lastName}</td>
-                  <td>{slot.group.name}</td>
-                  <td>{formatMonthDate(slot.monthDate)}</td>
-                                     <td className="amount">
-                     <span className="amount-label">SRD {slot.amount.toFixed(2)}</span>
-                   </td>
-                  <td>
-                    <button
-                      onClick={() => handleRowClick(slot)}
-                      className="add-payment-btn"
-                      title="Add Payment"
-                    >
-                      <Plus size={16} />
-                      Add Payment
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                             {sortedSlots.map((slot) => {
+                 const slotKey = `${slot.groupId}-${slot.memberId}-${slot.monthDate}`
+                 const hasPayment = slotsWithPayments.has(slotKey)
+                 
+                 return (
+                   <tr 
+                     key={slotKey} 
+                     className={`table-row ${hasPayment ? 'has-payment' : ''}`}
+                   >
+                     <td>{slot.member.firstName}</td>
+                     <td>{slot.member.lastName}</td>
+                     <td>{slot.group.name}</td>
+                     <td>{formatMonthDate(slot.monthDate)}</td>
+                     <td className="amount">
+                       <span className={`amount-label ${hasPayment ? 'paid' : 'unpaid'}`}>
+                         SRD {slot.amount.toFixed(2)}
+                       </span>
+                     </td>
+                     <td>
+                       <button
+                         onClick={() => handleRowClick(slot)}
+                         className="add-payment-btn"
+                         title="Add Payment"
+                         disabled={hasPayment}
+                       >
+                         <Plus size={16} />
+                         {hasPayment ? 'Paid' : 'Add Payment'}
+                       </button>
+                     </td>
+                   </tr>
+                 )
+               })}
             </tbody>
           </table>
         </div>
