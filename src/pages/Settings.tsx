@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { User, Bell, Shield, Palette, Globe, Database, Download, Upload, Trash2, Save, X, Building2, Plus, Edit } from 'lucide-react'
+import { User, Bell, Shield, Palette, Globe, Database, Download, Upload, Trash2, Save, X, Building2, Plus, Edit, Zap } from 'lucide-react'
 import type { Bank, BankFormData } from '../types/bank'
 import { bankService } from '../services/bankService'
 import BankModal from '../components/BankModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
+import PerformanceSettingsSection from '../components/PerformanceSettingsSection'
 import './Settings.css'
 
 interface FormData {
@@ -165,7 +166,8 @@ const Settings = () => {
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'language', label: 'Language', icon: Globe },
     { id: 'data', label: 'Data & Export', icon: Database },
-    { id: 'banks', label: 'Banks', icon: Building2 }
+    { id: 'banks', label: 'Banks', icon: Building2 },
+    { id: 'performance', label: 'Performance', icon: Zap }
   ]
 
   return (
@@ -566,6 +568,13 @@ const Settings = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Performance Tab */}
+            {activeTab === 'performance' && (
+              <div className="settings-tab">
+                <PerformanceSettingsSection />
               </div>
             )}
           </div>

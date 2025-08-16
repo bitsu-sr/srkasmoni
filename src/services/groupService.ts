@@ -95,6 +95,27 @@ const transformMemberData = (memberRow: any): any => {
 }
 
 export const groupService = {
+  // Get all groups with their members in parallel
+  async getAllGroupsWithMembers(): Promise<{ group: Group; members: any[] }[]> {
+    try {
+      // Get all groups first
+      const groups = await this.getAllGroups()
+      
+      // Get all group members in parallel
+      const memberPromises = groups.map(async (group) => {
+        const members = await this.getGroupMembers(group.id)
+        return { group, members }
+      })
+      
+      const groupsWithMembers = await Promise.all(memberPromises)
+      console.log(`Loaded ${groupsWithMembers.length} groups with their members in parallel`)
+      return groupsWithMembers
+    } catch (error) {
+      console.error('Error in getAllGroupsWithMembers:', error)
+      throw error
+    }
+  },
+
   // Get all groups
   async getAllGroups(): Promise<Group[]> {
     try {

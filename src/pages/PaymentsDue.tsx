@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Calendar, Plus, CreditCard, DollarSign, AlertTriangle } from 'lucide-react'
 import type { PaymentSlot } from '../types/paymentSlot'
+import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
 
 import { paymentSlotService } from '../services/paymentSlotService'
 import { groupService } from '../services/groupService'
 import { paymentService } from '../services/paymentService'
+import { optimizedQueryService } from '../services/optimizedQueryService'
+import { performanceTracker } from '../utils/performanceMetrics'
 import PaymentModal from '../components/PaymentModal'
 import type { PaymentFormData } from '../types/payment'
 import './PaymentsDue.css'
@@ -12,13 +15,13 @@ import './PaymentsDue.css'
 interface UnpaidSlot extends PaymentSlot {
   member: {
     id: number
-    firstName: string
-    lastName: string
+    first_name: string
+    last_name: string
   }
   group: {
     id: number
     name: string
-    monthlyAmount: number
+    monthly_amount: number
   }
 }
 
@@ -26,6 +29,7 @@ type SortField = 'firstName' | 'lastName' | 'group' | 'slot' | 'amount'
 type SortDirection = 'asc' | 'desc'
 
 const PaymentsDue = () => {
+  const { isFeatureEnabled } = usePerformanceSettings()
   const [unpaidSlots, setUnpaidSlots] = useState<UnpaidSlot[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,99 +42,290 @@ const PaymentsDue = () => {
   const [totalAmountPaid, setTotalAmountPaid] = useState(0)
   // Removed showCurrentMonthOnly since we're showing all slots now
 
-  // Calculate total amounts for summary cards
-  const calculateTotalAmounts = async (groups: any[]) => {
-    try {
-      // Calculate Total Amount: Sum of all members' monthly amounts across all groups
-      let totalAmount = 0
-      for (const group of groups) {
-        const groupMembers = await groupService.getGroupMembers(group.id)
-        totalAmount += groupMembers.length * group.monthlyAmount
-      }
-      setTotalAmount(totalAmount)
 
-      // Calculate Total Amount Paid: Sum of all payments (pending + received + settled, excluding not_paid)
-      const paymentStats = await paymentService.getPaymentStats()
-      const totalAmountPaid = paymentStats.pendingAmount + paymentStats.receivedAmount + paymentStats.settledAmount
-      setTotalAmountPaid(totalAmountPaid)
-    } catch (error) {
-      console.error('Error calculating total amounts:', error)
-    }
-  }
 
   useEffect(() => {
     loadUnpaidSlots()
   }, [])
 
-  const loadUnpaidSlots = async () => {
+    const loadUnpaidSlots = async () => {
     try {
       setIsLoading(true)
       setError(null)
       
-      // Get all groups first
-      const groups = await groupService.getAllGroups()
-      console.log('Found groups:', groups.length)
+      const enableParallelCalls = isFeatureEnabled('enableParallelCalls')
+      const enableOptimizedQueries = isFeatureEnabled('enableOptimizedQueries')
       
-      const allSlots: UnpaidSlot[] = []
-      
-      // For each group, get ALL slots (both paid and unpaid)
-      for (const group of groups) {
+      if (enableOptimizedQueries) {
+        console.log('🚀 Phase 2: Using single optimized queries...')
+        
         try {
-          console.log(`Getting all slots for group: ${group.name} (ID: ${group.id})`)
+          // PHASE 2: Single optimized queries with JOINs
+          performanceTracker.startPhase('Phase 2: Single Optimized Queries')
           
-          // Get all slots for this group (both paid and unpaid)
-          const slots = await paymentSlotService.getGroupSlots(group.id)
-          console.log(`Found ${slots.length} total slots in group ${group.name}`)
+          // Single query to get all slots with member, group, and payment data
+          const optimizedSlots = await optimizedQueryService.getAllSlotsOptimized()
           
-          // Transform slots to include member and group information
-          const transformedSlots = slots.map(slot => ({
-            ...slot,
+          // Single query to get all groups with calculated totals
+          const optimizedGroups = await optimizedQueryService.getAllGroupsOptimized()
+          
+          // Single query to get payment statistics
+          const paymentStats = await optimizedQueryService.getPaymentStatsOptimized()
+          
+          // Transform optimized data to our component format
+          const transformedSlots: UnpaidSlot[] = optimizedSlots.map(slot => ({
+            id: slot.id,
+            groupId: slot.groupId,
+            memberId: slot.memberId,
+            monthDate: slot.monthDate,
+            amount: slot.amount,
+            dueDate: slot.monthDate, // Use monthDate as dueDate for now
+            createdAt: new Date().toISOString(), // Use current date as fallback
             member: {
               id: slot.memberId,
-              firstName: slot.member?.first_name || '',
-              lastName: slot.member?.last_name || ''
+              first_name: slot.member_first_name,
+              last_name: slot.member_last_name
             },
             group: {
-              id: group.id,
-              name: group.name,
-              monthlyAmount: group.monthlyAmount
+              id: slot.groupId,
+              name: slot.group_name,
+              monthly_amount: slot.group_monthly_amount
             }
           }))
           
-          allSlots.push(...transformedSlots)
-        } catch (error) {
-          console.error(`Error loading slots for group ${group.id}:`, error)
+          // Calculate totals from optimized data
+          const totalAmount = optimizedGroups.reduce((sum, group) => sum + group.total_monthly_amount, 0)
+          const totalAmountPaid = paymentStats.pendingAmount + paymentStats.receivedAmount + paymentStats.settledAmount
+          
+          setTotalAmount(totalAmount)
+          setTotalAmountPaid(totalAmountPaid)
+          
+          // Check payment status using optimized bulk check
+          const slotsWithPaymentsSet = await optimizedQueryService.checkMultipleSlotsPaymentStatusOptimized(
+            transformedSlots.map(slot => ({
+              groupId: slot.groupId,
+              memberId: slot.memberId,
+              monthDate: slot.monthDate
+            }))
+          )
+          
+          setSlotsWithPayments(slotsWithPaymentsSet)
+          setUnpaidSlots(transformedSlots)
+          
+          // End performance tracking for Phase 2
+          performanceTracker.endPhase(transformedSlots.length, 4) // 4 queries: slots, groups, stats, payment status
+          
+          console.log(`📊 Phase 2: Processed ${transformedSlots.length} slots with ${slotsWithPaymentsSet.size} payments`)
+          
+        } catch (phase2Error) {
+          console.warn('⚠️ Phase 2 optimization failed, falling back to Phase 1:', phase2Error)
+          
+          // Fallback to Phase 1 if Phase 2 fails
+          console.log('⚡ Phase 1: Falling back to parallel database calls...')
+          
+          // PHASE 1: PARALLEL APPROACH: Load all data simultaneously
+          performanceTracker.startPhase('Phase 1: Parallel Database Calls (Fallback)')
+          
+          const [groups, allSlots, paymentStats] = await Promise.all([
+            groupService.getAllGroups(),
+            paymentSlotService.getAllSlots(),
+            paymentService.getPaymentStats()
+          ])
+          
+          console.log(`Found ${groups.length} groups and ${allSlots.length} total slots`)
+          
+          // Transform slots to include member and group information
+          const transformedSlots: UnpaidSlot[] = allSlots.map(slot => ({
+            ...slot,
+            member: {
+              id: slot.memberId,
+              first_name: slot.member?.first_name || '',
+              last_name: slot.member?.last_name || ''
+            },
+            group: {
+              id: slot.group?.id || slot.groupId,
+              name: slot.group?.name || '',
+              monthly_amount: slot.group?.monthly_amount || 0
+            }
+          }))
+          
+          // Calculate total amounts in parallel
+          const totalAmountPaid = paymentStats.pendingAmount + paymentStats.receivedAmount + paymentStats.settledAmount
+          
+          // Calculate total amount from groups
+          let totalAmount = 0
+          for (const group of groups) {
+            const groupMembers = await groupService.getGroupMembers(group.id)
+            totalAmount += groupMembers.length * group.monthlyAmount
+          }
+          
+          setTotalAmount(totalAmount)
+          setTotalAmountPaid(totalAmountPaid)
+          
+          console.log(`Total slots found: ${transformedSlots.length}`)
+          console.log('Slots:', transformedSlots)
+          
+          // PARALLEL APPROACH: Check payment status for all slots at once
+          const slotsWithPaymentsSet = await paymentService.checkMultipleSlotsPaymentStatus(
+            transformedSlots.map(slot => ({
+              groupId: slot.groupId,
+              memberId: slot.memberId,
+              monthDate: slot.monthDate
+            }))
+          )
+          
+          setSlotsWithPayments(slotsWithPaymentsSet)
+          setUnpaidSlots(transformedSlots)
+          
+          // End performance tracking for Phase 1 fallback
+          performanceTracker.endPhase(transformedSlots.length, 3 + groups.length) // 3 initial + 1 per group for members
         }
+        
+      } else if (enableParallelCalls) {
+        console.log('⚡ Phase 1: Using parallel database calls...')
+        
+        // PHASE 1: PARALLEL APPROACH: Load all data simultaneously
+        performanceTracker.startPhase('Phase 1: Parallel Database Calls')
+        
+        const [groups, allSlots, paymentStats] = await Promise.all([
+          groupService.getAllGroups(),
+          paymentSlotService.getAllSlots(),
+          paymentService.getPaymentStats()
+        ])
+        
+        console.log(`Found ${groups.length} groups and ${allSlots.length} total slots`)
+        
+        // Transform slots to include member and group information
+        const transformedSlots: UnpaidSlot[] = allSlots.map(slot => ({
+          ...slot,
+          member: {
+            id: slot.memberId,
+            first_name: slot.member?.first_name || '',
+            last_name: slot.member?.last_name || ''
+          },
+          group: {
+            id: slot.group?.id || slot.groupId,
+            name: slot.group?.name || '',
+            monthly_amount: slot.group?.monthly_amount || 0
+          }
+        }))
+        
+        // Calculate total amounts in parallel
+        const totalAmountPaid = paymentStats.pendingAmount + paymentStats.receivedAmount + paymentStats.settledAmount
+        
+        // Calculate total amount from groups
+        let totalAmount = 0
+        for (const group of groups) {
+          const groupMembers = await groupService.getGroupMembers(group.id)
+          totalAmount += groupMembers.length * group.monthlyAmount
+        }
+        
+        setTotalAmount(totalAmount)
+        setTotalAmountPaid(totalAmountPaid)
+        
+        console.log(`Total slots found: ${transformedSlots.length}`)
+        console.log('Slots:', transformedSlots)
+        
+        // PARALLEL APPROACH: Check payment status for all slots at once
+        const slotsWithPaymentsSet = await paymentService.checkMultipleSlotsPaymentStatus(
+          transformedSlots.map(slot => ({
+            groupId: slot.groupId,
+            memberId: slot.memberId,
+            monthDate: slot.monthDate
+          }))
+        )
+        
+        setSlotsWithPayments(slotsWithPaymentsSet)
+        setUnpaidSlots(transformedSlots)
+        
+        // End performance tracking for Phase 1
+        performanceTracker.endPhase(transformedSlots.length, 3 + groups.length) // 3 initial + 1 per group for members
+        
+      } else {
+        console.log('🐌 Default: Using sequential data loading...')
+        
+        // ORIGINAL SEQUENTIAL APPROACH: Load data one by one
+        performanceTracker.startPhase('Default: Sequential Loading')
+        
+        const groups = await groupService.getAllGroups()
+        console.log('Found groups:', groups.length)
+        
+        const allSlots: UnpaidSlot[] = []
+        
+        // For each group, get ALL slots (both paid and unpaid)
+        for (const group of groups) {
+          try {
+            console.log(`Getting all slots for group: ${group.name} (ID: ${group.id})`)
+            
+            // Get all slots for this group (both paid and unpaid)
+            const slots = await paymentSlotService.getGroupSlots(group.id)
+            console.log(`Found ${slots.length} total slots in group ${group.name}`)
+            
+            // Transform slots to include member and group information
+            const transformedSlots = slots.map(slot => ({
+              ...slot,
+              member: {
+                id: slot.memberId,
+                first_name: slot.member?.first_name || '',
+                last_name: slot.member?.last_name || ''
+              },
+              group: {
+                id: group.id,
+                name: group.name,
+                monthly_amount: group.monthlyAmount
+              }
+            }))
+            
+            allSlots.push(...transformedSlots)
+          } catch (error) {
+            console.error(`Error loading slots for group ${group.id}:`, error)
+          }
+        }
+        
+        // Calculate total amounts
+        let totalAmount = 0
+        for (const group of groups) {
+          const groupMembers = await groupService.getGroupMembers(group.id)
+          totalAmount += groupMembers.length * group.monthlyAmount
+        }
+        
+        const paymentStats = await paymentService.getPaymentStats()
+        const totalAmountPaid = paymentStats.pendingAmount + paymentStats.receivedAmount + paymentStats.settledAmount
+        
+        setTotalAmount(totalAmount)
+        setTotalAmountPaid(totalAmountPaid)
+        
+        console.log(`Total slots found: ${allSlots.length}`)
+        console.log('Slots:', allSlots)
+        
+        // Check payment status for each slot individually
+        const slotsWithPaymentsSet = new Set<string>()
+        
+        for (const slot of allSlots) {
+          try {
+            const hasPayment = await paymentService.checkSlotHasPayment(
+              slot.groupId,
+              slot.memberId,
+              slot.monthDate
+            )
+            
+            if (hasPayment) {
+              const slotKey = `${slot.groupId}-${slot.memberId}-${slot.monthDate}`
+              slotsWithPaymentsSet.add(slotKey)
+            }
+          } catch (error) {
+            console.error(`Error checking payment status for slot:`, error)
+          }
+        }
+        
+        setSlotsWithPayments(slotsWithPaymentsSet)
+        setUnpaidSlots(allSlots)
+        
+        // End performance tracking for Default
+        const totalQueries = 1 + groups.length + groups.length + 1 + allSlots.length // groups + slots per group + members per group + stats + payment checks
+        performanceTracker.endPhase(allSlots.length, totalQueries)
       }
       
-      // Calculate total amounts
-      await calculateTotalAmounts(groups)
-      
-             console.log(`Total slots found: ${allSlots.length}`)
-       console.log('Slots:', allSlots)
-       
-       // Check payment status for each slot
-       const slotsWithPaymentsSet = new Set<string>()
-       
-       for (const slot of allSlots) {
-         try {
-           const hasPayment = await paymentService.checkSlotHasPayment(
-             slot.groupId,
-             slot.memberId,
-             slot.monthDate
-           )
-           
-           if (hasPayment) {
-             const slotKey = `${slot.groupId}-${slot.memberId}-${slot.monthDate}`
-             slotsWithPaymentsSet.add(slotKey)
-           }
-         } catch (error) {
-           console.error(`Error checking payment status for slot:`, error)
-         }
-       }
-       
-       setSlotsWithPayments(slotsWithPaymentsSet)
-       setUnpaidSlots(allSlots)
     } catch (error) {
       console.error('Error loading slots:', error)
       setError('Failed to load slots. Please try again.')
@@ -155,12 +350,12 @@ const PaymentsDue = () => {
 
       switch (sortField) {
         case 'firstName':
-          aValue = a.member.firstName.toLowerCase()
-          bValue = b.member.firstName.toLowerCase()
+          aValue = a.member.first_name.toLowerCase()
+          bValue = b.member.first_name.toLowerCase()
           break
         case 'lastName':
-          aValue = a.member.lastName.toLowerCase()
-          bValue = b.member.lastName.toLowerCase()
+          aValue = a.member.last_name.toLowerCase()
+          bValue = b.member.last_name.toLowerCase()
           break
         case 'group':
           aValue = a.group.name.toLowerCase()
@@ -175,8 +370,8 @@ const PaymentsDue = () => {
           bValue = b.amount
           break
         default:
-          aValue = a.member.firstName.toLowerCase()
-          bValue = b.member.firstName.toLowerCase()
+          aValue = a.member.first_name.toLowerCase()
+          bValue = b.member.first_name.toLowerCase()
       }
 
       if (sortDirection === 'asc') {
@@ -261,6 +456,64 @@ const PaymentsDue = () => {
           >
             <Calendar size={20} />
           </button>
+          <button 
+            onClick={() => {
+              const comparison = performanceTracker.getComparison()
+              console.log(comparison)
+              
+              // Show detailed performance info in a more user-friendly way
+              const metrics = performanceTracker.getAllMetrics()
+              if (metrics.length > 0) {
+                const fastest = metrics.reduce((min, current) => 
+                  current.duration < min.duration ? current : min
+                )
+                const currentPhase = isFeatureEnabled('enableOptimizedQueries') ? 'Phase 2' : 
+                                   isFeatureEnabled('enableParallelCalls') ? 'Phase 1' : 'Default'
+                
+                let message = `🚀 Performance Summary:\n\n`
+                message += `Current Phase: ${currentPhase}\n`
+                message += `Fastest Execution: ${fastest.phase} (${fastest.duration.toFixed(2)}ms)\n\n`
+                
+                metrics.forEach(metric => {
+                  const speedup = fastest.duration > 0 ? (metric.duration / fastest.duration).toFixed(1) : '∞'
+                  message += `${metric.phase}:\n`
+                  message += `  ⏱️  ${metric.duration.toFixed(2)}ms\n`
+                  message += `  📊 ${metric.dataCount} items\n`
+                  message += `  🔍 ${metric.queryCount} queries\n`
+                  message += `  🚀 ${speedup}x slower\n\n`
+                })
+                
+                message += `📊 Detailed comparison logged to console (F12)`
+                alert(message)
+              } else {
+                alert('No performance data available yet. Try loading the page first.')
+              }
+            }} 
+            className="performance-btn"
+            title="Show Performance Comparison"
+          >
+            📊 Performance
+          </button>
+        </div>
+        
+        {/* Performance Status Display */}
+        <div className="performance-status-display">
+          <div className="status-indicator">
+            {isLoading ? (
+              <span className="status-loading">🔄 Loading...</span>
+            ) : (
+              <>
+                <span className="status-phase">
+                  {isFeatureEnabled('enableOptimizedQueries') ? '🚀 Phase 2' : 
+                   isFeatureEnabled('enableParallelCalls') ? '⚡ Phase 1' : '🐌 Default'}
+                </span>
+                <span className="status-info">
+                  {isFeatureEnabled('enableOptimizedQueries') ? 'Single Optimized Queries' :
+                   isFeatureEnabled('enableParallelCalls') ? 'Parallel Database Calls' : 'Sequential Loading'}
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -345,8 +598,8 @@ const PaymentsDue = () => {
                      className={`table-row ${hasPayment ? 'has-payment' : ''}`}
                    >
                      <td className="row-number">{index + 1}</td>
-                     <td>{slot.member.firstName}</td>
-                     <td>{slot.member.lastName}</td>
+                                           <td>{slot.member.first_name}</td>
+                      <td>{slot.member.last_name}</td>
                      <td>{slot.group.name}</td>
                      <td>{formatMonthDate(slot.monthDate)}</td>
                      <td className="amount">

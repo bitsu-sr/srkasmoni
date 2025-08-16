@@ -270,11 +270,13 @@ const Dashboard = () => {
                return (
                  <div key={index} className={`stat-card stat-${['info', 'success', 'primary', 'info', 'warning', 'success', 'primary'][index]}`}>
                    <div className="stat-header">
-                     <div className="stat-icon">
-                       <IconComponent size={24} />
-                     </div>
-                     <div className="stat-change">
-                       <span className={`change-${['success', 'primary', 'info', 'warning', 'success', 'primary', 'info'][index]}`}>...</span>
+                     <div className="stat-icon-status">
+                       <div className="stat-icon">
+                         <IconComponent size={10} />
+                       </div>
+                       <div className="stat-change">
+                         <span className={`change-${['success', 'primary', 'info', 'warning', 'success', 'primary', 'info'][index]}`}>...</span>
+                       </div>
                      </div>
                    </div>
                    <div className="stat-content">
@@ -290,11 +292,13 @@ const Dashboard = () => {
               return (
                 <div key={index} className={`stat-card stat-${stat.color}`}>
                   <div className="stat-header">
-                    <div className="stat-icon">
-                      <Icon size={24} />
-                    </div>
-                    <div className="stat-change">
-                      <span className={`change-${stat.color}`}>{stat.change}</span>
+                    <div className="stat-icon-status">
+                      <div className="stat-icon">
+                        <Icon size={24} />
+                      </div>
+                      <div className="stat-change">
+                        <span className={`change-${stat.color}`}>{stat.change}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="stat-content">

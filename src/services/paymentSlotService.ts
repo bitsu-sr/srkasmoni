@@ -91,6 +91,46 @@ export const paymentSlotService = {
     }
   },
 
+  // Get all slots across all groups (for dashboard and payments due)
+  async getAllSlots(): Promise<PaymentSlot[]> {
+    try {
+      const { data: slotsData, error: slotsError } = await supabase
+        .from('group_members')
+        .select(`
+          id,
+          group_id,
+          member_id,
+          assigned_month_date,
+          member:members(id, first_name, last_name),
+          group:groups(id, name, monthly_amount)
+        `)
+        .order('id', { ascending: true })
+
+      if (slotsError) {
+        throw new Error(`Failed to fetch all slots: ${slotsError.message}`)
+      }
+
+      // Transform the database data to match our PaymentSlot interface
+      const transformedSlots: PaymentSlot[] = (slotsData || []).map((groupMember: any) => ({
+        id: groupMember.id,
+        groupId: groupMember.group_id,
+        memberId: groupMember.member_id,
+        monthDate: groupMember.assigned_month_date || new Date().toISOString().slice(0, 7), // Use assigned month or current month
+        amount: groupMember.group?.monthly_amount || 0,
+        dueDate: '', // Not available in group_members
+        createdAt: new Date().toISOString(), // Not available in group_members
+        member: groupMember.member,
+        group: groupMember.group
+      }))
+      
+      console.log(`Found ${transformedSlots.length} total members across all groups`)
+      return transformedSlots
+    } catch (error) {
+      console.error('Error in getAllSlots:', error)
+      throw error
+    }
+  },
+
   // Get available month assignments for a member in a group (for new payments)
   async getAvailableMonthAssignments(memberId: number, groupId: number): Promise<PaymentSlot[]> {
     try {
