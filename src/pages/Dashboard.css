@@ -4,6 +4,46 @@
   background-color: #F5F5F7;
 }
 
+/* CSS Reset for Dashboard - Override any conflicting styles */
+.dashboard * {
+  box-sizing: border-box;
+}
+
+/* Force override any conflicting .stat-card styles from other files */
+.dashboard .stat-card {
+  /* Reset any flexbox properties that might interfere */
+  flex: none !important;
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
+  flex-basis: auto !important;
+  
+  /* Reset any display properties */
+  display: block !important;
+  
+  /* Reset any alignment properties */
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  
+  /* Reset any sizing properties */
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  
+  /* Reset any spacing properties */
+  margin: 0 !important;
+  padding: 12px !important;
+  
+  /* Reset any border properties */
+  border: none !important;
+  border-radius: 16px !important;
+  
+  /* Reset any background properties */
+  background: #FFFFFF !important;
+  
+  /* Reset any shadow properties */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -18,23 +58,46 @@
   margin-bottom: 30px;
 }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Dashboard Header - More specific to override PaymentsDue.css */
+.dashboard .page-header .header-content {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  /*width: 100% !important;*/
+  width: 100% !important;
+  gap: 350px !important;
+  flex-direction: row !important;
 }
 
-.page-title {
+.dashboard .page-title {
   font-size: 2rem;
   font-weight: 700;
   color: #2C2C2C;
   margin: 0 0 8px 0;
+  width: auto !important;
 }
 
-.page-subtitle {
+.dashboard .page-subtitle {
   color: #8E8E93;
   font-size: 1.1rem;
   margin: 0;
+  width: auto !important;
+}
+
+/* Header text container - More specific to override PaymentsDue.css */
+.dashboard .page-header .header-content .header-text {
+  flex: 1 !important;
+  min-width: 0 !important;
+  margin-right: 20px !important;
+  /*max-width: calc(100% - 150px) !important;*/
+  width: auto !important;
+}
+
+/* Button positioning - More specific to override PaymentsDue.css */
+.dashboard .page-header .header-content .btn {
+  flex-shrink: 0 !important;
+  align-self: flex-start !important;
+  margin-top: 8px !important;
 }
 
 .btn {
@@ -50,57 +113,92 @@
   transition: all 0.2s ease;
 }
 
-.btn-secondary {
-  background: #28a745;
-  color: white;
+.dashboard .btn-secondary {
+  background: #E8F5E8;
+  color: rgb(11, 73, 21);
 }
 
-.btn-secondary:hover {
+.dashboard .btn-secondary:hover {
   background: #218838;
+  color: rgb(232, 245, 232);
 }
 
-.btn-secondary:disabled {
+.dashboard .btn-secondary:disabled {
   background: #6c757d;
   cursor: not-allowed;
+}
+
+/* Dashboard.css - maak het specifieker dan MemberModal */
+.dashboard .btn-secondary:hover:not(:disabled) {
+    background: #1e7e34; /* Donkerder groen voor hover */
 }
 
 /* Grid Layout */
 .grid {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 30px;
+  box-sizing: border-box;
+  width: 100%;
 }
+
+
 
 .grid-2 {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .grid-3 {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
+  max-width: 100%;
+  width: 100%;
+  min-width: 100%;
+}
+
+/* Force 4-column layout specifically for dashboard */
+.dashboard .grid.grid-3 {
+  grid-template-columns: repeat(4, 1fr) !important;
+  width: 100% !important;
+  min-width: 100% !important;
 }
 
 /* Statistics Cards - Following Design System */
-.stat-card {
-  background: #FFFFFF;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  min-height: 120px;
-  width: 100%;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
+.dashboard .stat-card,
+.dashboard .grid-3 .stat-card,
+.dashboard-stat-card,
+.dashboard .grid.grid-3 .stat-card,
+.dashboard .container .grid.grid-3 .stat-card {
+  background: #FFFFFF !important;
+  border-radius: 16px !important;
+  padding: 12px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+  min-height: 90px !important;
+  width: 100% !important;
+  transition: all 0.2s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
   display: block !important;
+  box-sizing: border-box !important;
+  /* Override PaymentsDue.css conflicts */
+  flex: none !important;
+  align-items: stretch !important;
+  border: none !important;
+  /* Ensure proper layout */
+  margin: 0 !important;
+  float: none !important;
+  /* Force grid layout */
+  min-width: 0 !important;
+  max-width: none !important;
 }
 
-.stat-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  transform: translateY(-2px);
+.dashboard .stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+  transform: translateY(-2px) !important;
 }
 
-.stat-card:active {
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  transform: translateY(0px);
+.dashboard .stat-card:active {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+  transform: translateY(0px) !important;
 }
 
 /* Card Header Section - Icon and Status Indicator */
@@ -108,25 +206,28 @@
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
-  margin-bottom: 16px;
-  gap: 8px;
+  margin-bottom: 8px;
+  gap: 4px;
 }
 
 /* Icon and Status Container */
 .stat-icon-status {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 12px;
+  align-items: start;
+  /*justify-content: center;*/
+  justify-content: space-between;
+  /*align-items: center;*/
+  gap: 8px;
+  margin-bottom: 8px;
   width: 100%;
+  padding-left: 12px;
 }
 
 /* Icon Container - Following Design System */
 .stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -154,13 +255,13 @@
 
 /* Status Indicator - Exact Green Color and Pill Shape from Image */
 .stat-change {
-  font-size: 16px !important;
+  font-size: 13px !important;
   font-weight: 600 !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
   color: #34C759 !important; /* Exact green from image */
   text-align: center;
   line-height: 1.1;
-  min-width: 60px;
+  min-width: 45px;
   background: transparent; /* No background, just text color */
 }
 
@@ -192,10 +293,10 @@
 
 /* Label - Following Design System */
 .stat-title {
-  font-size: 16px !important;
+  font-size: 13px !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
   color: #8E8E93 !important;
-  margin: 0 0 8px 0;
+  margin: 0 0 4px 0;
   font-weight: 400 !important;
   line-height: 1.3;
   text-align: center;
@@ -204,7 +305,7 @@
 
 /* Primary Value - Exact Dark Color and Large Size from Image */
 .stat-value {
-  font-size: 28px !important; /* Large, prominent size like in image */
+  font-size: 22px !important; /* Large, prominent size like in image */
   font-weight: 700 !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
   color: #2C2C2C !important; /* Exact dark color from image */
@@ -462,6 +563,18 @@
 }
 
 /* Responsive Design - Following Design System */
+@media (max-width: 1200px) {
+  .grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 0 16px;
@@ -483,9 +596,9 @@
   
   /* Mobile Card Adjustments - Following Design System */
   /* These styles will ONLY apply when screen width is 768px or less */
-  .stat-card {
-    padding: 20px;
-    min-height: 100px;
+  .dashboard .stat-card {
+    padding: 20px !important;
+    min-height: 100px !important;
   }
   
   .stat-value {
@@ -520,8 +633,8 @@
 
 @media (max-width: 480px) {
   /* Small mobile - these styles will ONLY apply when screen width is 480px or less */
-  .stat-card {
-    padding: 16px;
+  .dashboard .stat-card {
+    padding: 16px !important;
   }
   
   .stat-value {

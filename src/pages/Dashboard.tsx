@@ -245,7 +245,7 @@ const Dashboard = () => {
       <div className="page-header">
         <div className="container">
           <div className="header-content">
-            <div>
+            <div className="header-text">
               <h1 className="page-title">Dashboard</h1>
               <p className="page-subtitle">Overview of your group savings activities</p>
             </div>
