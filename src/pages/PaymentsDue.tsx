@@ -178,16 +178,6 @@ const PaymentsDue: React.FC = () => {
     }
   }, [settings.enableParallelCalls, settings.enableOptimizedQueries])
 
-  // Load more data for infinite scroll
-  const loadMoreData = useCallback(async () => {
-    if (!hasMoreData || loading) return
-    
-    // For infinite scroll, we'll load the next page
-    if (currentPage < totalPages) {
-      setCurrentPage(prev => prev + 1)
-    }
-  }, [hasMoreData, loading, currentPage, totalPages])
-
   // Get sorted slots
   const getSortedSlots = () => {
     return [...unpaidSlots].sort((a, b) => {
@@ -287,7 +277,6 @@ const PaymentsDue: React.FC = () => {
   // Calculate totals
   const totalAmount = unpaidSlots.reduce((sum, slot) => sum + slot.amount, 0)
   const totalAmountPaid = paymentStats?.totalAmount || 0
-  const totalAmountDue = Math.max(0, totalAmount - totalAmountPaid)
 
   // Handle sorting
   const handleSort = (field: SortField) => {
@@ -426,7 +415,7 @@ const PaymentsDue: React.FC = () => {
             📅
           </div>
           <div className="stat-content">
-            <div className="stat-number">SRD {unpaidSlots.reduce((sum, slot) => sum + slot.amount, 0).toFixed(2)}</div>
+            <div className="stat-number">SRD {totalAmount.toFixed(2)}</div>
             <div className="stat-label">Total Amount</div>
           </div>
         </div>
@@ -435,7 +424,7 @@ const PaymentsDue: React.FC = () => {
             ✅
           </div>
           <div className="stat-content">
-            <div className="stat-number">SRD {paymentStats?.totalAmount || 0}</div>
+            <div className="stat-number">SRD {totalAmountPaid.toFixed(2)}</div>
             <div className="stat-label">Total Amount Paid</div>
           </div>
         </div>
@@ -444,7 +433,7 @@ const PaymentsDue: React.FC = () => {
             ⚠️
           </div>
           <div className="stat-content">
-            <div className="stat-number">SRD {Math.max(0, unpaidSlots.reduce((sum, slot) => sum + slot.amount, 0) - (paymentStats?.totalAmount || 0)).toFixed(2)}</div>
+            <div className="stat-number">SRD {Math.max(0, totalAmount - totalAmountPaid).toFixed(2)}</div>
             <div className="stat-label">Total Amount Due</div>
           </div>
         </div>
