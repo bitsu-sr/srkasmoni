@@ -12,6 +12,21 @@ import PaymentModal from '../components/PaymentModal'
 import type { PaymentFormData } from '../types/payment'
 import './PaymentsDue.css'
 
+// Utility function to format currency with thousands separators and remove trailing zeros
+const formatCurrency = (amount: number): string => {
+  // Convert to string with 2 decimal places
+  const formatted = amount.toFixed(2)
+  
+  // Remove trailing zeros after decimal point
+  const withoutTrailingZeros = formatted.replace(/\.?0+$/, '')
+  
+  // Add thousands separators
+  const parts = withoutTrailingZeros.split('.')
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  
+  return parts.join('.')
+}
+
 interface UnpaidSlot extends PaymentSlot {
   member: {
     id: number
@@ -533,7 +548,7 @@ const PaymentsDue = () => {
             <Calendar size={24} />
           </div>
           <div className="stat-content">
-            <div className="stat-number">SRD {totalAmount.toFixed(2)}</div>
+            <div className="stat-number">SRD {formatCurrency(totalAmount)}</div>
             <div className="stat-label">Total Amount</div>
           </div>
         </div>
@@ -542,7 +557,7 @@ const PaymentsDue = () => {
             <DollarSign size={24} />
           </div>
           <div className="stat-content">
-            <div className="stat-number">SRD {totalAmountPaid.toFixed(2)}</div>
+            <div className="stat-number">SRD {formatCurrency(totalAmountPaid)}</div>
             <div className="stat-label">Total Amount Paid</div>
           </div>
         </div>
@@ -551,7 +566,7 @@ const PaymentsDue = () => {
             <AlertTriangle size={24} />
           </div>
           <div className="stat-content">
-            <div className="stat-number">SRD {Math.max(0, totalAmount - totalAmountPaid).toFixed(2)}</div>
+            <div className="stat-number">SRD {formatCurrency(Math.max(0, totalAmount - totalAmountPaid))}</div>
             <div className="stat-label">Total Amount Due</div>
           </div>
         </div>
@@ -604,7 +619,7 @@ const PaymentsDue = () => {
                      <td>{formatMonthDate(slot.monthDate)}</td>
                      <td className="amount">
                        <span className={`amount-label ${hasPayment ? 'paid' : 'unpaid'}`}>
-                         SRD {slot.amount.toFixed(2)}
+                         SRD {formatCurrency(slot.amount)}
                        </span>
                      </td>
                      <td>

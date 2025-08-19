@@ -100,9 +100,9 @@
   margin-top: 8px !important;
 }
 
-.btn {
+.dashboard .btn {
   padding: 10px 20px;
-  border: none;
+  border: 1px solid #217346;
   border-radius: 6px;
   font-size: 0.9rem;
   font-weight: 500;
@@ -111,6 +111,7 @@
   align-items: center;
   gap: 8px;
   transition: all 0.2s ease;
+  flex: 0 0 auto;
 }
 
 .dashboard .btn-secondary {
