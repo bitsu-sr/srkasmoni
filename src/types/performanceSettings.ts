@@ -1,49 +1,47 @@
 export interface PerformanceSettings {
-  // Phase 1: Parallel Database Calls
   enableParallelCalls: boolean
-  
-  // Phase 2: Single Optimized Queries  
   enableOptimizedQueries: boolean
-  
-  // Phase 3: Caching Strategy
   enableCaching: boolean
-  
-  // Metadata
-  lastUpdated: string
-  version: string
+  paginationType: 'simple' | 'infinite' | 'true'
+  pageSize: 10 | 25 | 50 | 100
 }
 
 export const DEFAULT_PERFORMANCE_SETTINGS: PerformanceSettings = {
-  // Default to current behavior (all disabled)
   enableParallelCalls: false,
   enableOptimizedQueries: false,
   enableCaching: false,
-  
-  // Metadata
-  lastUpdated: new Date().toISOString(),
-  version: '1.0.0'
+  paginationType: 'simple',
+  pageSize: 25
 }
 
 export const PERFORMANCE_OPTIONS = [
   {
-    key: 'enableParallelCalls' as keyof PerformanceSettings,
-    label: 'Parallel Database Calls',
-    description: 'Load multiple database queries simultaneously for faster page loading',
-    phase: 'Phase 1',
-    impact: '3-5x faster loading'
+    key: 'enableParallelCalls',
+    label: 'Phase 1: Parallel Database Calls',
+    description: 'Load data from multiple tables simultaneously for faster loading'
   },
   {
-    key: 'enableOptimizedQueries' as keyof PerformanceSettings,
-    label: 'Single Optimized Queries',
-    description: 'Use advanced database JOINs to fetch all data in one query',
-    phase: 'Phase 2', 
-    impact: '10-30x faster loading'
+    key: 'enableOptimizedQueries',
+    label: 'Phase 2: Single Optimized Queries',
+    description: 'Use advanced JOIN queries to reduce database round trips'
   },
   {
-    key: 'enableCaching' as keyof PerformanceSettings,
-    label: 'Smart Caching',
-    description: 'Cache frequently accessed data for instant loading after first visit',
-    phase: 'Phase 3',
-    impact: '50-100x faster loading'
+    key: 'enableCaching',
+    label: 'Phase 3: Smart Caching',
+    description: 'Cache frequently accessed data for instant loading'
   }
-] as const
+]
+
+export const PAGINATION_OPTIONS = {
+  type: [
+    { value: 'simple', label: 'Simple Pagination' },
+    { value: 'infinite', label: 'Infinite Scroll' },
+    { value: 'true', label: 'True Infinite Scroll' }
+  ],
+  size: [
+    { value: 10, label: '10 rows' },
+    { value: 25, label: '25 rows' },
+    { value: 50, label: '50 rows' },
+    { value: 100, label: '100 rows' }
+  ]
+}

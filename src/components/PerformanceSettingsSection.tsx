@@ -1,182 +1,120 @@
-import React, { useState } from 'react'
-import { RotateCcw, Zap, Info, Database, Trash2, BarChart3 } from 'lucide-react'
+import React from 'react'
 import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
-import { useCacheManagement } from '../hooks/useCachedQueries'
-import { PERFORMANCE_OPTIONS } from '../types/performanceSettings'
-import PerformanceToggle from './PerformanceToggle'
+import { PerformanceToggle } from './PerformanceToggle'
+import { PERFORMANCE_OPTIONS, PAGINATION_OPTIONS } from '../types/performanceSettings'
 import './PerformanceSettingsSection.css'
 
-const PerformanceSettingsSection: React.FC = () => {
-  const { 
-    settings, 
-    updateSetting, 
-    resetToDefaults, 
-    hasAnyFeaturesEnabled 
-  } = usePerformanceSettings()
-  
-  const { clearCache, getCacheStats, cleanupCache } = useCacheManagement()
-  const [cacheStats, setCacheStats] = useState<any>(null)
+export const PerformanceSettingsSection: React.FC = () => {
+  const { settings, updateSetting, resetToDefaults } = usePerformanceSettings()
 
-  const handleToggle = (key: keyof typeof settings, value: boolean) => {
+  const handlePerformanceToggle = (key: keyof typeof settings, value: boolean) => {
     updateSetting(key, value)
   }
 
-  const handleReset = () => {
-    if (window.confirm('Are you sure you want to reset all performance settings to defaults? This will disable all performance optimizations.')) {
-      resetToDefaults()
+  const handlePaginationTypeChange = (value: string | number | boolean) => {
+    if (typeof value === 'string') {
+      updateSetting('paginationType', value as 'simple' | 'infinite')
     }
   }
 
-  const handleClearCache = () => {
-    if (window.confirm('Are you sure you want to clear all cached data? This will force fresh data loading on next visit.')) {
-      clearCache()
-      setCacheStats(null)
+  const handlePageSizeChange = (value: string | number | boolean) => {
+    if (typeof value === 'number') {
+      updateSetting('pageSize', value as 10 | 25 | 50 | 100)
     }
-  }
-
-  const handleCleanupCache = () => {
-    cleanupCache()
-    setCacheStats(null)
-  }
-
-  const handleShowCacheStats = () => {
-    const stats = getCacheStats()
-    setCacheStats(stats)
   }
 
   return (
-    <div className="performance-settings-section">
-      <div className="section-header">
-        <div className="header-content">
-          <h2 className="section-title">
-            <Zap className="section-icon" />
-            Performance Settings
-          </h2>
-          <p className="section-description">
-            Configure performance optimizations to balance speed and resource usage. 
-            Changes take effect immediately.
-          </p>
-        </div>
-        <div className="header-actions">
-          <button
-            onClick={handleReset}
-            className="reset-button"
-            title="Reset to Defaults"
-          >
-            <RotateCcw size={16} />
-            Reset to Defaults
-          </button>
-        </div>
+    <div className="performance-settings">
+      <div className="settings-header">
+        <h2>Performance Settings</h2>
+        <p>Configure how your app loads and displays data for optimal performance.</p>
       </div>
 
-      <div className="performance-status">
-        <Info size={16} />
-        <span>
-          {hasAnyFeaturesEnabled() 
-            ? 'Performance optimizations are enabled. Pages should load faster.'
-            : 'Performance optimizations are disabled. Using default (current) behavior.'
-          }
-        </span>
+      {/* Phase 1: Parallel Database Calls */}
+      <PerformanceToggle
+        label={PERFORMANCE_OPTIONS[0].label}
+        description={PERFORMANCE_OPTIONS[0].description}
+        type="toggle"
+        value={settings.enableParallelCalls}
+        onChange={(value) => handlePerformanceToggle('enableParallelCalls', value as boolean)}
+      />
+
+      {/* Phase 2: Single Optimized Queries */}
+      <PerformanceToggle
+        label={PERFORMANCE_OPTIONS[1].label}
+        description={PERFORMANCE_OPTIONS[1].description}
+        type="toggle"
+        value={settings.enableOptimizedQueries}
+        onChange={(value) => handlePerformanceToggle('enableOptimizedQueries', value as boolean)}
+      />
+
+      {/* Phase 3: Smart Caching */}
+      <PerformanceToggle
+        label={PERFORMANCE_OPTIONS[2].label}
+        description={PERFORMANCE_OPTIONS[2].description}
+        type="toggle"
+        value={settings.enableCaching}
+        onChange={(value) => handlePerformanceToggle('enableCaching', value as boolean)}
+      />
+
+      {/* Data Loading Strategy Section */}
+      <div className="settings-section">
+        <h3>Data Loading Strategy</h3>
+        <p>Choose how data is displayed and loaded for optimal user experience.</p>
+        
+        {/* Pagination Type */}
+        <PerformanceToggle
+          label="Pagination Type"
+          description="Choose between traditional pagination or infinite scroll for data loading"
+          type="dropdown"
+          value={settings.paginationType}
+          onChange={handlePaginationTypeChange}
+          options={PAGINATION_OPTIONS.type}
+        />
+
+        {/* Page Size */}
+        <PerformanceToggle
+          label="Page Size"
+          description="Number of rows to display per page (smaller = faster loading)"
+          type="dropdown"
+          value={settings.pageSize}
+          onChange={handlePageSizeChange}
+          options={PAGINATION_OPTIONS.size}
+        />
       </div>
 
-      <div className="performance-options">
-        {PERFORMANCE_OPTIONS.map((option) => (
-          <PerformanceToggle
-            key={option.key}
-            label={option.label}
-            description={option.description}
-            phase={option.phase}
-            impact={option.impact}
-            checked={Boolean(settings[option.key])}
-            onChange={(checked) => handleToggle(option.key, checked)}
-          />
-        ))}
+      {/* Action Buttons */}
+      <div className="settings-actions">
+        <button 
+          className="btn btn-primary"
+          onClick={resetToDefaults}
+        >
+          Reset to Defaults
+        </button>
       </div>
 
-      {/* Cache Management Section */}
-      {settings.enableCaching && (
-        <div className="cache-management-section">
-          <h3>Cache Management</h3>
-          <div className="cache-controls">
-            <button
-              onClick={handleShowCacheStats}
-              className="cache-btn cache-stats-btn"
-              title="Show Cache Statistics"
-            >
-              <BarChart3 size={16} />
-              Show Cache Stats
-            </button>
-            <button
-              onClick={handleCleanupCache}
-              className="cache-btn cache-cleanup-btn"
-              title="Clean Up Old Cache Entries"
-            >
-              <Database size={16} />
-              Cleanup Cache
-            </button>
-            <button
-              onClick={handleClearCache}
-              className="cache-btn cache-clear-btn"
-              title="Clear All Cached Data"
-            >
-              <Trash2 size={16} />
-              Clear All Cache
-            </button>
-          </div>
-          
-          {cacheStats && (
-            <div className="cache-stats">
-              <h4>Cache Statistics</h4>
-              <div className="stats-grid">
-                <div className="stat-item">
-                  <span className="stat-label">Total Queries:</span>
-                  <span className="stat-value">{cacheStats.totalQueries}</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Cached Queries:</span>
-                  <span className="stat-value">{cacheStats.cachedQueries}</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Cache Hit Rate:</span>
-                  <span className="stat-value">{cacheStats.cacheHitRate.toFixed(1)}%</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Memory Usage:</span>
-                  <span className="stat-value">{cacheStats.memoryUsage} KB</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-label">Last Cleanup:</span>
-                  <span className="stat-value">{cacheStats.lastCleanup.toLocaleTimeString()}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* Performance Impact Info */}
       <div className="performance-info">
-        <h3>How Performance Settings Work</h3>
-        <div className="info-grid">
-          <div className="info-item">
-            <h4>Phase 1: Parallel Database Calls</h4>
-            <p>Loads multiple database queries simultaneously instead of waiting for each one to complete. Provides 3-5x speed improvement.</p>
+        <h3>Performance Impact</h3>
+        <div className="impact-grid">
+          <div className="impact-item">
+            <span className="impact-label">Phase 1:</span>
+            <span className="impact-value">3-5x faster loading</span>
           </div>
-          <div className="info-item">
-            <h4>Phase 2: Single Optimized Queries</h4>
-            <p>Uses advanced database JOINs to fetch all related data in one query. Provides 10-30x speed improvement.</p>
+          <div className="impact-item">
+            <span className="impact-label">Phase 2:</span>
+            <span className="impact-value">10-30x faster loading</span>
           </div>
-          <div className="info-item">
-            <h4>Phase 3: Smart Caching</h4>
-            <p>Caches frequently accessed data for instant loading after the first visit. Provides 10-50x speed improvement for repeat access.</p>
+          <div className="impact-item">
+            <span className="impact-label">Phase 3:</span>
+            <span className="impact-value">50-100x faster loading</span>
           </div>
-        </div>
-        <div className="info-note">
-          <strong>Note:</strong> Performance improvements are most noticeable on slower networks or with large amounts of data. 
-          All settings are saved locally in your browser and will be remembered for future visits.
+          <div className="impact-item">
+            <span className="impact-label">Pagination:</span>
+            <span className="impact-value">1.2-4x faster loading</span>
+          </div>
         </div>
       </div>
     </div>
   )
 }
-
-export default PerformanceSettingsSection

@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { PerformanceSettings } from '../types/performanceSettings'
-import { performanceSettingsService } from '../services/performanceSettingsService'
+import { 
+  getPerformanceSettings, 
+  updatePerformanceSetting, 
+  resetPerformanceSettings 
+} from '../services/performanceSettingsService'
 
 interface PerformanceSettingsContextType {
   settings: PerformanceSettings
@@ -10,52 +14,45 @@ interface PerformanceSettingsContextType {
   ) => void
   resetToDefaults: () => void
   isFeatureEnabled: (feature: keyof PerformanceSettings) => boolean
-  hasAnyFeaturesEnabled: () => boolean
 }
 
 const PerformanceSettingsContext = createContext<PerformanceSettingsContextType | undefined>(undefined)
+
+export const usePerformanceSettings = (): PerformanceSettingsContextType => {
+  const context = useContext(PerformanceSettingsContext)
+  if (!context) {
+    throw new Error('usePerformanceSettings must be used within a PerformanceSettingsProvider')
+  }
+  return context
+}
 
 interface PerformanceSettingsProviderProps {
   children: ReactNode
 }
 
 export const PerformanceSettingsProvider: React.FC<PerformanceSettingsProviderProps> = ({ children }) => {
-  const [settings, setSettings] = useState<PerformanceSettings>(() => 
-    performanceSettingsService.getSettings()
-  )
+  const [settings, setSettings] = useState<PerformanceSettings>(() => getPerformanceSettings())
 
-  // Update a specific setting
   const updateSetting = <K extends keyof PerformanceSettings>(
     key: K, 
     value: PerformanceSettings[K]
-  ) => {
-    performanceSettingsService.updateSetting(key, value)
-    setSettings(prev => ({
-      ...prev,
-      [key]: value,
-      lastUpdated: new Date().toISOString()
-    }))
+  ): void => {
+    const updated = updatePerformanceSetting(key, value)
+    setSettings(updated)
   }
 
-  // Reset all settings to defaults
-  const resetToDefaults = () => {
-    performanceSettingsService.resetToDefaults()
-    setSettings(performanceSettingsService.getSettings())
+  const resetToDefaults = (): void => {
+    const defaultSettings = resetPerformanceSettings()
+    setSettings(defaultSettings)
   }
 
-  // Check if a specific feature is enabled
   const isFeatureEnabled = (feature: keyof PerformanceSettings): boolean => {
     return Boolean(settings[feature])
   }
 
-  // Check if any features are enabled
-  const hasAnyFeaturesEnabled = (): boolean => {
-    return performanceSettingsService.hasAnyFeaturesEnabled()
-  }
-
   // Load settings from localStorage on mount
   useEffect(() => {
-    const storedSettings = performanceSettingsService.getSettings()
+    const storedSettings = getPerformanceSettings()
     setSettings(storedSettings)
   }, [])
 
@@ -63,8 +60,7 @@ export const PerformanceSettingsProvider: React.FC<PerformanceSettingsProviderPr
     settings,
     updateSetting,
     resetToDefaults,
-    isFeatureEnabled,
-    hasAnyFeaturesEnabled
+    isFeatureEnabled
   }
 
   return (
@@ -72,13 +68,4 @@ export const PerformanceSettingsProvider: React.FC<PerformanceSettingsProviderPr
       {children}
     </PerformanceSettingsContext.Provider>
   )
-}
-
-// Custom hook to use performance settings
-export const usePerformanceSettings = (): PerformanceSettingsContextType => {
-  const context = useContext(PerformanceSettingsContext)
-  if (context === undefined) {
-    throw new Error('usePerformanceSettings must be used within a PerformanceSettingsProvider')
-  }
-  return context
 }

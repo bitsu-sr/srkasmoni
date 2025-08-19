@@ -4,7 +4,7 @@ import type { Bank, BankFormData } from '../types/bank'
 import { bankService } from '../services/bankService'
 import BankModal from '../components/BankModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
-import PerformanceSettingsSection from '../components/PerformanceSettingsSection'
+import { PerformanceSettingsSection } from '../components/PerformanceSettingsSection'
 import './Settings.css'
 
 interface FormData {

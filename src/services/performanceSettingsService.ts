@@ -1,88 +1,48 @@
-import { 
-  PerformanceSettings, 
-  DEFAULT_PERFORMANCE_SETTINGS 
-} from '../types/performanceSettings'
+import { PerformanceSettings, DEFAULT_PERFORMANCE_SETTINGS } from '../types/performanceSettings'
 
-const STORAGE_KEY = 'srkasmoni_performance_settings'
+const STORAGE_KEY = 'performanceSettings'
 
-export const performanceSettingsService = {
-  // Get current performance settings from localStorage
-  getSettings(): PerformanceSettings {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (!stored) {
-        return DEFAULT_PERFORMANCE_SETTINGS
-      }
-      
-      const parsed = JSON.parse(stored) as Partial<PerformanceSettings>
-      
-      // Merge with defaults to ensure all properties exist
-      return {
-        ...DEFAULT_PERFORMANCE_SETTINGS,
-        ...parsed,
-        lastUpdated: parsed.lastUpdated || new Date().toISOString()
-      }
-    } catch (error) {
-      console.error('Error loading performance settings:', error)
-      return DEFAULT_PERFORMANCE_SETTINGS
-    }
-  },
-
-  // Save performance settings to localStorage
-  saveSettings(settings: Partial<PerformanceSettings>): void {
-    try {
-      const current = this.getSettings()
-      const updated = {
-        ...current,
-        ...settings,
-        lastUpdated: new Date().toISOString()
-      }
-      
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-      console.log('Performance settings saved:', updated)
-    } catch (error) {
-      console.error('Error saving performance settings:', error)
-    }
-  },
-
-  // Update a specific setting
-  updateSetting<K extends keyof PerformanceSettings>(
-    key: K, 
-    value: PerformanceSettings[K]
-  ): void {
-    this.saveSettings({ [key]: value })
-  },
-
-  // Reset all settings to defaults
-  resetToDefaults(): void {
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-      console.log('Performance settings reset to defaults')
-    } catch (error) {
-      console.error('Error resetting performance settings:', error)
-    }
-  },
-
-  // Check if a specific performance feature is enabled
-  isFeatureEnabled(feature: keyof PerformanceSettings): boolean {
-    const settings = this.getSettings()
-    return Boolean(settings[feature])
-  },
-
-  // Get all enabled features
-  getEnabledFeatures(): string[] {
-    const settings = this.getSettings()
-    return Object.entries(settings)
-      .filter(([key, value]) => 
-        key !== 'lastUpdated' && 
-        key !== 'version' && 
-        value === true
-      )
-      .map(([key]) => key)
-  },
-
-  // Check if any performance features are enabled
-  hasAnyFeaturesEnabled(): boolean {
-    return this.getEnabledFeatures().length > 0
+export const savePerformanceSettings = (settings: PerformanceSettings): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+  } catch (error) {
+    console.error('Failed to save performance settings:', error)
   }
+}
+
+export const getPerformanceSettings = (): PerformanceSettings => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Ensure all required fields exist and are properly typed
+      return {
+        enableParallelCalls: Boolean(parsed.enableParallelCalls),
+        enableOptimizedQueries: Boolean(parsed.enableOptimizedQueries),
+        enableCaching: Boolean(parsed.enableCaching),
+        paginationType: parsed.paginationType || 'simple',
+        pageSize: parsed.pageSize || 25
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load performance settings:', error)
+  }
+  
+  return { ...DEFAULT_PERFORMANCE_SETTINGS }
+}
+
+export const updatePerformanceSetting = <K extends keyof PerformanceSettings>(
+  key: K,
+  value: PerformanceSettings[K]
+): PerformanceSettings => {
+  const current = getPerformanceSettings()
+  const updated = { ...current, [key]: value }
+  savePerformanceSettings(updated)
+  return updated
+}
+
+export const resetPerformanceSettings = (): PerformanceSettings => {
+  const defaultSettings = { ...DEFAULT_PERFORMANCE_SETTINGS }
+  savePerformanceSettings(defaultSettings)
+  return defaultSettings
 }
