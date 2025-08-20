@@ -49,7 +49,6 @@ export const optimizedQueryService = {
   // Phase 2: Single optimized query to get all slots with member, group, and payment data
   async getAllSlotsOptimized(): Promise<OptimizedSlotData[]> {
     try {
-      console.log('🔄 Phase 2: Executing single optimized query...')
       const startTime = performance.now()
       
       const { data, error } = await supabase
@@ -135,15 +134,10 @@ export const optimizedQueryService = {
         }
       })
       
-      const endTime = performance.now()
-      const queryTime = endTime - startTime
-      console.log(`✅ Phase 2: Optimized query completed in ${queryTime.toFixed(2)}ms`)
-      console.log(`📊 Fetched ${optimizedSlots.length} slots with all related data`)
-      
       return optimizedSlots
       
     } catch (error) {
-      console.error('❌ Phase 2: Optimized query failed:', error)
+      console.error('Phase 2: Optimized query failed:', error)
       throw error
     }
   },
@@ -151,7 +145,6 @@ export const optimizedQueryService = {
   // Phase 2: Single optimized query to get all groups with members and calculated totals
   async getAllGroupsOptimized(): Promise<OptimizedGroupData[]> {
     try {
-      console.log('🔄 Phase 2: Executing optimized groups query...')
       const startTime = performance.now()
       
       const { data, error } = await supabase
@@ -200,15 +193,10 @@ export const optimizedQueryService = {
         }
       })
       
-      const endTime = performance.now()
-      const queryTime = endTime - startTime
-      console.log(`✅ Phase 2: Optimized groups query completed in ${queryTime.toFixed(2)}ms`)
-      console.log(`📊 Fetched ${optimizedGroups.length} groups with ${optimizedGroups.reduce((sum, g) => sum + g.member_count, 0)} total members`)
-      
       return optimizedGroups
       
     } catch (error) {
-      console.error('❌ Phase 2: Optimized groups query failed:', error)
+      console.error('Phase 2: Optimized groups query failed:', error)
       throw error
     }
   },
@@ -229,7 +217,6 @@ export const optimizedQueryService = {
     settledCount: number
   }> {
     try {
-      console.log('🔄 Phase 2: Executing optimized payment stats query...')
       const startTime = performance.now()
       
       const { data, error } = await supabase
@@ -289,15 +276,10 @@ export const optimizedQueryService = {
         }
       })
       
-      const endTime = performance.now()
-      const queryTime = endTime - startTime
-      console.log(`✅ Phase 2: Optimized payment stats completed in ${queryTime.toFixed(2)}ms`)
-      console.log(`📊 Calculated stats for ${stats.totalPayments} payments`)
-      
       return stats
       
     } catch (error) {
-      console.error('❌ Phase 2: Optimized payment stats failed:', error)
+      console.error('Phase 2: Optimized payment stats failed:', error)
       throw error
     }
   },
@@ -307,7 +289,6 @@ export const optimizedQueryService = {
     try {
       if (slots.length === 0) return new Set()
       
-      console.log('🔄 Phase 2: Executing optimized bulk payment status check...')
       const startTime = performance.now()
       
       // Create a single query to check all slots at once using JOIN with payment_slots
@@ -338,15 +319,10 @@ export const optimizedQueryService = {
         }
       })
       
-      const endTime = performance.now()
-      const queryTime = endTime - startTime
-      console.log(`✅ Phase 2: Bulk payment status check completed in ${queryTime.toFixed(2)}ms`)
-      console.log(`📊 Found ${slotsWithPayments.size} slots with payments out of ${slots.length} total slots`)
-      
       return slotsWithPayments
       
     } catch (error) {
-      console.error('❌ Phase 2: Optimized bulk payment status check failed:', error)
+      console.error('Phase 2: Optimized bulk payment status check failed:', error)
       throw error
     }
   }

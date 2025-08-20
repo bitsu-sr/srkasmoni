@@ -16,13 +16,12 @@ class PerformanceTracker {
   startPhase(phase: string): void {
     this.currentPhase = phase
     this.currentStartTime = performance.now()
-    console.log(`🚀 Starting ${phase} performance tracking...`)
   }
 
   // End tracking and record metrics
   endPhase(dataCount: number, queryCount: number): PerformanceMetric | null {
     if (!this.currentPhase || !this.currentStartTime) {
-      console.warn('⚠️ No active phase to end')
+      console.warn('No active phase to end')
       return null
     }
 
@@ -40,8 +39,7 @@ class PerformanceTracker {
 
     this.metrics.set(this.currentPhase, metric)
     
-    console.log(`✅ ${this.currentPhase} completed in ${duration.toFixed(2)}ms`)
-    console.log(`📊 Processed ${dataCount} items with ${queryCount} queries`)
+
     
     // Reset current phase
     this.currentPhase = null
@@ -90,7 +88,7 @@ class PerformanceTracker {
   // Clear all metrics
   clear(): void {
     this.metrics.clear()
-    console.log('🧹 Performance metrics cleared')
+
   }
 
   // Get metrics for a specific phase

@@ -363,7 +363,7 @@ export const paymentService = {
         }
       })
       
-      console.log(`Found ${slotsWithPayments.size} slots with payments out of ${slots.length} total slots`)
+
       return slotsWithPayments
     } catch (error) {
       console.error('Error checking multiple slots payment status:', error)

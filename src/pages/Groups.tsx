@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye, Download, Upload, CheckCircle } from 'lucide-react'
-import type { Group, GroupMember, GroupFormData } from '../types/member'
+import type { Group, GroupFormData } from '../types/member'
 import { groupService } from '../services/groupService'
-import { paymentService } from '../services/paymentService'
+import { groupsOptimizedService, GroupWithDetails } from '../services/groupsOptimizedService'
 import GroupModal from '../components/GroupModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { formatDateRange, calculateDuration } from '../utils/dateUtils'
@@ -17,9 +17,7 @@ interface CSVImportResult {
 
 const Groups = () => {
   const navigate = useNavigate()
-  const [groups, setGroups] = useState<Group[]>([])
-  const [groupMembers, setGroupMembers] = useState<{ [groupId: number]: GroupMember[] }>({})
-  const [groupSlotsInfo, setGroupSlotsInfo] = useState<{ [groupId: number]: { paid: number; total: number } }>({})
+  const [groups, setGroups] = useState<GroupWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
@@ -30,7 +28,11 @@ const Groups = () => {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<GroupWithDetails | null>(null)
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<'name' | 'monthlyAmount' | 'members'>('name')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   useEffect(() => {
     loadGroups()
@@ -39,34 +41,10 @@ const Groups = () => {
   const loadGroups = async () => {
     try {
       setLoading(true)
-      const groupsData = await groupService.getAllGroups()
+      
+      // Use the optimized service to get all groups with details
+      const groupsData = await groupsOptimizedService.getAllGroupsWithDetails()
       setGroups(groupsData)
-      
-      // Load member counts for each group
-      const membersData: { [groupId: number]: GroupMember[] } = {}
-      // Load slots information for each group
-      const slotsData: { [groupId: number]: { paid: number; total: number } } = {}
-      
-      for (const group of groupsData) {
-        try {
-          const members = await groupService.getGroupMembers(group.id)
-          membersData[group.id] = members
-        } catch (err) {
-          console.error(`Error loading members for group ${group.id}:`, err)
-          membersData[group.id] = []
-        }
-        
-        try {
-          const slotsInfo = await paymentService.getGroupPaidSlotsCount(group.id)
-          slotsData[group.id] = slotsInfo
-        } catch (err) {
-          console.error(`Error loading slots info for group ${group.id}:`, err)
-          slotsData[group.id] = { paid: 0, total: 0 }
-        }
-      }
-      
-      setGroupMembers(membersData)
-      setGroupSlotsInfo(slotsData)
     } catch (err) {
       setError('Failed to load groups')
       console.error('Error loading groups:', err)
@@ -75,12 +53,88 @@ const Groups = () => {
     }
   }
 
+  // Sort groups based on current sort field and direction
+  const getSortedGroups = () => {
+    return [...groups].sort((a, b) => {
+      let aValue: any
+      let bValue: any
+      
+      switch (sortField) {
+        case 'name':
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+          break
+        case 'monthlyAmount':
+          aValue = a.monthlyAmount || 0
+          bValue = b.monthlyAmount || 0
+          break
+        case 'members':
+          aValue = a.members?.length || 0
+          bValue = b.members?.length || 0
+          break
+        default:
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+      }
+      
+      if (sortDirection === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+      }
+    })
+  }
+
+  // Handle sort field change
+  const handleSortFieldChange = (field: 'name' | 'monthlyAmount' | 'members') => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      // Set new field with ascending direction
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  // Get sort icon for a field
+  const getSortIcon = (field: 'name' | 'monthlyAmount' | 'members') => {
+    if (sortField !== field) return null
+    return sortDirection === 'asc' ? '↑' : '↓'
+  }
+
+  // Helper function to convert Group to GroupWithDetails
+  const convertGroupToGroupWithDetails = (group: Group): GroupWithDetails => ({
+    ...group,
+    description: group.description || '',
+    created_at: group.createdAt || new Date().toISOString(),
+    updated_at: group.updatedAt || new Date().toISOString(),
+    members: [],
+    slotsInfo: { paid: 0, total: 0 }
+  })
+
+  // Helper function to convert GroupWithDetails back to Group for modals
+  const convertGroupWithDetailsToGroup = (groupWithDetails: GroupWithDetails): Group => ({
+    id: groupWithDetails.id,
+    name: groupWithDetails.name,
+    description: groupWithDetails.description,
+    monthlyAmount: groupWithDetails.monthlyAmount,
+    startDate: groupWithDetails.startDate,
+    endDate: groupWithDetails.endDate,
+    maxMembers: groupWithDetails.maxMembers,
+    duration: groupWithDetails.duration,
+    paymentDeadlineDay: groupWithDetails.paymentDeadlineDay,
+    lateFinePercentage: groupWithDetails.lateFinePercentage,
+    lateFineFixedAmount: groupWithDetails.lateFineFixedAmount,
+    createdAt: groupWithDetails.created_at,
+    updatedAt: groupWithDetails.updated_at
+  })
+
   const handleCreateGroup = async (groupData: any) => {
     try {
       const newGroup = await groupService.createGroup(groupData)
-      setGroups(prev => [...prev, newGroup])
-      setGroupMembers(prev => ({ ...prev, [newGroup.id]: [] }))
-      setGroupSlotsInfo(prev => ({ ...prev, [newGroup.id]: { paid: 0, total: 0 } }))
+      const newGroupWithDetails = convertGroupToGroupWithDetails(newGroup)
+      setGroups(prev => [...prev, newGroupWithDetails])
       setShowCreateModal(false)
     } catch (err) {
       setError('Failed to create group')
@@ -93,7 +147,8 @@ const Groups = () => {
       if (!selectedGroup) return
       
       const updatedGroup = await groupService.updateGroup(selectedGroup.id, groupData)
-      setGroups(prev => prev.map(g => g.id === updatedGroup.id ? updatedGroup : g))
+      const updatedGroupWithDetails = convertGroupToGroupWithDetails(updatedGroup)
+      setGroups(prev => prev.map(g => g.id === updatedGroupWithDetails.id ? updatedGroupWithDetails : g))
       setShowEditModal(false)
       setSelectedGroup(null)
     } catch (err) {
@@ -108,16 +163,6 @@ const Groups = () => {
       
       await groupService.deleteGroup(selectedGroup.id)
       setGroups(prev => prev.filter(g => g.id !== selectedGroup.id))
-      setGroupMembers(prev => {
-        const newMembers = { ...prev }
-        delete newMembers[selectedGroup.id]
-        return newMembers
-      })
-      setGroupSlotsInfo(prev => {
-        const newSlots = { ...prev }
-        delete newSlots[selectedGroup.id]
-        return newSlots
-      })
       setShowDeleteModal(false)
       setSelectedGroup(null)
     } catch (err) {
@@ -126,12 +171,12 @@ const Groups = () => {
     }
   }
 
-  const openEditModal = (group: Group) => {
+  const openEditModal = (group: GroupWithDetails) => {
     setSelectedGroup(group)
     setShowEditModal(true)
   }
 
-  const openDeleteModal = (group: Group) => {
+  const openDeleteModal = (group: GroupWithDetails) => {
     setSelectedGroup(group)
     setShowDeleteModal(true)
   }
@@ -285,12 +330,11 @@ const Groups = () => {
       for (const groupData of groupsToImport) {
         try {
           const newGroup = await groupService.createGroup(groupData)
+          const newGroupWithDetails = convertGroupToGroupWithDetails(newGroup)
           results.success++
           
           // Add to local state
-          setGroups(prev => [...prev, newGroup])
-          setGroupMembers(prev => ({ ...prev, [newGroup.id]: [] }))
-          setGroupSlotsInfo(prev => ({ ...prev, [newGroup.id]: { paid: 0, total: 0 } }))
+          setGroups(prev => [...prev, newGroupWithDetails])
         } catch (error: any) {
           const errorMsg = `Failed to import group '${groupData.name}': ${error.message || 'Unknown error'}`
           results.errors.push(errorMsg)
@@ -456,10 +500,34 @@ const Groups = () => {
           </div>
         )}
 
+        {/* Sorting Controls */}
+        <div className="sorting-controls">
+          <div className="sort-label">Sort by:</div>
+          <button 
+            className={`sort-btn ${sortField === 'name' ? 'active' : ''}`}
+            onClick={() => handleSortFieldChange('name')}
+          >
+            Group Name {getSortIcon('name')}
+          </button>
+          <button 
+            className={`sort-btn ${sortField === 'monthlyAmount' ? 'active' : ''}`}
+            onClick={() => handleSortFieldChange('monthlyAmount')}
+          >
+            Monthly Amount {getSortIcon('monthlyAmount')}
+          </button>
+          <button 
+            className={`sort-btn ${sortField === 'members' ? 'active' : ''}`}
+            onClick={() => handleSortFieldChange('members')}
+          >
+            Members {getSortIcon('members')}
+          </button>
+        </div>
+
         {/* Groups Grid */}
         <div className="groups-grid">
-          {groups.map((group) => {
-            const memberCount = groupMembers[group.id]?.length || 0
+          {getSortedGroups().map((group) => {
+            const memberCount = group.members?.length || 0
+            const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
             return (
               <div key={group.id} className="group-card">
                 <div className="group-header">
@@ -518,7 +586,7 @@ const Groups = () => {
                     <div className="stat-item">
                       <CheckCircle size={16} />
                       <span>
-                        Slots Paid: {groupSlotsInfo[group.id]?.paid || 0} / {groupSlotsInfo[group.id]?.total || 0}
+                        Slots Paid: {slotsInfo.paid || 0} / {slotsInfo.total || 0}
                       </span>
                     </div>
                   </div>
@@ -542,8 +610,8 @@ const Groups = () => {
                     <div className="progress-header">
                       <span className="progress-label">Payment Progress</span>
                       <span className="progress-percentage">
-                        {groupSlotsInfo[group.id]?.total > 0 
-                          ? Math.round((groupSlotsInfo[group.id]?.paid || 0) / groupSlotsInfo[group.id]?.total * 100)
+                        {slotsInfo.total > 0 
+                          ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
                           : 0
                         }%
                       </span>
@@ -552,8 +620,8 @@ const Groups = () => {
                       <div 
                         className="progress-fill"
                         style={{
-                          width: `${groupSlotsInfo[group.id]?.total > 0 
-                            ? (groupSlotsInfo[group.id]?.paid || 0) / groupSlotsInfo[group.id]?.total * 100
+                          width: `${slotsInfo.total > 0 
+                            ? (slotsInfo.paid || 0) / slotsInfo.total * 100
                             : 0
                           }%`
                         }}
@@ -605,27 +673,27 @@ const Groups = () => {
         mode="create"
       />
 
-      <GroupModal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false)
-          setSelectedGroup(null)
-        }}
-        onSave={handleEditGroup}
-        group={selectedGroup}
-        mode="edit"
-      />
+      {/* Edit Group Modal */}
+      {showEditModal && selectedGroup && (
+        <GroupModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleEditGroup}
+          group={convertGroupWithDetailsToGroup(selectedGroup)}
+          mode="edit"
+        />
+      )}
 
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false)
-          setSelectedGroup(null)
-        }}
-        onConfirm={handleDeleteGroup}
-        itemName={selectedGroup?.name || ''}
-        itemType="Group"
-      />
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && selectedGroup && (
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDeleteGroup}
+          itemName={selectedGroup?.name || ''}
+          itemType="group"
+        />
+      )}
     </div>
   )
 }

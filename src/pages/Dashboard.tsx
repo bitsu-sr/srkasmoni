@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { DollarSign, Users, CreditCard, AlertTriangle, TrendingUp, Calendar, Plus, UserPlus, CheckCircle } from 'lucide-react'
-import { paymentService } from '../services/paymentService'
-import { groupService } from '../services/groupService'
-import { memberService } from '../services/memberService'
+import { dashboardService, DashboardData } from '../services/dashboardService'
 import { useNavigate } from 'react-router-dom'
 import './Dashboard.css'
 
@@ -74,110 +72,69 @@ const Dashboard = () => {
     try {
       setLoading(true)
       
-             // Fetch all data in parallel
-               const [
-          paymentStats, 
-          groups, 
-          overduePaymentsData, 
-          recentPayments, 
-          recentMembers, 
-          recentGroups,
-          dashboardGroupsData,
-          totalMembers,
-          activeMembers
-        ] = await Promise.all([
-          paymentService.getPaymentStats(),
-          groupService.getAllGroups(),
-          paymentService.getOverduePayments(),
-          paymentService.getRecentPayments(5),
-          memberService.getRecentMembers(3),
-          groupService.getRecentGroups(3),
-          groupService.getDashboardGroups(),
-          memberService.getTotalMemberCount(),
-          memberService.getActiveMemberCount()
-        ])
+      // Use the optimized dashboard service
+      const dashboardData: DashboardData = await dashboardService.getDashboardData()
 
-        console.log('📊 Dashboard data received:')
-        console.log('👥 Total Members:', totalMembers)
-        console.log('✅ Active Members:', activeMembers)
-        console.log('📈 Active/Total ratio:', `${activeMembers}/${totalMembers}`)
-
-      // Calculate total expected amount (all groups monthly amounts * duration)
-      let totalExpected = 0
-      groups.forEach(group => {
-        if (group.startDate && group.endDate) {
-          const duration = calculateDuration(group.startDate, group.endDate)
-          totalExpected += (group.monthlyAmount * duration)
+      // Update stats with optimized data
+      const newStats = [
+        {
+          title: 'Total Amount Expected',
+          value: `SRD ${dashboardData.stats.totalExpected.toLocaleString()}`,
+          change: dashboardData.stats.totalExpected > 0 ? '+100%' : '0%',
+          icon: Calendar,
+          color: 'info'
+        },
+        {
+          title: 'Total Amount Paid',
+          value: `SRD ${dashboardData.stats.totalPaid.toLocaleString()}`,
+          change: dashboardData.stats.totalPaid > 0 ? `+${Math.round((dashboardData.stats.totalPaid / dashboardData.stats.totalExpected) * 100)}%` : '0%',
+          icon: DollarSign,
+          color: 'success'
+        },
+        {
+          title: 'Total Amount Received',
+          value: `SRD ${dashboardData.stats.totalPaid.toLocaleString()}`,
+          change: dashboardData.stats.totalPaid > 0 ? `+100%` : '0%',
+          icon: TrendingUp,
+          color: 'primary'
+        },
+        {
+          title: 'Pending Payments',
+          value: `SRD ${dashboardData.stats.totalPending.toLocaleString()}`,
+          change: dashboardData.stats.totalPending > 0 ? `+${dashboardData.stats.totalPending}` : '0',
+          icon: CreditCard,
+          color: 'info'
+        },
+        {
+          title: 'Overdue Payments',
+          value: `SRD ${dashboardData.stats.totalOverdue.toLocaleString()}`,
+          change: dashboardData.stats.totalOverdue > 0 ? `+${dashboardData.stats.totalOverdue}` : '0',
+          icon: AlertTriangle,
+          color: 'warning'
+        },
+        {
+          title: 'Active Groups',
+          value: dashboardData.stats.activeGroups.toString(),
+          change: dashboardData.stats.activeGroups > 0 ? `+${dashboardData.stats.activeGroups}` : '0',
+          icon: Users,
+          color: 'success'
+        },
+        {
+          title: 'Active Members',
+          value: `${dashboardData.stats.activeMembers}/${dashboardData.stats.totalMembers}`,
+          change: dashboardData.stats.activeMembers > 0 ? `+${dashboardData.stats.activeMembers}` : '0',
+          icon: UserPlus,
+          color: 'primary'
         }
-      })
-
-                          // Calculate percentage changes (simplified - could be enhanced with historical data)
-        const totalPaid = paymentStats.receivedAmount + paymentStats.pendingAmount + paymentStats.settledAmount
-        const totalPending = paymentStats.pendingAmount
-
-             // Calculate percentages
-             const paidPercentage = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0
-             const receivedPercentage = totalPaid > 0 ? Math.round((paymentStats.receivedAmount / totalPaid) * 100) : 0
-
-             const newStats = [
-         {
-           title: 'Total Amount Expected',
-           value: `SRD ${totalExpected.toLocaleString()}`,
-           change: totalExpected > 0 ? '+100%' : '0%',
-           icon: Calendar,
-           color: 'info'
-         },
-         {
-           title: 'Total Amount Paid',
-           value: `SRD ${(totalPaid).toLocaleString()}`,
-           change: totalPaid > 0 ? `+${paidPercentage}%` : '0%',
-           icon: DollarSign,
-           color: 'success'
-         },
-         {
-           title: 'Total Amount Received',
-           value: `SRD ${paymentStats.receivedAmount.toLocaleString()}`,
-           change: paymentStats.receivedAmount > 0 ? `+${receivedPercentage}%` : '0%',
-           icon: TrendingUp,
-           color: 'primary'
-         },
-         {
-           title: 'Pending Payments',
-           value: `SRD ${totalPending.toLocaleString()}`,
-           change: paymentStats.pendingCount > 0 ? `+${paymentStats.pendingCount}` : '0',
-           icon: CreditCard,
-           color: 'info'
-         },
-         {
-           title: 'Overdue Payments',
-           value: `SRD ${overduePaymentsData.amount.toLocaleString()}`,
-           change: overduePaymentsData.count > 0 ? `+${overduePaymentsData.count}` : '0',
-           icon: AlertTriangle,
-           color: 'warning'
-         },
-         {
-           title: 'Active Groups',
-           value: groups.length.toString(),
-           change: groups.length > 0 ? `+${groups.length}` : '0',
-           icon: Users,
-           color: 'success'
-         },
-         {
-           title: 'Active Members',
-           value: `${activeMembers}/${totalMembers}`,
-           change: activeMembers > 0 ? `+${activeMembers}` : '0',
-           icon: UserPlus,
-           color: 'primary'
-         }
-       ]
+      ]
 
       setStats(newStats)
-      setRecentPayments(recentPayments)
-      setRecentMembers(recentMembers)
-      setRecentGroups(recentGroups)
+      setRecentPayments(dashboardData.recentPayments)
+      setRecentMembers(dashboardData.recentMembers)
+      setRecentGroups(dashboardData.recentGroups)
       
       // Sort dashboard groups by name in ascending order
-      const sortedGroups = [...dashboardGroupsData].sort((a, b) => 
+      const sortedGroups = [...dashboardData.groups].sort((a, b) => 
         a.name.localeCompare(b.name)
       )
       setDashboardGroups(sortedGroups)
@@ -186,20 +143,6 @@ const Dashboard = () => {
     } finally {
       setLoading(false)
     }
-  }
-
-  // Helper function to calculate duration
-  const calculateDuration = (startDate: string, endDate: string): number => {
-    if (!startDate || !endDate) return 0
-    
-    const [startYear, startMonth] = startDate.split('-').map(Number)
-    const [endYear, endMonth] = endDate.split('-').map(Number)
-    
-    if (isNaN(startYear) || isNaN(startMonth) || isNaN(endYear) || isNaN(endMonth)) {
-      return 0
-    }
-    
-    return (endYear - startYear) * 12 + (endMonth - startMonth) + 1
   }
 
   // Helper function to format month-year
@@ -485,7 +428,7 @@ const Dashboard = () => {
                      <div className="stat-row">
                        <div className="stat-item">
                          <CheckCircle size={16} />
-                         <span>Slots: {group.slotsPaid} / {group.slotsTotal}</span>
+                         <span>Slots: {Math.min(group.slotsPaid, group.slotsTotal)} / {group.slotsTotal}</span>
                        </div>
                      </div>
                    </div>
@@ -494,7 +437,7 @@ const Dashboard = () => {
                        <span className="progress-label">Payment Progress</span>
                        <span className="progress-percentage">
                          {group.slotsTotal > 0 
-                           ? Math.round((group.slotsPaid / group.slotsTotal) * 100)
+                           ? Math.min(100, Math.round((group.slotsPaid / group.slotsTotal) * 100))
                            : 0
                          }%
                        </span>
@@ -504,7 +447,7 @@ const Dashboard = () => {
                          className="progress-fill"
                          style={{
                            width: `${group.slotsTotal > 0 
-                             ? (group.slotsPaid / group.slotsTotal) * 100
+                             ? Math.min(100, (group.slotsPaid / group.slotsTotal) * 100)
                              : 0
                            }%`
                          }}

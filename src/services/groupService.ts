@@ -108,7 +108,7 @@ export const groupService = {
       })
       
       const groupsWithMembers = await Promise.all(memberPromises)
-      console.log(`Loaded ${groupsWithMembers.length} groups with their members in parallel`)
+
       return groupsWithMembers
     } catch (error) {
       console.error('Error in getAllGroupsWithMembers:', error)
@@ -269,7 +269,7 @@ export const groupService = {
       // Use the assignedMonthDate directly as it's already in YYYY-MM format
       const assignedMonthDate = memberData.assignedMonthDate
 
-      console.log(`addMemberToGroup: Adding member ${memberData.memberId} to group ${groupId} for month ${assignedMonthDate}`)
+
 
       const { data, error } = await supabase
         .from('group_members')

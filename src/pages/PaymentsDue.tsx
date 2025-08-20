@@ -70,7 +70,6 @@ const PaymentsDue: React.FC = () => {
 
       if (settings.enableOptimizedQueries) {
         // Phase 2: Single Optimized Queries
-        console.log('🔄 Loading with Phase 2: Single Optimized Queries')
         const phase2Start = performance.now()
         
         try {
@@ -100,10 +99,9 @@ const PaymentsDue: React.FC = () => {
           stats = await paymentService.getPaymentStats()
           
           const phase2Time = performance.now() - phase2Start
-          console.log(`✅ Phase 2 completed in ${phase2Time.toFixed(2)}ms`)
           setPerformanceMetrics(prev => ({ ...prev, phase2Time }))
         } catch (phase2Error) {
-          console.warn('⚠️ Phase 2 failed, falling back to Phase 1:', phase2Error)
+          console.warn('Phase 2 failed, falling back to Phase 1:', phase2Error)
           // Fallback to Phase 1
           const phase1Start = performance.now()
           const [slotsResult, statsResult] = await Promise.all([
@@ -118,7 +116,6 @@ const PaymentsDue: React.FC = () => {
         }
       } else if (settings.enableParallelCalls) {
         // Phase 1: Parallel Database Calls
-        console.log('🔄 Loading with Phase 1: Parallel Database Calls')
         const phase1Start = performance.now()
         
         const [slotsResult, statsResult] = await Promise.all([
@@ -129,18 +126,15 @@ const PaymentsDue: React.FC = () => {
         stats = statsResult
         
         const phase1Time = performance.now() - phase1Start
-        console.log(`✅ Phase 1 completed in ${phase1Time.toFixed(2)}ms`)
         setPerformanceMetrics(prev => ({ ...prev, phase1Time }))
       } else {
         // Default: Sequential loading
-        console.log('🔄 Loading with default sequential approach')
         const defaultStart = performance.now()
         
         slots = await paymentSlotService.getAllSlots()
         stats = await paymentService.getPaymentStats()
         
         const defaultTime = performance.now() - defaultStart
-        console.log(`✅ Default loading completed in ${defaultTime.toFixed(2)}ms`)
       }
 
       // Check payment status for all slots
@@ -167,11 +161,10 @@ const PaymentsDue: React.FC = () => {
       setPaymentStats(stats)
       
       const totalTime = performance.now() - startTime
-      console.log(`🎯 Total loading time: ${totalTime.toFixed(2)}ms`)
       setPerformanceMetrics(prev => ({ ...prev, totalTime }))
       
     } catch (err) {
-      console.error('❌ Error loading unpaid slots:', err)
+      console.error('Error loading unpaid slots:', err)
       setError('Failed to load slots. Please try again.')
     } finally {
       setLoading(false)

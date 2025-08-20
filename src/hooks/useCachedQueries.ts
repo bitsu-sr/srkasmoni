@@ -142,7 +142,7 @@ export const useCacheManagement = () => {
   return {
     clearCache: () => {
       queryClient.clear()
-      console.log('🧹 Cache cleared')
+  
     },
     getCacheStats: () => cachingService.getCacheStats(),
     cleanupCache: () => cachingService.cleanupCache(),

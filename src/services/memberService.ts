@@ -333,8 +333,6 @@ export const memberService = {
   // Get active member count for dashboard (members who have slots in groups)
   async getActiveMemberCount(): Promise<number> {
     try {
-      console.log('🔍 Fetching active member count...')
-      
       // Use the same logic as getMemberSlotsInfo - count distinct members who have slots
       // First get all member_ids from group_members
       const { data, error } = await supabase
@@ -342,7 +340,7 @@ export const memberService = {
         .select('member_id')
 
       if (error) {
-        console.error('❌ Error fetching active member count:', error)
+        console.error('Error fetching active member count:', error)
         throw error
       }
       
@@ -350,13 +348,9 @@ export const memberService = {
       const uniqueMemberIds = new Set(data?.map((row: { member_id: number }) => row.member_id) || [])
       const activeCount = uniqueMemberIds.size
       
-      console.log('📊 Active member count data:', data)
-      console.log('🔢 Unique member IDs:', Array.from(uniqueMemberIds))
-      console.log('🔢 Active member count result:', activeCount)
-      
       return activeCount
     } catch (error) {
-      console.error('❌ Error in getActiveMemberCount:', error)
+      console.error('Error in getActiveMemberCount:', error)
       return 0
     }
   }

@@ -49,7 +49,7 @@ export const paymentSlotService = {
         createdAt: new Date().toISOString()
       }))
 
-      console.log(`Found ${groupMembers.length} members for group ${groupId}`)
+
       return groupMembers
     } catch (error) {
       console.error('Error in getGroupMembers:', error)
@@ -83,7 +83,7 @@ export const paymentSlotService = {
         createdAt: slot.created_at
       }))
       
-      console.log(`Found ${transformedSlots.length} slots for member ${memberId} in group ${groupId}`)
+
       return transformedSlots
     } catch (error) {
       console.error('Error in getMemberSlots:', error)
@@ -123,7 +123,7 @@ export const paymentSlotService = {
         group: groupMember.group
       }))
       
-      console.log(`Found ${transformedSlots.length} total members across all groups`)
+
       return transformedSlots
     } catch (error) {
       console.error('Error in getAllSlots:', error)
@@ -172,7 +172,7 @@ export const paymentSlotService = {
           createdAt: new Date().toISOString()
         }))
       
-      console.log(`Found ${transformedSlots.length} available month assignments for member ${memberId} in group ${groupId}`)
+
       return transformedSlots
     } catch (error) {
       console.error('Error in getAvailableMonthAssignments:', error)
@@ -211,7 +211,7 @@ export const paymentSlotService = {
         member: item.member
       }))
 
-      console.log(`Found ${transformedSlots.length} slots from group_members for group ${groupId}`)
+
       return transformedSlots
     } catch (error) {
       console.error('Error in getGroupSlots:', error)
@@ -355,7 +355,7 @@ export const paymentSlotService = {
         throw new Error(`Failed to delete extra slots: ${deleteError.message}`)
       }
 
-      console.log(`Cleaned up ${slotsToDelete.length} auto-generated slots for member ${memberId} in group ${groupId}`)
+
     } catch (error) {
       console.error('Error cleaning up auto-generated slots:', error)
       throw error

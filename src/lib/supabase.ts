@@ -13,8 +13,8 @@ const hasValidCredentials = supabaseUrl &&
   supabaseAnonKey.length > 20
 
 if (!hasValidCredentials) {
-  console.warn('⚠️ Supabase not configured. Please update src/config/supabase-config.ts with your credentials.')
-  console.warn('⚠️ The app will work with mock data until Supabase is configured.')
+      console.warn('Supabase not configured. Please update src/config/supabase-config.ts with your credentials.')
+    console.warn('The app will work with mock data until Supabase is configured.')
 }
 
 // Create a dummy client if credentials are invalid to prevent crashes
