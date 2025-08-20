@@ -49,8 +49,6 @@ export const optimizedQueryService = {
   // Phase 2: Single optimized query to get all slots with member, group, and payment data
   async getAllSlotsOptimized(): Promise<OptimizedSlotData[]> {
     try {
-      const startTime = performance.now()
-      
       const { data, error } = await supabase
         .from('group_members')
         .select(`
@@ -145,8 +143,6 @@ export const optimizedQueryService = {
   // Phase 2: Single optimized query to get all groups with members and calculated totals
   async getAllGroupsOptimized(): Promise<OptimizedGroupData[]> {
     try {
-      const startTime = performance.now()
-      
       const { data, error } = await supabase
         .from('groups')
         .select(`
@@ -217,8 +213,6 @@ export const optimizedQueryService = {
     settledCount: number
   }> {
     try {
-      const startTime = performance.now()
-      
       const { data, error } = await supabase
         .from('payments')
         .select('status, amount, payment_method')
@@ -288,8 +282,6 @@ export const optimizedQueryService = {
   async checkMultipleSlotsPaymentStatusOptimized(slots: { groupId: number; memberId: number; monthDate: string }[]): Promise<Set<string>> {
     try {
       if (slots.length === 0) return new Set()
-      
-      const startTime = performance.now()
       
       // Create a single query to check all slots at once using JOIN with payment_slots
       const { data, error } = await supabase

@@ -132,7 +132,7 @@ export const dashboardService = {
   },
 
   // Transform groups data for dashboard
-  transformDashboardGroups(groupsData: any[], paymentStats: any, paymentsData: any[]): DashboardGroup[] {
+  transformDashboardGroups(groupsData: any[], _paymentStats: any, paymentsData: any[]): DashboardGroup[] {
     const currentMonth = new Date().toISOString().split('T')[0].substring(0, 7)
 
     return groupsData.map(group => {

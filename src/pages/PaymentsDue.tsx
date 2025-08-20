@@ -129,12 +129,9 @@ const PaymentsDue: React.FC = () => {
         setPerformanceMetrics(prev => ({ ...prev, phase1Time }))
       } else {
         // Default: Sequential loading
-        const defaultStart = performance.now()
         
         slots = await paymentSlotService.getAllSlots()
         stats = await paymentService.getPaymentStats()
-        
-        const defaultTime = performance.now() - defaultStart
       }
 
       // Check payment status for all slots
