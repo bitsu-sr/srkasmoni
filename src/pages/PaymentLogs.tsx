@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Filter, Calendar, User, Users, Activity, Clock, Eye, FileText, RefreshCw } from 'lucide-react'
+import { Search, Filter, User, Users, Activity, Clock, Eye, FileText, RefreshCw } from 'lucide-react'
 import { paymentLogService } from '../services/paymentLogService'
 
 
-import type { PaymentLog, PaymentLogFilters } from '../types/paymentLog'
+import type { PaymentLogFilters } from '../types/paymentLog'
 import './PaymentLogs.css'
 
 const PaymentLogs: React.FC = () => {
@@ -31,7 +31,7 @@ const PaymentLogs: React.FC = () => {
 
   
   // Fetch payment log statistics
-  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ['paymentLogStats'],
     queryFn: () => paymentLogService.getPaymentLogStats(),
     staleTime: 5 * 60 * 1000, // 5 minutes
