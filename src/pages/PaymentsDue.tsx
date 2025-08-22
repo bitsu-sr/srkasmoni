@@ -391,40 +391,40 @@ const PaymentsDue: React.FC = () => {
 
       {/* Statistics Section */}
       <div className="statistics-section">
-        <div className="stat-card stat-card-default">
-          <div className="stat-icon">
+        <div className="payments-due-stat-card payments-due-stat-card-default">
+          <div className="payments-due-stat-icon">
             💰
           </div>
-          <div className="stat-content">
-            <div className="stat-number">{unpaidSlots.length}</div>
-            <div className="stat-label">Total Slots</div>
+          <div className="payments-due-stat-content">
+            <div className="payments-due-stat-number">{unpaidSlots.length}</div>
+            <div className="payments-due-stat-label">Total Slots</div>
           </div>
         </div>
-        <div className="stat-card stat-card-default">
-          <div className="stat-icon">
+        <div className="payments-due-stat-card payments-due-stat-card-default">
+          <div className="payments-due-stat-icon">
             📅
           </div>
-          <div className="stat-content">
-            <div className="stat-number">SRD {totalAmount.toFixed(2)}</div>
-            <div className="stat-label">Total Amount</div>
+          <div className="payments-due-stat-content">
+            <div className="payments-due-stat-number">SRD {Number(totalAmount.toFixed(2)).toLocaleString()}</div>
+            <div className="payments-due-stat-label">Total Amount</div>
           </div>
         </div>
-        <div className="stat-card stat-card-success">
-          <div className="stat-icon">
+        <div className="payments-due-stat-card payments-due-stat-card-success">
+          <div className="payments-due-stat-icon">
             ✅
           </div>
-          <div className="stat-content">
-            <div className="stat-number">SRD {totalAmountPaid.toFixed(2)}</div>
-            <div className="stat-label">Total Amount Paid</div>
+          <div className="payments-due-stat-content">
+            <div className="payments-due-stat-number">SRD {Number(totalAmountPaid.toFixed(2)).toLocaleString()}</div>
+            <div className="payments-due-stat-label">Total Amount Paid</div>
           </div>
         </div>
-        <div className="stat-card stat-card-danger">
-          <div className="stat-icon">
+        <div className="payments-due-stat-card payments-due-stat-card-danger">
+          <div className="payments-due-stat-icon">
             ⚠️
           </div>
-          <div className="stat-content">
-            <div className="stat-number">SRD {Math.max(0, totalAmount - totalAmountPaid).toFixed(2)}</div>
-            <div className="stat-label">Total Amount Due</div>
+          <div className="payments-due-stat-content">
+            <div className="payments-due-stat-number">SRD {Number(Math.max(0, totalAmount - totalAmountPaid).toFixed(2)).toLocaleString()}</div>
+            <div className="payments-due-stat-label">Total Amount Due</div>
           </div>
         </div>
       </div>
@@ -475,25 +475,45 @@ const PaymentsDue: React.FC = () => {
             </div>
           </div>
 
-          <div className="table-container">
-            <table className="payments-due-table">
+                      <div className="payments-due-table-container">
+              <table className="payments-due-table">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th onClick={() => handleSort('firstName')} className="sortable">
-                    First Name{getSortIcon('firstName')}
+                  <th 
+                    onClick={() => handleSort('firstName')} 
+                    className="payments-due-table-header sortable"
+                    data-sort-icon={getSortIcon('firstName')}
+                  >
+                    First Name
                   </th>
-                  <th onClick={() => handleSort('lastName')} className="sortable">
-                    Last Name{getSortIcon('lastName')}
+                  <th 
+                    onClick={() => handleSort('lastName')} 
+                    className="payments-due-table-header sortable"
+                    data-sort-icon={getSortIcon('lastName')}
+                  >
+                    Last Name
                   </th>
-                  <th onClick={() => handleSort('group')} className="sortable">
-                    Group{getSortIcon('group')}
+                  <th 
+                    onClick={() => handleSort('group')} 
+                    className="payments-due-table-header sortable"
+                    data-sort-icon={getSortIcon('group')}
+                  >
+                    Group
                   </th>
-                  <th onClick={() => handleSort('slot')} className="sortable">
-                    Slot{getSortIcon('slot')}
+                  <th 
+                    onClick={() => handleSort('slot')} 
+                    className="payments-due-table-header sortable"
+                    data-sort-icon={getSortIcon('slot')}
+                  >
+                    Slot
                   </th>
-                  <th onClick={() => handleSort('amount')} className="sortable">
-                    Amount Due{getSortIcon('amount')}
+                  <th 
+                    onClick={() => handleSort('amount')} 
+                    className="payments-due-table-header sortable"
+                    data-sort-icon={getSortIcon('amount')}
+                  >
+                    Amount Due
                   </th>
                   <th>Actions</th>
                 </tr>
@@ -502,16 +522,16 @@ const PaymentsDue: React.FC = () => {
                 {currentPageData.map((slot, index) => (
                   <tr 
                     key={`${slot.groupId}-${slot.memberId}-${slot.monthDate}`} 
-                    className={`table-row ${slot.hasPayment ? 'has-payment' : ''}`}
+                    className={`payments-due-table-row ${slot.hasPayment ? 'has-payment' : ''}`}
                   >
-                    <td className="row-number">{startIndex + index + 1}</td>
+                    <td className="payments-due-table-cell row-number">{startIndex + index + 1}</td>
                     <td>{slot.member?.first_name}</td>
                     <td>{slot.member?.last_name}</td>
                     <td>{slot.group?.name}</td>
                     <td>{formatMonthDate(slot.monthDate)}</td>
                     <td className="amount">
                       <span className={`amount-label ${slot.hasPayment ? 'paid' : 'unpaid'}`}>
-                        SRD {slot.amount.toFixed(2)}
+                        SRD {Number(slot.amount.toFixed(2)).toLocaleString()}
                       </span>
                     </td>
                     <td>
@@ -536,7 +556,7 @@ const PaymentsDue: React.FC = () => {
       {settings.paginationType === 'simple' ? (
         <div className="pagination-controls">
           <button
-            className="btn btn-secondary"
+            className="btn-pagination btn-secondary"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
@@ -547,7 +567,7 @@ const PaymentsDue: React.FC = () => {
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}
-                className={`btn btn-page ${page === currentPage ? 'active' : ''}`}
+                className={`btn-pagination btn-page ${page === currentPage ? 'active' : ''}`}
                 onClick={() => handlePageChange(page)}
               >
                 {page}
@@ -556,7 +576,7 @@ const PaymentsDue: React.FC = () => {
           </div>
           
           <button
-            className="btn btn-secondary"
+            className="btn-pagination btn-secondary"
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >

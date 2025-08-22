@@ -4,6 +4,7 @@ import { paymentService } from './paymentService'
 export interface DashboardStats {
   totalExpected: number
   totalPaid: number
+  totalReceived: number
   totalPending: number
   totalOverdue: number
   activeGroups: number
@@ -118,11 +119,13 @@ export const dashboardService = {
     })
 
     const totalPaid = paymentStats.receivedAmount + paymentStats.pendingAmount + paymentStats.settledAmount
+    const totalReceived = paymentStats.receivedAmount
     const totalPending = paymentStats.pendingAmount
 
     return {
       totalExpected,
       totalPaid,
+      totalReceived,
       totalPending,
       totalOverdue: overduePayments.amount,
       activeGroups: groupsData.length,

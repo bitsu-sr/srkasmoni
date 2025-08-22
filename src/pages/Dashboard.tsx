@@ -93,8 +93,8 @@ const Dashboard = () => {
         },
         {
           title: 'Total Amount Received',
-          value: `SRD ${dashboardData.stats.totalPaid.toLocaleString()}`,
-          change: dashboardData.stats.totalPaid > 0 ? `+100%` : '0%',
+          value: `SRD ${dashboardData.stats.totalReceived.toLocaleString()}`,
+          change: dashboardData.stats.totalReceived > 0 ? `+100%` : '0%',
           icon: TrendingUp,
           color: 'primary'
         },

@@ -12,6 +12,7 @@ import Payments from './pages/Payments'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import PaymentsDue from './pages/PaymentsDue'
+import PaymentLogs from './pages/PaymentLogs'
 import './App.css'
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
                 <Route path="/members" element={<Members />} />
                 <Route path="/members/:id" element={<MemberDetail />} />
                 <Route path="/payments" element={<Payments />} />
+                <Route path="/payment-logs" element={<PaymentLogs />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/payments-due" element={<PaymentsDue />} />
                 <Route path="/settings" element={<Settings />} />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, Menu, X } from 'lucide-react'
+import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, Menu, X, FileText } from 'lucide-react'
 import './Navbar.css'
 
 const Navbar = () => {
@@ -17,6 +17,7 @@ const Navbar = () => {
   ]
 
   const hamburgerItems = [
+    { path: '/payment-logs', label: 'Payment Logs', icon: FileText },
     { path: '/payments-due', label: 'Payments Due', icon: CreditCard },
     { path: '/settings', label: 'Settings', icon: Settings },
   ]

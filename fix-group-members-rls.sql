@@ -23,3 +23,4 @@ CREATE POLICY "Allow public delete from group_members" ON group_members
 -- Grant necessary permissions
 GRANT ALL ON group_members TO anon;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO anon;
+

@@ -147,6 +147,7 @@ const Payments = () => {
               <Plus size={20} />
               Record Payment
             </button>
+
           </div>
         </div>
 
@@ -260,6 +261,8 @@ const Payments = () => {
           isLoading={isDeleting}
         />
       )}
+      
+
     </div>
   )
 }
