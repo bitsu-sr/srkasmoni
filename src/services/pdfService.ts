@@ -12,7 +12,6 @@ export const pdfService = {
     const doc = new jsPDF()
     
     // Set A4 dimensions
-    const pageWidth = doc.internal.pageSize.width
     const pageHeight = doc.internal.pageSize.height
     const margin = 18
     

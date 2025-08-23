@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { AuthService } from '../services/authService';
-import { AuthUser, LoginCredentials, CreateUserData, UpdateUserData, AuthState } from '../types/auth';
+import { LoginCredentials, CreateUserData, UpdateUserData, AuthState } from '../types/auth';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string }>;

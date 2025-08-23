@@ -490,7 +490,7 @@ export class MessagingService {
           .eq('role', 'admin');
 
         if (admins && admins.length > 0) {
-          adminIds = admins.map(admin => admin.id);
+          adminIds = admins.map((admin: any) => admin.id);
         }
       } catch (tableError) {
         console.log('auth_users table not found, trying alternative approach');
@@ -505,7 +505,7 @@ export class MessagingService {
             .eq('role', 'admin');
 
           if (adminMembers && adminMembers.length > 0) {
-            adminIds = adminMembers.map(member => member.id.toString());
+            adminIds = adminMembers.map((member: any) => member.id.toString());
           }
         } catch (memberError) {
           console.log('members table not found or no admin role column');

@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { 
   Search, 
-  Filter, 
   Download, 
   Printer, 
   Eye, 
-  Calendar,
   DollarSign,
   Users,
   CheckCircle,
@@ -23,8 +20,6 @@ import { payoutService } from '../services/payoutService'
 import { pdfService } from '../services/pdfService'
 
 const Payouts: React.FC = () => {
-  const navigate = useNavigate()
-  
   // State for data
   const [payouts, setPayouts] = useState<Payout[]>([])
   const [filteredPayouts, setFilteredPayouts] = useState<Payout[]>([])
