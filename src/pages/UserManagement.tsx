@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthService } from '../services/authService';
 import { AuthUser, CreateUserData, UserRole } from '../types/auth';
-import { Plus, Search, Edit, Trash2, Key, Copy, Check } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Key, Copy } from 'lucide-react';
 import './UserManagement.css';
 
 const UserManagement: React.FC = () => {
@@ -72,9 +72,9 @@ const UserManagement: React.FC = () => {
 
   const handleCreateUser = async (userData: CreateUserData) => {
     try {
-      const { success, error: createError } = await AuthService.createUser(userData);
+      const { user, error: createError } = await AuthService.createUser(userData);
       
-      if (success) {
+      if (user) {
         setIsCreateModalOpen(false);
         await loadUsers();
         // Show generated password
@@ -96,9 +96,9 @@ const UserManagement: React.FC = () => {
 
   const handleEditUser = async (userId: string, updates: Partial<CreateUserData>) => {
     try {
-      const { success, error: updateError } = await AuthService.updateUser(userId, updates);
+      const { user, error: updateError } = await AuthService.updateUser(userId, updates);
       
-      if (success) {
+      if (user) {
         setIsEditModalOpen(false);
         setEditingUser(null);
         await loadUsers();
@@ -117,9 +117,9 @@ const UserManagement: React.FC = () => {
     }
 
     try {
-      const { success, error: deleteError } = await AuthService.deleteUser(userId);
+      const { error: deleteError } = await AuthService.deleteUser(userId);
       
-      if (success) {
+      if (!deleteError) {
         await loadUsers();
       } else {
         setError(deleteError || 'Failed to delete user');
@@ -145,8 +145,8 @@ const UserManagement: React.FC = () => {
       let errorCount = 0;
 
       for (const userId of selectedUsers) {
-        const { success } = await AuthService.updateUser(userId, { role });
-        if (success) {
+        const { user } = await AuthService.updateUser(userId, { role });
+        if (user) {
           successCount++;
         } else {
           errorCount++;

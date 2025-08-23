@@ -15,7 +15,6 @@ export const pdfService = {
     const pageWidth = doc.internal.pageSize.width
     const pageHeight = doc.internal.pageSize.height
     const margin = 18
-    const contentWidth = pageWidth - (2 * margin)
     
     let yPosition = margin
     

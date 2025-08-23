@@ -31,7 +31,7 @@ export const payoutService = {
       // Transform the data into Payout objects
       const payouts: Payout[] = []
       
-      groupsData?.forEach(group => {
+      groupsData?.forEach((group: any) => {
         group.group_members?.forEach((memberSlot: any) => {
           if (memberSlot.assigned_month_date === currentMonth && memberSlot.members) {
             const member = memberSlot.members

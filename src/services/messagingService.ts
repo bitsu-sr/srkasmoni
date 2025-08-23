@@ -475,7 +475,7 @@ export class MessagingService {
 
   // Send profile update notification to admins
   static async sendProfileUpdateNotification(
-    memberId: number,
+    _memberId: number, // Prefixed with underscore to indicate unused parameter
     changes: Record<string, any>,
     senderIpAddress?: string
   ): Promise<void> {
@@ -571,7 +571,7 @@ export class MessagingService {
           .eq('role', 'admin');
 
         if (admins && admins.length > 0) {
-          adminIds = admins.map(admin => admin.id);
+          adminIds = admins.map((admin: any) => admin.id);
         }
       } catch (tableError) {
         console.log('auth_users table not found, trying alternative approach');
@@ -586,7 +586,7 @@ export class MessagingService {
             .eq('role', 'admin');
 
           if (adminMembers && adminMembers.length > 0) {
-            adminIds = adminMembers.map(member => member.id.toString());
+            adminIds = adminMembers.map((member: any) => member.id.toString());
           }
         } catch (memberError) {
           console.log('members table not found or no admin role column');
@@ -677,7 +677,7 @@ export class MessagingService {
             .neq('id', request.approved_by);
 
           if (otherAdmins && otherAdmins.length > 0) {
-            otherAdminIds = otherAdmins.map(admin => admin.id);
+            otherAdminIds = otherAdmins.map((admin: any) => admin.id);
           }
         } catch (tableError) {
           console.log('auth_users table not found, trying alternative approach');
@@ -693,7 +693,7 @@ export class MessagingService {
               .neq('id', request.approved_by);
 
             if (otherAdminMembers && otherAdminMembers.length > 0) {
-              otherAdminIds = otherAdminMembers.map(member => member.id.toString());
+              otherAdminIds = otherAdminMembers.map((member: any) => member.id.toString());
             }
           } catch (memberError) {
             console.log('members table not found or no admin role column');

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { AuthUser, LoginCredentials, CreateUserData, UpdateUserData, UserRole } from '../types/auth';
+import { AuthUser, LoginCredentials, CreateUserData, UpdateUserData } from '../types/auth';
 
 export class AuthService {
   // Login with username (case-insensitive) and password
@@ -89,7 +89,7 @@ export class AuthService {
           last_name: '',
           phone: '',
           role: 'admin', // Assume admin for now if table doesn't exist
-          profile_picture: null,
+          profile_picture: undefined,
           created_at: authData.user.created_at,
           updated_at: authData.user.updated_at,
         };
@@ -151,7 +151,7 @@ export class AuthService {
         last_name: '',
         phone: '',
         role: 'admin', // Assume admin for now if table doesn't exist
-        profile_picture: null,
+        profile_picture: undefined,
         created_at: user.created_at,
         updated_at: user.updated_at,
       };
@@ -214,7 +214,7 @@ export class AuthService {
           last_name: userData.last_name,
           phone: userData.phone || '',
           role: userData.role,
-          profile_picture: null,
+          profile_picture: undefined,
           created_at: authData.user.created_at,
           updated_at: authData.user.updated_at,
         };

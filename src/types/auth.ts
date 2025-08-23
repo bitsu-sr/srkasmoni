@@ -6,6 +6,7 @@ export interface AuthUser {
   username: string;
   first_name: string;
   last_name: string;
+  phone: string;
   role: UserRole;
   profile_picture?: string;
   created_at: string;

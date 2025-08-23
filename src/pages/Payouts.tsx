@@ -181,15 +181,7 @@ const Payouts: React.FC = () => {
     setCurrentPage(1)
   }
 
-  // Format month-year strings
-  const formatMonthYear = (monthYear: string) => {
-    const [year, month] = monthYear.split('-').map(Number)
-    const date = new Date(year, month - 1)
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long' 
-    })
-  }
+
 
   // Get status badge
   const getStatusBadge = (status: string) => {

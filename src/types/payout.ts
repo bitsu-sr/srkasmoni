@@ -16,6 +16,6 @@ export interface Payout {
 
 export type FilterType = 'all' | 'memberName' | 'groupName' | 'bankName'
 export type StatusFilter = 'all' | 'completed' | 'pending' | 'processing' | 'failed'
-export type SortField = 'memberName' | 'groupName' | 'totalAmount' | 'status'
+export type SortField = 'memberName' | 'groupName' | 'totalAmount' | 'status' | 'receiveMonth'
 export type SortDirection = 'asc' | 'desc'
 
