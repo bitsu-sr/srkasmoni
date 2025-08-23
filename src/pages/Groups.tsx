@@ -4,6 +4,7 @@ import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye, Download, Upload,
 import type { Group, GroupFormData } from '../types/member'
 import { groupService } from '../services/groupService'
 import { groupsOptimizedService, GroupWithDetails } from '../services/groupsOptimizedService'
+import { useAuth } from '../contexts/AuthContext'
 import GroupModal from '../components/GroupModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { formatDateRange, calculateDuration } from '../utils/dateUtils'
@@ -17,6 +18,8 @@ interface CSVImportResult {
 
 const Groups = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [groups, setGroups] = useState<GroupWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -131,6 +134,11 @@ const Groups = () => {
   })
 
   const handleCreateGroup = async (groupData: any) => {
+    if (!isAdmin) {
+      setError('Only administrators can create groups')
+      return
+    }
+    
     try {
       const newGroup = await groupService.createGroup(groupData)
       const newGroupWithDetails = convertGroupToGroupWithDetails(newGroup)
@@ -143,6 +151,11 @@ const Groups = () => {
   }
 
   const handleEditGroup = async (groupData: any) => {
+    if (!isAdmin) {
+      setError('Only administrators can edit groups')
+      return
+    }
+    
     try {
       if (!selectedGroup) return
       
@@ -158,6 +171,11 @@ const Groups = () => {
   }
 
   const handleDeleteGroup = async () => {
+    if (!isAdmin) {
+      setError('Only administrators can delete groups')
+      return
+    }
+    
     try {
       if (!selectedGroup) return
       
@@ -172,21 +190,38 @@ const Groups = () => {
   }
 
   const openEditModal = (group: GroupWithDetails) => {
+    if (!isAdmin) {
+      setError('Only administrators can edit groups')
+      return
+    }
     setSelectedGroup(group)
     setShowEditModal(true)
   }
 
   const openDeleteModal = (group: GroupWithDetails) => {
+    if (!isAdmin) {
+      setError('Only administrators can delete groups')
+      return
+    }
     setSelectedGroup(group)
     setShowDeleteModal(true)
   }
 
   const navigateToGroupDetails = (groupId: number) => {
+    if (!isAdmin) {
+      setError('Only administrators can view group details')
+      return
+    }
     navigate(`/groups/${groupId}`)
   }
 
   // CSV Import Functions
   const downloadSampleCSV = () => {
+    if (!isAdmin) {
+      setError('Only administrators can download sample CSV files')
+      return
+    }
+    
     const sampleData = [
       {
         name: 'Family Savings Group',
@@ -311,6 +346,11 @@ const Groups = () => {
   }
 
   const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) {
+      setError('Only administrators can import CSV files')
+      return
+    }
+    
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -357,6 +397,11 @@ const Groups = () => {
   }
 
   const exportGroupsToCSV = () => {
+    if (!isAdmin) {
+      setError('Only administrators can export groups')
+      return
+    }
+    
     if (groups.length === 0) {
       setError('No groups to export')
       return
@@ -419,46 +464,53 @@ const Groups = () => {
       <div className="page-header">
         <div className="container">
           <h1 className="page-title">Groups</h1>
-          <p className="page-subtitle">Manage your savings groups</p>
+          <p className="page-subtitle">
+            {isAdmin 
+              ? "Manage your savings groups" 
+              : "View your savings groups"
+            }
+          </p>
         </div>
       </div>
 
       <div className="container">
-        {/* Header Actions */}
-        <div className="page-actions">
-          <div className="csv-import-section">
-            <button className="btn btn-secondary" onClick={downloadSampleCSV}>
-              <Download size={20} />
-              Download Sample CSV
+        {/* Header Actions - Only show for admins */}
+        {isAdmin && (
+          <div className="page-actions">
+            <div className="csv-import-section">
+              <button className="btn btn-secondary" onClick={downloadSampleCSV}>
+                <Download size={20} />
+                Download Sample CSV
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={exportGroupsToCSV}
+                disabled={isExporting || groups.length === 0}
+              >
+                <Download size={20} />
+                {isExporting ? 'Exporting...' : 'Export Groups'}
+              </button>
+              <div className="file-upload-wrapper">
+                <input
+                  type="file"
+                  id="csv-upload"
+                  accept=".csv"
+                  onChange={handleCSVImport}
+                  disabled={isImporting}
+                  style={{ display: 'none' }}
+                />
+                <label htmlFor="csv-upload" className="btn btn-secondary">
+                  <Upload size={20} />
+                  {isImporting ? 'Importing...' : 'Import CSV'}
+                </label>
+              </div> 
+            </div>
+            <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+              <Plus size={20} />
+              Create New Group
             </button>
-            <button 
-              className="btn btn-secondary" 
-              onClick={exportGroupsToCSV}
-              disabled={isExporting || groups.length === 0}
-            >
-              <Download size={20} />
-              {isExporting ? 'Exporting...' : 'Export Groups'}
-            </button>
-            <div className="file-upload-wrapper">
-              <input
-                type="file"
-                id="csv-upload"
-                accept=".csv"
-                onChange={handleCSVImport}
-                disabled={isImporting}
-                style={{ display: 'none' }}
-              />
-              <label htmlFor="csv-upload" className="btn btn-secondary">
-                <Upload size={20} />
-                {isImporting ? 'Importing...' : 'Import CSV'}
-              </label>
-            </div> 
           </div>
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-            <Plus size={20} />
-            Create New Group
-          </button>
-        </div>
+        )}
 
         {/* Error Display */}
         {error && (
@@ -468,8 +520,8 @@ const Groups = () => {
           </div>
         )}
 
-        {/* CSV Import Results */}
-        {csvImportResult && (
+        {/* CSV Import Results - Only show for admins */}
+        {isAdmin && csvImportResult && (
           <div className={`csv-import-result ${csvImportResult.success > 0 ? 'success' : 'error'}`}>
             <div className="result-header">
               <h3>CSV Import Results</h3>
@@ -500,28 +552,30 @@ const Groups = () => {
           </div>
         )}
 
-        {/* Sorting Controls */}
-        <div className="sorting-controls">
-          <div className="sort-label">Sort by:</div>
-          <button 
-            className={`sort-btn ${sortField === 'name' ? 'active' : ''}`}
-            onClick={() => handleSortFieldChange('name')}
-          >
-            Group Name {getSortIcon('name')}
-          </button>
-          <button 
-            className={`sort-btn ${sortField === 'monthlyAmount' ? 'active' : ''}`}
-            onClick={() => handleSortFieldChange('monthlyAmount')}
-          >
-            Monthly Amount {getSortIcon('monthlyAmount')}
-          </button>
-          <button 
-            className={`sort-btn ${sortField === 'members' ? 'active' : ''}`}
-            onClick={() => handleSortFieldChange('members')}
-          >
-            Members {getSortIcon('members')}
-          </button>
-        </div>
+        {/* Sorting Controls - Only show for admins */}
+        {isAdmin && (
+          <div className="sorting-controls">
+            <div className="sort-label">Sort by:</div>
+            <button 
+              className={`sort-btn ${sortField === 'name' ? 'active' : ''}`}
+              onClick={() => handleSortFieldChange('name')}
+            >
+              Group Name {getSortIcon('name')}
+            </button>
+            <button 
+              className={`sort-btn ${sortField === 'monthlyAmount' ? 'active' : ''}`}
+              onClick={() => handleSortFieldChange('monthlyAmount')}
+            >
+              Monthly Amount {getSortIcon('monthlyAmount')}
+            </button>
+            <button 
+              className={`sort-btn ${sortField === 'members' ? 'active' : ''}`}
+              onClick={() => handleSortFieldChange('members')}
+            >
+              Members {getSortIcon('members')}
+            </button>
+          </div>
+        )}
 
         {/* Groups Grid */}
         <div className="groups-grid">
@@ -538,27 +592,31 @@ const Groups = () => {
                     )}
                   </div>
                   <div className="group-actions">
-                    <button 
-                      className="action-btn view-btn"
-                      onClick={() => navigateToGroupDetails(group.id)}
-                      title="View Details"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    <button 
-                      className="action-btn edit-btn"
-                      onClick={() => openEditModal(group)}
-                      title="Edit Group"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button 
-                      className="action-btn delete-btn"
-                      onClick={() => openDeleteModal(group)}
-                      title="Delete Group"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {isAdmin && (
+                      <>
+                        <button 
+                          className="action-btn view-btn"
+                          onClick={() => navigateToGroupDetails(group.id)}
+                          title="View Details"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button 
+                          className="action-btn edit-btn"
+                          onClick={() => openEditModal(group)}
+                          title="Edit Group"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          className="action-btn delete-btn"
+                          onClick={() => openDeleteModal(group)}
+                          title="Delete Group"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -639,14 +697,17 @@ const Groups = () => {
                   </div>
                 </div>
 
-                <div className="group-actions-main">
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => navigateToGroupDetails(group.id)}
-                  >
-                    View Details
-                  </button>
-                </div>
+                {/* Main Action Button - Only show for admins */}
+                {isAdmin && (
+                  <div className="group-actions-main">
+                    <button 
+                      className="btn btn-secondary"
+                      onClick={() => navigateToGroupDetails(group.id)}
+                    >
+                      View Details
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -657,10 +718,17 @@ const Groups = () => {
           <div className="empty-state">
             <Users size={64} className="empty-icon" />
             <h3>No Groups Yet</h3>
-            <p>Create your first savings group to get started</p>
-            <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-              Create Group
-            </button>
+            <p>
+              {isAdmin 
+                ? "Create your first savings group to get started"
+                : "No groups are available yet"
+              }
+            </p>
+            {isAdmin && (
+              <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+                Create Group
+              </button>
+            )}
           </div>
         )}
       </div>

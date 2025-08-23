@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
+import { useAuth } from '../contexts/AuthContext'
 import { paymentSlotService } from '../services/paymentSlotService'
 import { paymentService } from '../services/paymentService'
 import { optimizedQueryService } from '../services/optimizedQueryService'
@@ -19,6 +20,12 @@ type SortDirection = 'asc' | 'desc'
 
 const PaymentsDue: React.FC = () => {
   const { settings, updateSetting } = usePerformanceSettings()
+  const { user } = useAuth()
+  
+  // Determine user permissions
+  const isAdmin = user?.role === 'admin'
+  const isSuperUser = user?.role === 'super_user'
+  const canViewAllRecords = isAdmin || isSuperUser
   
   // State for data
   const [unpaidSlots, setUnpaidSlots] = useState<UnpaidSlot[]>([])
@@ -58,7 +65,7 @@ const PaymentsDue: React.FC = () => {
     setCurrentPage(1)
   }
 
-  // Load data based on performance settings
+  // Load data based on performance settings and user permissions
   const loadUnpaidSlots = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -74,6 +81,7 @@ const PaymentsDue: React.FC = () => {
         
         try {
           const optimizedSlots = await optimizedQueryService.getAllSlotsOptimized()
+          
           // Transform optimized slots to our format
           slots = optimizedSlots.map(slot => ({
             id: slot.id,
@@ -104,10 +112,12 @@ const PaymentsDue: React.FC = () => {
           console.warn('Phase 2 failed, falling back to Phase 1:', phase2Error)
           // Fallback to Phase 1
           const phase1Start = performance.now()
+          
           const [slotsResult, statsResult] = await Promise.all([
             paymentSlotService.getAllSlots(),
             paymentService.getPaymentStats()
           ])
+          
           slots = slotsResult
           stats = statsResult
           
@@ -122,6 +132,7 @@ const PaymentsDue: React.FC = () => {
           paymentSlotService.getAllSlots(),
           paymentService.getPaymentStats()
         ])
+        
         slots = slotsResult
         stats = statsResult
         
@@ -129,9 +140,45 @@ const PaymentsDue: React.FC = () => {
         setPerformanceMetrics(prev => ({ ...prev, phase1Time }))
       } else {
         // Default: Sequential loading
-        
         slots = await paymentSlotService.getAllSlots()
         stats = await paymentService.getPaymentStats()
+      }
+
+      // Filter slots based on user permissions
+      if (!canViewAllRecords && user?.username) {
+        // Normal user: only show their own slots
+        const userFirstName = user.username.split('.')[0]
+        const userLastName = user.username.split('.')[1]
+        
+        slots = slots.filter(slot => {
+          const memberFirstName = slot.member?.first_name?.toLowerCase() || ''
+          const memberLastName = slot.member?.last_name?.toLowerCase() || ''
+          return memberFirstName === userFirstName?.toLowerCase() && 
+                 memberLastName === userLastName?.toLowerCase()
+        })
+        
+        // Filter stats to only show user's data
+        if (stats) {
+          const userSlots = slots
+          const userTotalAmount = userSlots.reduce((sum, slot) => sum + slot.amount, 0)
+          const userTotalSlots = userSlots.length
+          
+          stats = {
+            ...stats,
+            totalPayments: userTotalSlots,
+            totalAmount: userTotalAmount,
+            receivedAmount: 0, // Will be calculated below
+            pendingAmount: 0,
+            notPaidAmount: userTotalAmount,
+            settledAmount: 0,
+            cashPayments: 0,
+            bankTransferPayments: 0,
+            receivedCount: 0,
+            pendingCount: 0,
+            notPaidCount: userTotalSlots,
+            settledCount: 0
+          }
+        }
       }
 
       // Check payment status for all slots
@@ -166,7 +213,7 @@ const PaymentsDue: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [settings.enableParallelCalls, settings.enableOptimizedQueries])
+  }, [settings.enableParallelCalls, settings.enableOptimizedQueries, canViewAllRecords, user?.username])
 
   // Get sorted slots
   const getSortedSlots = () => {
@@ -352,8 +399,18 @@ const PaymentsDue: React.FC = () => {
       <div className="page-header">
         <div className="header-content">
           <h1>Payments Due</h1>
-          <h2>All slots from all groups</h2>
-          <p>Data from group_members table</p>
+          <h2>
+            {canViewAllRecords 
+              ? 'All slots from all groups' 
+              : 'Your payment slots'
+            }
+          </h2>
+          <p>
+            {canViewAllRecords 
+              ? 'Data from group_members table' 
+              : `Showing only ${user?.username?.split('.')[0] || 'your'} records`
+            }
+          </p>
         </div>
         <div className="header-actions">
           {/* Page Size Selector */}
@@ -391,13 +448,20 @@ const PaymentsDue: React.FC = () => {
 
       {/* Statistics Section */}
       <div className="statistics-section">
+        {!canViewAllRecords && (
+          <div className="payments-due-filter-notice">
+            <span>🔒 Viewing only your records</span>
+          </div>
+        )}
         <div className="payments-due-stat-card payments-due-stat-card-default">
           <div className="payments-due-stat-icon">
             💰
           </div>
           <div className="payments-due-stat-content">
             <div className="payments-due-stat-number">{unpaidSlots.length}</div>
-            <div className="payments-due-stat-label">Total Slots</div>
+            <div className="payments-due-stat-label">
+              {canViewAllRecords ? 'Total Slots' : 'Your Slots'}
+            </div>
           </div>
         </div>
         <div className="payments-due-stat-card payments-due-stat-card-default">
@@ -406,7 +470,9 @@ const PaymentsDue: React.FC = () => {
           </div>
           <div className="payments-due-stat-content">
             <div className="payments-due-stat-number">SRD {Number(totalAmount.toFixed(2)).toLocaleString()}</div>
-            <div className="payments-due-stat-label">Total Amount</div>
+            <div className="payments-due-stat-label">
+              {canViewAllRecords ? 'Total Amount' : 'Your Amount'}
+            </div>
           </div>
         </div>
         <div className="payments-due-stat-card payments-due-stat-card-success">
@@ -415,7 +481,9 @@ const PaymentsDue: React.FC = () => {
           </div>
           <div className="payments-due-stat-content">
             <div className="payments-due-stat-number">SRD {Number(totalAmountPaid.toFixed(2)).toLocaleString()}</div>
-            <div className="payments-due-stat-label">Total Amount Paid</div>
+            <div className="payments-due-stat-label">
+              {canViewAllRecords ? 'Total Amount Paid' : 'Amount Paid'}
+            </div>
           </div>
         </div>
         <div className="payments-due-stat-card payments-due-stat-card-danger">
@@ -424,7 +492,9 @@ const PaymentsDue: React.FC = () => {
           </div>
           <div className="payments-due-stat-content">
             <div className="payments-due-stat-number">SRD {Number(Math.max(0, totalAmount - totalAmountPaid).toFixed(2)).toLocaleString()}</div>
-            <div className="payments-due-stat-label">Total Amount Due</div>
+            <div className="payments-due-stat-label">
+              {canViewAllRecords ? 'Total Amount Due' : 'Amount Due'}
+            </div>
           </div>
         </div>
       </div>
@@ -458,8 +528,8 @@ const PaymentsDue: React.FC = () => {
             <div className="pagination-stats">
               <span className="record-count">
                 {settings.paginationType === 'true' 
-                  ? `Showing all ${unpaidSlots.length} records`
-                  : `Showing ${startIndex + 1}-${Math.min(endIndex, unpaidSlots.length)} of ${unpaidSlots.length} records`
+                  ? `Showing all ${unpaidSlots.length} ${canViewAllRecords ? 'records' : 'slots'}`
+                  : `Showing ${startIndex + 1}-${Math.min(endIndex, unpaidSlots.length)} of ${unpaidSlots.length} ${canViewAllRecords ? 'records' : 'slots'}`
                 }
               </span>
               {settings.paginationType === 'simple' && (

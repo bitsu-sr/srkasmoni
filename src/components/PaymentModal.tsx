@@ -8,6 +8,7 @@ import { paymentSlotService } from '../services/paymentSlotService'
 import { groupService } from '../services/groupService'
 import { bankService } from '../services/bankService'
 import { paymentService } from '../services/paymentService'
+import { useAuth } from '../contexts/AuthContext'
 import './PaymentModal.css'
 
 interface PaymentModalProps {
@@ -20,7 +21,12 @@ interface PaymentModalProps {
 }
 
 const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, prefillData }: PaymentModalProps) => {
-     const [formData, setFormData] = useState<PaymentFormData>({
+  const { user } = useAuth();
+  
+  // Check if user has permission to create/edit payments
+  const canManagePayments = user?.role === 'admin';
+  
+  const [formData, setFormData] = useState<PaymentFormData>({
      memberId: 0,
      groupId: 0,
      slotId: '',
@@ -311,6 +317,12 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      const handleSubmit = async (e: React.FormEvent) => {
      e.preventDefault()
      
+     // Check if user has permission to create/edit payments
+     if (!canManagePayments) {
+       alert('You do not have permission to create or edit payments. Only administrators can perform this action.');
+       return;
+     }
+     
      if (!validateForm()) return
 
      setIsLoading(true)
@@ -413,8 +425,8 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                className={errors.memberId ? 'error' : ''}
              >
                <option value="">Select a member</option>
-               {groupMembers.map(member => (
-                 <option key={`member-${member.member.id}`} value={member.member.id}>
+               {groupMembers.map((member, index) => (
+                 <option key={`member-${member.groupId}-${member.memberId}-${index}`} value={member.memberId}>
                    {member.member.firstName} {member.member.lastName}
                  </option>
                ))}
@@ -588,12 +600,23 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
              </div>
            )}
 
+           {/* Permission Warning */}
+           {!canManagePayments && (
+             <div className="permission-warning">
+               <p>⚠️ Only administrators can create or edit payments. You have view-only access.</p>
+             </div>
+           )}
+
            {/* Form Actions */}
            <div className="form-actions">
              <button type="button" className="btn btn-secondary" onClick={onClose}>
                Cancel
              </button>
-             <button type="submit" className="btn" disabled={isLoading || !!duplicateWarning}>
+             <button 
+               type="submit" 
+               className="btn" 
+               disabled={isLoading || !!duplicateWarning || !canManagePayments}
+             >
                {isLoading ? 'Saving...' : (isEditing ? 'Update Payment' : 'Record Payment')}
              </button>
            </div>

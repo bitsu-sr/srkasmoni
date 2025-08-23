@@ -15,6 +15,7 @@ import type { Group, GroupMember, GroupMemberFormData } from '../types/member'
 import { groupService } from '../services/groupService'
 import { memberService } from '../services/memberService'
 import { paymentService } from '../services/paymentService'
+import { useAuth } from '../contexts/AuthContext'
 import MemberSelectionModal from '../components/MemberSelectionModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import GroupModal from '../components/GroupModal'
@@ -35,6 +36,8 @@ interface CSVMemberData {
 const GroupDetails = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [group, setGroup] = useState<Group | null>(null)
   const [members, setMembers] = useState<GroupMember[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,10 +54,16 @@ const GroupDetails = () => {
   const [slotToRemove, setSlotToRemove] = useState<{ memberId: number; monthDate: string; memberName: string } | null>(null)
 
   useEffect(() => {
+    // Redirect non-admin users away from this page
+    if (!isAdmin) {
+      navigate('/groups')
+      return
+    }
+    
     if (id) {
       loadGroupData(parseInt(id))
     }
-  }, [id])
+  }, [id, isAdmin, navigate])
 
   const loadGroupData = async (groupId: number) => {
     try {
@@ -366,11 +375,14 @@ const GroupDetails = () => {
   }
 
 
-  if (loading) {
+  // Show loading while checking permissions or loading data
+  if (loading || !isAdmin) {
     return (
       <div className="group-details">
         <div className="container">
-          <div className="loading">Loading group details...</div>
+          <div className="loading">
+            {!isAdmin ? 'Access denied. Redirecting...' : 'Loading group details...'}
+          </div>
         </div>
       </div>
     )

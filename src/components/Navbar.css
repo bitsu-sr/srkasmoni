@@ -49,6 +49,59 @@
   gap: 5px;
 }
 
+/* Authentication Section */
+.auth-section {
+  display: flex;
+  align-items: center;
+  margin-left: 20px;
+}
+
+.login-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--primary);
+  color: var(--secondary);
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.login-btn:hover {
+  background: var(--primary-dark, #1e40af);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.mobile-auth {
+  display: none;
+  align-items: center;
+  margin-left: 15px;
+}
+
+.mobile-login-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--primary);
+  color: var(--secondary);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mobile-login-btn:hover {
+  background: var(--primary-dark, #1e40af);
+}
+
 .nav-link {
   display: flex;
   align-items: center;
@@ -223,5 +276,9 @@
   
   .mobile-nav.open {
     display: block;
+  }
+  
+  .mobile-auth {
+    display: flex;
   }
 }

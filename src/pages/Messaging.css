@@ -1,0 +1,365 @@
+.messaging-page-container {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.messaging-layout {
+  display: flex;
+  height: calc(100vh - 80px); /* Adjust based on your navbar height */
+}
+
+.messaging-sidebar {
+  width: 300px;
+  background-color: white;
+  border-right: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.messaging-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.messaging-header {
+  background-color: white;
+  padding: 20px 30px;
+  border-bottom: 1px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.messaging-header-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 10px 0;
+}
+
+.messaging-header-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.messaging-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+}
+
+.messaging-inbox {
+  flex: 1;
+  overflow: hidden;
+}
+
+.messaging-view {
+  flex: 1;
+  overflow: hidden;
+  background-color: #f8f9fa;
+}
+
+
+
+.messaging-tab-content {
+  flex: 1;
+  overflow: hidden;
+  display: none;
+}
+
+.messaging-tab-content.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.messaging-tab-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.messaging-sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid #e9ecef;
+  background-color: #f8f9fa;
+}
+
+.messaging-sidebar-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 10px 0;
+}
+
+.messaging-sidebar-stats {
+  display: flex;
+  gap: 15px;
+}
+
+.messaging-stat {
+  text-align: center;
+  flex: 1;
+}
+
+.messaging-stat-number {
+  font-size: 24px;
+  font-weight: 600;
+  color: #217346;
+  margin: 0;
+}
+
+.messaging-stat-label {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.messaging-sidebar-actions {
+  padding: 20px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.messaging-action-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #217346;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.messaging-action-btn:hover {
+  background-color: #1a5a38;
+  transform: translateY(-1px);
+}
+
+.messaging-action-btn.secondary {
+  background-color: #f8f9fa;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.messaging-action-btn.secondary:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+  color: #495057;
+}
+
+.messaging-sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.messaging-quick-actions {
+  padding: 20px;
+}
+
+.quick-action-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 15px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.quick-action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 5px;
+}
+
+.quick-action-item:hover {
+  background-color: #f8f9fa;
+}
+
+.quick-action-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #217346;
+  font-size: 16px;
+}
+
+.quick-action-text {
+  font-size: 14px;
+  color: #666;
+}
+
+/* Ensure main content doesn't show duplicate navigation */
+.messaging-main .messaging-quick-actions {
+  display: none !important;
+}
+
+/* Hide any quick actions that might appear in the main content area */
+.messaging-content .messaging-quick-actions,
+.messaging-tab-content .messaging-quick-actions {
+  display: none !important;
+}
+
+.messaging-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+  color: #666;
+}
+
+.messaging-empty-icon {
+  font-size: 64px;
+  color: #ddd;
+  margin-bottom: 20px;
+}
+
+.messaging-empty-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #999;
+  margin: 0 0 10px 0;
+}
+
+.messaging-empty-text {
+  font-size: 14px;
+  color: #bbb;
+  margin: 0;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+.messaging-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.messaging-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #217346;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.messaging-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+  color: #721c24;
+}
+
+.messaging-error-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.messaging-error-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+}
+
+.messaging-error-text {
+  font-size: 14px;
+  margin: 0;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.messaging-error-retry {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.messaging-error-retry:hover {
+  background-color: #c82333;
+}
+
+@media (max-width: 1024px) {
+  .messaging-layout {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .messaging-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e9ecef;
+  }
+  
+  .messaging-sidebar-content {
+    max-height: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .messaging-header {
+    padding: 15px 20px;
+  }
+  
+  .messaging-tabs {
+    flex-direction: column;
+  }
+  
+  .messaging-tab {
+    border-bottom: none;
+    border-right: 3px solid transparent;
+    text-align: left;
+  }
+  
+  .messaging-tab.active {
+    border-right-color: #217346;
+    border-bottom-color: transparent;
+  }
+  
+  .messaging-sidebar-actions {
+    padding: 15px;
+  }
+  
+  .messaging-action-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}

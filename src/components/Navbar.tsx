@@ -1,26 +1,38 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, Menu, X, FileText } from 'lucide-react'
+import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, Menu, X, FileText, DollarSign, Shield, MessageSquare } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import LoginModal from './LoginModal'
+import UserProfileDropdown from './UserProfileDropdown'
 import './Navbar.css'
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const location = useLocation()
   const menuRef = useRef<HTMLDivElement>(null)
+  const { isAuthenticated, isAdmin } = useAuth()
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: Home },
+    { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/groups', label: 'Groups', icon: Users },
     { path: '/members', label: 'Members', icon: UserCheck },
     { path: '/payments', label: 'Payments', icon: CreditCard },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   ]
 
   const hamburgerItems = [
+    { path: '/messaging', label: 'Messages', icon: MessageSquare },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/payment-logs', label: 'Payment Logs', icon: FileText },
     { path: '/payments-due', label: 'Payments Due', icon: CreditCard },
+    { path: '/payouts', label: 'Payouts', icon: DollarSign },
     { path: '/settings', label: 'Settings', icon: Settings },
   ]
+
+  // Add User Management link for admins
+  if (isAdmin()) {
+    hamburgerItems.push({ path: '/user-management', label: 'User Management', icon: Shield })
+  }
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
@@ -70,15 +82,105 @@ const Navbar = () => {
           </Link>
         </div>
 
-        {/* Desktop Navigation */}
-        <div className="navbar-nav desktop-nav">
+        {/* Desktop Navigation - Only show when authenticated */}
+        {isAuthenticated && (
+          <div className="navbar-nav desktop-nav">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`nav-link ${location.pathname === item.path ? 'active' : ''}`}
+                >
+                  <Icon className="nav-icon" />
+                  <span>{item.label}</span>
+                </Link>
+              )
+            })}
+            
+            {/* Hamburger Menu for Desktop */}
+            <div className="hamburger-menu-desktop">
+              <button className="hamburger-btn" onClick={toggleMenu}>
+                <Menu size={20} />
+              </button>
+              {isMenuOpen && (
+                <div className="hamburger-dropdown">
+                  {hamburgerItems.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={`hamburger-item ${location.pathname === item.path ? 'active' : ''}`}
+                        onClick={() => {
+                          closeMenu()
+                          // Force close after a small delay to ensure navigation happens
+                          setTimeout(() => setIsMenuOpen(false), 100)
+                        }}
+                      >
+                        <Icon className="nav-icon" />
+                        <span>{item.label}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Authentication Section */}
+        <div className="auth-section">
+          {isAuthenticated ? (
+            <UserProfileDropdown />
+          ) : (
+            <button 
+              className="login-btn"
+              onClick={() => setIsLoginModalOpen(true)}
+            >
+              Login
+            </button>
+          )}
+        </div>
+
+        {/* Mobile Menu Button - Only show when authenticated */}
+        {isAuthenticated && (
+          <button className="mobile-menu-btn" onClick={toggleMenu}>
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        )}
+
+        {/* Mobile Authentication */}
+        <div className="mobile-auth">
+          {isAuthenticated ? (
+            <UserProfileDropdown />
+          ) : (
+            <button 
+              className="mobile-login-btn"
+              onClick={() => setIsLoginModalOpen(true)}
+            >
+              Login
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Navigation - Only show when authenticated */}
+      {isAuthenticated && (
+        <div ref={menuRef} className={`mobile-nav ${isMenuOpen ? 'open' : ''}`}>
           {navItems.map((item) => {
             const Icon = item.icon
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`nav-link ${location.pathname === item.path ? 'active' : ''}`}
+                className={`mobile-nav-link ${location.pathname === item.path ? 'active' : ''}`}
+                onClick={() => {
+                  closeMenu()
+                  // Force close after a small delay to ensure navigation happens
+                  setTimeout(() => setIsMenuOpen(false), 100)
+                }}
               >
                 <Icon className="nav-icon" />
                 <span>{item.label}</span>
@@ -86,86 +188,36 @@ const Navbar = () => {
             )
           })}
           
-          {/* Hamburger Menu for Desktop */}
-          <div className="hamburger-menu-desktop">
-            <button className="hamburger-btn" onClick={toggleMenu}>
-              <Menu size={20} />
-            </button>
-            {isMenuOpen && (
-              <div className="hamburger-dropdown">
-                {hamburgerItems.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      className={`hamburger-item ${location.pathname === item.path ? 'active' : ''}`}
-                      onClick={() => {
-                        closeMenu()
-                        // Force close after a small delay to ensure navigation happens
-                        setTimeout(() => setIsMenuOpen(false), 100)
-                      }}
-                    >
-                      <Icon className="nav-icon" />
-                      <span>{item.label}</span>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          {/* Divider */}
+          <div className="mobile-nav-divider"></div>
+          
+          {/* Hamburger Items */}
+          {hamburgerItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`mobile-nav-link hamburger-item ${location.pathname === item.path ? 'active' : ''}`}
+                onClick={() => {
+                  closeMenu()
+                  // Force close after a small delay to ensure navigation happens
+                  setTimeout(() => setIsMenuOpen(false), 100)
+                }}
+              >
+                <Icon className="nav-icon" />
+                <span>{item.label}</span>
+              </Link>
+            )
+          })}
         </div>
+      )}
 
-        {/* Mobile Menu Button */}
-        <button className="mobile-menu-btn" onClick={toggleMenu}>
-          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
-
-      {/* Mobile Navigation */}
-      <div ref={menuRef} className={`mobile-nav ${isMenuOpen ? 'open' : ''}`}>
-        {navItems.map((item) => {
-          const Icon = item.icon
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`mobile-nav-link ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => {
-                closeMenu()
-                // Force close after a small delay to ensure navigation happens
-                setTimeout(() => setIsMenuOpen(false), 100)
-              }}
-            >
-              <Icon className="nav-icon" />
-              <span>{item.label}</span>
-            </Link>
-          )
-        })}
-        
-        {/* Divider */}
-        <div className="mobile-nav-divider"></div>
-        
-        {/* Hamburger Items */}
-        {hamburgerItems.map((item) => {
-          const Icon = item.icon
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`mobile-nav-link hamburger-item ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => {
-                closeMenu()
-                // Force close after a small delay to ensure navigation happens
-                setTimeout(() => setIsMenuOpen(false), 100)
-              }}
-            >
-              <Icon className="nav-icon" />
-              <span>{item.label}</span>
-            </Link>
-          )
-        })}
-      </div>
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
     </nav>
   )
 }

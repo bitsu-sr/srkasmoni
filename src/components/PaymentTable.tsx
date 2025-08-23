@@ -5,24 +5,25 @@ import './PaymentTable.css'
 
 interface PaymentTableProps {
   payments: Payment[]
-  onEdit: (payment: Payment) => void
-  onDelete: (payment: Payment) => void
+  onEdit?: (payment: Payment) => void
+  onDelete?: (payment: Payment) => void
   onView: (payment: Payment) => void
+  canManagePayments?: boolean
 }
 
-const PaymentTable = ({ payments, onEdit, onDelete, onView }: PaymentTableProps) => {
+const PaymentTable = ({ payments, onEdit, onDelete, onView, canManagePayments = false }: PaymentTableProps) => {
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'received':
-        return 'status-received'
+        return 'payment-table-status-received'
       case 'pending':
-        return 'status-pending'
+        return 'payment-table-status-pending'
       case 'settled':
-        return 'status-settled'
+        return 'payment-table-status-settled'
       case 'not_paid':
-        return 'status-not-paid'
+        return 'payment-table-status-not-paid'
       default:
-        return 'status-pending'
+        return 'payment-table-status-pending'
     }
   }
 
@@ -40,8 +41,6 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView }: PaymentTableProps)
         return 'Pending'
     }
   }
-
-
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -63,7 +62,7 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView }: PaymentTableProps)
 
   if (payments.length === 0) {
     return (
-      <div className="empty-state">
+      <div className="payment-table-empty-state">
         <p>No payments found</p>
       </div>
     )
@@ -71,7 +70,7 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView }: PaymentTableProps)
 
   return (
     <div className="payment-table-container">
-      <div className="table-responsive">
+      <div className="payment-table-responsive">
         <table className="payment-table">
           <thead>
             <tr>
@@ -95,7 +94,7 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView }: PaymentTableProps)
                 <td>{payment.member?.lastName || 'N/A'}</td>
                 <td>{payment.group?.name || 'N/A'}</td>
                 <td>{formatSlot(payment.slot)}</td>
-                <td className="amount">{formatAmount(payment.amount)}</td>
+                <td className="payment-table-amount">{formatAmount(payment.amount)}</td>
                 <td>
                   {payment.paymentMethod === 'bank_transfer' 
                     ? (payment.senderBank?.name || 'N/A')
@@ -109,32 +108,36 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView }: PaymentTableProps)
                   }
                 </td>
                 <td>
-                  <span className={`status-badge ${getStatusClass(payment.status)}`}>
+                  <span className={`payment-table-status-badge ${getStatusClass(payment.status)}`}>
                     {getStatusLabel(payment.status)}
                   </span>
                 </td>
-                <td className="actions">
+                <td className="payment-table-actions">
                   <button
-                    className="action-btn view"
+                    className="payment-table-action-btn payment-table-action-view"
                     onClick={() => onView(payment)}
                     title="View Details"
                   >
                     <Eye size={16} />
                   </button>
-                  <button
-                    className="action-btn edit"
-                    onClick={() => onEdit(payment)}
-                    title="Edit Payment"
-                  >
-                    <Edit size={16} />
-                  </button>
-                  <button
-                    className="action-btn delete"
-                    onClick={() => onDelete(payment)}
-                    title="Delete Payment"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {canManagePayments && onEdit && (
+                    <button
+                      className="payment-table-action-btn payment-table-action-edit"
+                      onClick={() => onEdit(payment)}
+                      title="Edit Payment"
+                    >
+                      <Edit size={16} />
+                    </button>
+                  )}
+                  {canManagePayments && onDelete && (
+                    <button
+                      className="payment-table-action-btn payment-table-action-delete"
+                      onClick={() => onDelete(payment)}
+                      title="Delete Payment"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

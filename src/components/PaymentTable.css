@@ -5,7 +5,7 @@
   overflow: hidden;
 }
 
-.table-responsive {
+.payment-table-responsive {
   overflow-x: auto;
   overflow-y: auto;
   max-height: 600px;
@@ -46,7 +46,7 @@
 }
 
 /* Status Badges */
-.status-badge {
+.payment-table-status-badge {
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 0.75rem;
@@ -56,42 +56,42 @@
   white-space: nowrap;
 }
 
-.status-received {
+.payment-table-status-received {
   background: #d1fae5;
   color: #10b981;
 }
 
-.status-pending {
+.payment-table-status-pending {
   background: #fef3c7;
   color: #f59e0b;
 }
 
-.status-settled {
+.payment-table-status-settled {
   background: #dbeafe;
   color: #3b82f6;
 }
 
-.status-not-paid {
+.payment-table-status-not-paid {
   background: #fee2e2;
   color: #ef4444;
 }
 
 /* Amount Column */
-.amount {
+.payment-table-amount {
   font-weight: 600;
   color: var(--primary);
   font-family: 'Courier New', monospace;
 }
 
 /* Actions Column */
-.actions {
+.payment-table-actions {
   display: flex;
   gap: 8px;
   justify-content: center;
   white-space: nowrap;
 }
 
-.action-btn {
+.payment-table-action-btn {
   width: 32px;
   height: 32px;
   border: none;
@@ -105,33 +105,33 @@
   background: transparent;
 }
 
-.action-btn:hover {
+.payment-table-action-btn:hover {
   transform: translateY(-1px);
 }
 
-.action-btn.view:hover {
+.payment-table-action-view:hover {
   background: #dbeafe;
   color: #3b82f6;
 }
 
-.action-btn.edit:hover {
+.payment-table-action-edit:hover {
   background: #fef3c7;
   color: #f59e0b;
 }
 
-.action-btn.delete:hover {
+.payment-table-action-delete:hover {
   background: #fee2e2;
   color: #ef4444;
 }
 
 /* Empty State */
-.empty-state {
+.payment-table-empty-state {
   padding: 60px 20px;
   text-align: center;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
-.empty-state p {
+.payment-table-empty-state p {
   font-size: 1.125rem;
   margin: 0;
 }
@@ -144,12 +144,12 @@
     font-size: 0.8rem;
   }
 
-  .status-badge {
+  .payment-table-status-badge {
     padding: 4px 8px;
     font-size: 0.7rem;
   }
 
-  .action-btn {
+  .payment-table-action-btn {
     width: 28px;
     height: 28px;
   }
@@ -160,7 +160,7 @@
     border-radius: 8px;
   }
 
-  .table-responsive {
+  .payment-table-responsive {
     max-height: 500px;
   }
 
@@ -180,17 +180,17 @@
     display: none;
   }
 
-  .status-badge {
+  .payment-table-status-badge {
     padding: 3px 6px;
     font-size: 0.65rem;
   }
 
-  .action-btn {
+  .payment-table-action-btn {
     width: 24px;
     height: 24px;
   }
 
-  .action-btn svg {
+  .payment-table-action-btn svg {
     width: 14px;
     height: 14px;
   }
@@ -211,17 +211,17 @@
     display: none;
   }
 
-  .status-badge {
+  .payment-table-status-badge {
     padding: 2px 4px;
     font-size: 0.6rem;
   }
 
-  .action-btn {
+  .payment-table-action-btn {
     width: 20px;
     height: 20px;
   }
 
-  .action-btn svg {
+  .payment-table-action-btn svg {
     width: 12px;
     height: 12px;
   }

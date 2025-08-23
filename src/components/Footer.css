@@ -41,35 +41,47 @@
   align-items: center;
 }
 
-.social-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+.footer-social-link {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+  text-decoration: none !important;
+  transition: all 0.3s ease !important;
+  backdrop-filter: blur(10px) !important;
+  border: 2px solid rgba(255, 255, 255, 0.5) !important;
+  position: relative !important;
+  margin: 0 5px !important;
 }
 
-.social-link:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.footer-social-link svg {
+  width: 20px !important;
+  height: 20px !important;
+  fill: white !important;
+  color: white !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
-.social-link.facebook:hover {
-  background: #217346;
-  border-color: #217346;
+.footer-social-link:hover {
+  background: rgba(255, 255, 255, 0.4) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
 }
 
-.social-link.twitter:hover {
-  background: #1a5c38;
-  border-color: #1a5c38;
+.footer-facebook-link:hover {
+  background: #217346 !important;
+  border-color: #217346 !important;
+}
+
+.footer-twitter-link:hover {
+  background: #1a5c38 !important;
+  border-color: #1a5c38 !important;
 }
 
 /* Responsive design */
@@ -88,12 +100,12 @@
     order: 1;
   }
   
-  .social-link {
+  .footer-social-link {
     width: 48px;
     height: 48px;
   }
   
-  .social-link svg {
+  .footer-social-link svg {
     width: 20px;
     height: 20px;
   }

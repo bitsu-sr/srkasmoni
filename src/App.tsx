@@ -1,8 +1,11 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { PerformanceSettingsProvider } from './contexts/PerformanceSettingsContext'
 import { ReactQueryProvider } from './contexts/ReactQueryProvider'
+import { AuthProvider } from './contexts/AuthContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import ProtectedRoute from './components/ProtectedRoute'
+import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Groups from './pages/Groups'
 import GroupDetails from './pages/GroupDetails'
@@ -13,32 +16,99 @@ import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import PaymentsDue from './pages/PaymentsDue'
 import PaymentLogs from './pages/PaymentLogs'
+import Payouts from './pages/Payouts'
+import UserManagement from './pages/UserManagement'
+import UserProfile from './pages/UserProfile'
+import Messaging from './pages/Messaging'
 import './App.css'
 
 function App() {
   return (
     <ReactQueryProvider>
       <PerformanceSettingsProvider>
-        <Router>
-          <div className="app">
-            <Navbar />
-            <main className="main-content">
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/groups" element={<Groups />} />
-                <Route path="/groups/:id" element={<GroupDetails />} />
-                <Route path="/members" element={<Members />} />
-                <Route path="/members/:id" element={<MemberDetail />} />
-                <Route path="/payments" element={<Payments />} />
-                <Route path="/payment-logs" element={<PaymentLogs />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/payments-due" element={<PaymentsDue />} />
-                <Route path="/settings" element={<Settings />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </Router>
+        <AuthProvider>
+          <Router>
+            <div className="app">
+              <Navbar />
+              <main className="main-content">
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/dashboard" element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/groups" element={
+                    <ProtectedRoute>
+                      <Groups />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/groups/:id" element={
+                    <ProtectedRoute>
+                      <GroupDetails />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/members" element={
+                    <ProtectedRoute>
+                      <Members />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/members/:id" element={
+                    <ProtectedRoute>
+                      <MemberDetail />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/payments" element={
+                    <ProtectedRoute>
+                      <Payments />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/payment-logs" element={
+                    <ProtectedRoute>
+                      <PaymentLogs />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/analytics" element={
+                    <ProtectedRoute>
+                      <Analytics />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/payments-due" element={
+                    <ProtectedRoute>
+                      <PaymentsDue />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/payouts" element={
+                    <ProtectedRoute>
+                      <Payouts />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/settings" element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/user-management" element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <UserManagement />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/profile" element={
+                    <ProtectedRoute>
+                      <UserProfile />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/messaging" element={
+                    <ProtectedRoute>
+                      <Messaging />
+                    </ProtectedRoute>
+                  } />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
+          </Router>
+        </AuthProvider>
       </PerformanceSettingsProvider>
     </ReactQueryProvider>
   )

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, CreditCard, Hash, DollarSign, FileText, Users, Clock } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, CreditCard, Hash, DollarSign, FileText, Users, Clock, X, Save } from 'lucide-react'
 
 import { memberService } from '../services/memberService'
 import { getMemberWithStatus, MemberWithStatus, getMemberStatusText, getMemberStatusBadgeClass } from '../services/memberStatusService'
@@ -68,8 +68,20 @@ const MemberDetail = () => {
     }
   }
 
+  const [isEditing, setIsEditing] = useState(false)
+
   const handleEditMember = () => {
-    navigate(`/members/edit/${member?.id}`)
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+  }
+
+  const handleSaveEdit = async () => {
+    // TODO: Implement save functionality
+    console.log('Saving member changes...')
+    setIsEditing(false)
   }
 
   if (loading) {
@@ -108,14 +120,29 @@ const MemberDetail = () => {
               Back to Members
             </button>
             <div className="header-actions">
-              <button className="btn btn-secondary" onClick={handleEditMember}>
-                <Edit size={16} />
-                Edit Member
-              </button>
-              <button className="btn btn-danger" onClick={() => setShowDeleteModal(true)}>
-                <Trash2 size={16} />
-                Delete Member
-              </button>
+              {!isEditing ? (
+                <>
+                  <button className="btn btn-secondary" onClick={handleEditMember}>
+                    <Edit size={16} />
+                    Edit Member
+                  </button>
+                  <button className="btn btn-danger" onClick={() => setShowDeleteModal(true)}>
+                    <Trash2 size={16} />
+                    Delete Member
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn btn-secondary" onClick={handleCancelEdit}>
+                    <X size={16} />
+                    Cancel
+                  </button>
+                  <button className="btn btn-primary" onClick={handleSaveEdit}>
+                    <Save size={16} />
+                    Save Changes
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

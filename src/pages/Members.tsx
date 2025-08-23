@@ -4,6 +4,7 @@ import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowU
 import { Member, MemberFormData, MemberFilters } from '../types/member'
 import { memberService } from '../services/memberService'
 import { getAllMembersWithStatus, getMemberWithStatus, MemberWithStatus } from '../services/memberStatusService'
+import { useAuth } from '../contexts/AuthContext'
 import MemberModal from '../components/MemberModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import './Members.css'
@@ -26,6 +27,8 @@ interface SortConfig {
 
 const Members = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [members, setMembers] = useState<MemberWithStatus[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -50,7 +53,17 @@ const Members = () => {
       try {
         setIsLoadingMembers(true)
         const data = await getAllMembersWithStatus()
-        setMembers(data)
+        
+        // If user is not admin, filter to show only their member card
+        if (!isAdmin && user?.username) {
+          // Find the member record that matches the current user's username
+          const userMember = data.find(member => 
+            member.firstName.toLowerCase() + '.' + member.lastName.toLowerCase() === user.username.toLowerCase()
+          )
+          setMembers(userMember ? [userMember] : [])
+        } else {
+          setMembers(data)
+        }
       } catch (error) {
         console.error('Failed to load members:', error)
         // Fallback to empty array if Supabase is not configured
@@ -61,7 +74,7 @@ const Members = () => {
     }
 
     loadMembers()
-  }, [])
+  }, [isAdmin, user?.username])
 
   // Filter and sort members based on search, filters, and sort configuration
   const filteredAndSortedMembers = useMemo(() => {
@@ -107,6 +120,11 @@ const Members = () => {
   }, [members, filters, sortConfig])
 
   const handleSaveMember = async (memberData: MemberFormData) => {
+    if (!isAdmin) {
+      alert('Only administrators can create or edit members.')
+      return
+    }
+    
     try {
       setIsLoading(true)
       if (editingMember) {
@@ -137,12 +155,21 @@ const Members = () => {
 
 
   const handleDeleteMember = (member: Member) => {
+    if (!isAdmin) {
+      alert('Only administrators can delete members.')
+      return
+    }
     setDeletingMember(member)
     setIsDeleteModalOpen(true)
   }
 
   const confirmDelete = async () => {
     if (!deletingMember) return
+    
+    if (!isAdmin) {
+      alert('Only administrators can delete members.')
+      return
+    }
 
     try {
       setIsLoading(true)
@@ -159,6 +186,10 @@ const Members = () => {
   }
 
   const openAddModal = () => {
+    if (!isAdmin) {
+      alert('Only administrators can add new members.')
+      return
+    }
     setEditingMember(null)
     setIsModalOpen(true)
   }
@@ -187,6 +218,11 @@ const Members = () => {
 
   // CSV Import Functions
   const downloadSampleCSV = () => {
+    if (!isAdmin) {
+      alert('Only administrators can download sample CSV files.')
+      return
+    }
+    
     const sampleData = [
       {
         firstName: 'John',
@@ -301,6 +337,11 @@ const Members = () => {
   }
 
   const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) {
+      alert('Only administrators can import CSV files.')
+      return
+    }
+    
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -317,21 +358,21 @@ const Members = () => {
         total: membersToImport.length
       }
 
-              for (const memberData of membersToImport) {
-          try {
-            const newMember = await memberService.createMember(memberData)
-            results.success++
-            
-            // Add to local state with status info
-            const memberWithStatus = await getMemberWithStatus(newMember.id)
-            if (memberWithStatus) {
-              setMembers(prev => [...prev, memberWithStatus])
-            }
-          } catch (error: any) {
-            const errorMsg = `Failed to import ${memberData.firstName} ${memberData.lastName}: ${error.message || 'Unknown error'}`
-            results.errors.push(errorMsg)
+      for (const memberData of membersToImport) {
+        try {
+          const newMember = await memberService.createMember(memberData)
+          results.success++
+          
+          // Add to local state with status info
+          const memberWithStatus = await getMemberWithStatus(newMember.id)
+          if (memberWithStatus) {
+            setMembers(prev => [...prev, memberWithStatus])
           }
+        } catch (error: any) {
+          const errorMsg = `Failed to import ${memberData.firstName} ${memberData.lastName}: ${error.message || 'Unknown error'}`
+          results.errors.push(errorMsg)
         }
+      }
 
       setCsvImportResult(results)
       
@@ -366,41 +407,48 @@ const Members = () => {
       <div className="page-header">
         <div className="container">
           <h1 className="page-title">Members</h1>
-          <p className="page-subtitle">Manage your organization's members</p>
+          <p className="page-subtitle">
+            {isAdmin 
+              ? "Manage your organization's members" 
+              : "View your member information"
+            }
+          </p>
         </div>
       </div>
 
       <div className="container">
-        {/* Header Actions */}
-        <div className="page-actions">
-          <div className="csv-import-section">
-            <button className="btn btn-secondary" onClick={downloadSampleCSV}>
-              <Download size={20} />
-              Download Sample CSV
-            </button>
-            <div className="file-upload-wrapper">
-              <input
-                type="file"
-                id="csv-upload"
-                accept=".csv"
-                onChange={handleCSVImport}
-                disabled={isImporting}
-                style={{ display: 'none' }}
-              />
-              <label htmlFor="csv-upload" className="btn btn-secondary">
-                <Upload size={20} />
-                {isImporting ? 'Importing...' : 'Import CSV'}
-              </label>
+        {/* Header Actions - Only show for admins */}
+        {isAdmin && (
+          <div className="page-actions">
+            <div className="csv-import-section">
+              <button className="btn btn-secondary" onClick={downloadSampleCSV}>
+                <Download size={20} />
+                Download Sample CSV
+              </button>
+              <div className="file-upload-wrapper">
+                <input
+                  type="file"
+                  id="csv-upload"
+                  accept=".csv"
+                  onChange={handleCSVImport}
+                  disabled={isImporting}
+                  style={{ display: 'none' }}
+                />
+                <label htmlFor="csv-upload" className="btn btn-secondary">
+                  <Upload size={20} />
+                  {isImporting ? 'Importing...' : 'Import CSV'}
+                </label>
+              </div>
             </div>
+            <button className="btn btn-primary" onClick={openAddModal}>
+              <Plus size={20} />
+              Add Member
+            </button>
           </div>
-          <button className="btn btn-primary" onClick={openAddModal}>
-            <Plus size={20} />
-            Add Member
-          </button>
-        </div>
+        )}
 
-        {/* CSV Import Results */}
-        {csvImportResult && (
+        {/* CSV Import Results - Only show for admins */}
+        {isAdmin && csvImportResult && (
           <div className={`csv-import-result ${csvImportResult.success > 0 ? 'success' : 'error'}`}>
             <div className="result-header">
               <h3>CSV Import Results</h3>
@@ -431,99 +479,104 @@ const Members = () => {
           </div>
         )}
 
-        {/* Search and Filters */}
-        <div className="filters-section">
-          <div className="search-box">
-            <Search size={20} />
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search members by name, national ID, phone, bank, or account number..."
-              value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            />
-          </div>
+        {/* Search and Filters - Only show for admins */}
+        {isAdmin && (
+          <div className="filters-section">
+            <div className="search-box">
+              <Search size={20} />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search members by name, national ID, phone, bank, or account number..."
+                value={filters.search}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              />
+            </div>
 
-          <div className="filters-row">
-            <select
-              className="filter-select"
-              value={filters.location}
-              onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
-            >
-              <option value="">All Cities</option>
-              {uniqueCities.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
-
-            {/* Sorting Controls */}
-            <div className="sorting-controls">
-              <button
-                className={`sort-btn ${sortConfig.field === 'name' ? 'active' : ''}`}
-                onClick={() => {
-                  if (sortConfig.field === 'name') {
-                    setSortConfig(prev => ({
-                      ...prev,
-                      direction: prev.direction === 'asc' ? 'desc' : 'asc'
-                    }))
-                  } else {
-                    setSortConfig({ field: 'name', direction: 'asc' })
-                  }
-                }}
-                title="Sort by name (click to change direction)"
+            <div className="filters-row">
+              <select
+                className="filter-select"
+                value={filters.location}
+                onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
               >
-                Name
-                {sortConfig.field === 'name' ? (
-                  sortConfig.direction === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                ) : (
-                  <ArrowUpDown size={16} />
-                )}
-              </button>
+                <option value="">All Cities</option>
+                {uniqueCities.map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
 
-              <button
-                className={`sort-btn ${sortConfig.field === 'status' ? 'active' : ''}`}
-                onClick={() => {
-                  if (sortConfig.field === 'status') {
-                    setSortConfig(prev => ({
-                      ...prev,
-                      direction: prev.direction === 'asc' ? 'desc' : 'asc'
-                    }))
-                  } else {
-                    setSortConfig({ field: 'status', direction: 'asc' })
-                  }
-                }}
-                title="Sort by status (click to change direction)"
-              >
-                Status
-                {sortConfig.field === 'status' ? (
-                  sortConfig.direction === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                ) : (
-                  <ArrowUpDown size={16} />
-                )}
-              </button>
-
-              {(sortConfig.field !== 'name' || sortConfig.direction !== 'asc') && (
+              {/* Sorting Controls */}
+              <div className="sorting-controls">
                 <button
-                  className="sort-btn clear-sort"
-                  onClick={() => setSortConfig({ field: 'name', direction: 'asc' })}
-                  title="Reset to default sorting (Name A-Z)"
+                  className={`sort-btn ${sortConfig.field === 'name' ? 'active' : ''}`}
+                  onClick={() => {
+                    if (sortConfig.field === 'name') {
+                      setSortConfig(prev => ({
+                        ...prev,
+                        direction: prev.direction === 'asc' ? 'desc' : 'asc'
+                      }))
+                    } else {
+                      setSortConfig({ field: 'name', direction: 'asc' })
+                    }
+                  }}
+                  title="Sort by name (click to change direction)"
                 >
-                  Reset Sort
+                  Name
+                  {sortConfig.field === 'name' ? (
+                    sortConfig.direction === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                  ) : (
+                    <ArrowUpDown size={16} />
+                  )}
                 </button>
-              )}
+
+                <button
+                  className={`sort-btn ${sortConfig.field === 'status' ? 'active' : ''}`}
+                  onClick={() => {
+                    if (sortConfig.field === 'status') {
+                      setSortConfig(prev => ({
+                        ...prev,
+                        direction: prev.direction === 'asc' ? 'desc' : 'asc'
+                      }))
+                    } else {
+                      setSortConfig({ field: 'status', direction: 'asc' })
+                    }
+                  }}
+                  title="Sort by status (click to change direction)"
+                >
+                  Status
+                  {sortConfig.field === 'status' ? (
+                    sortConfig.direction === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                  ) : (
+                    <ArrowUpDown size={16} />
+                  )}
+                </button>
+
+                {(sortConfig.field !== 'name' || sortConfig.direction !== 'asc') && (
+                  <button
+                    className="sort-btn clear-sort"
+                    onClick={() => setSortConfig({ field: 'name', direction: 'asc' })}
+                    title="Reset to default sorting (Name A-Z)"
+                  >
+                    Reset Sort
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="member-count">
-          {filteredAndSortedMembers.length} member{filteredAndSortedMembers.length !== 1 ? 's' : ''} found
-          {filteredAndSortedMembers.length > 0 && (
-            <span className="sort-info">
-              • Sorted by {sortConfig.field === 'name' ? 'Name' : 'Status'} 
-              ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
-            </span>
-          )}
-        </div>
+        {/* Member Count - Only show for admins */}
+        {isAdmin && (
+          <div className="member-count">
+            {filteredAndSortedMembers.length} member{filteredAndSortedMembers.length !== 1 ? 's' : ''} found
+            {filteredAndSortedMembers.length > 0 && (
+              <span className="sort-info">
+                • Sorted by {sortConfig.field === 'name' ? 'Name' : 'Status'} 
+                ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Members Grid */}
         <div className="members-grid">
@@ -574,13 +627,15 @@ const Members = () => {
                   <Eye size={16} />
                   View Details
                 </button>
-                <button 
-                  className="btn btn-danger"
-                  onClick={() => handleDeleteMember(member)}
-                >
-                  <Trash2 size={16} />
-                  Delete Member
-                </button>
+                {isAdmin && (
+                  <button 
+                    className="btn btn-danger"
+                    onClick={() => handleDeleteMember(member)}
+                  >
+                    <Trash2 size={16} />
+                    Delete Member
+                  </button>
+                )}
               </div>
             </div>
           ))}

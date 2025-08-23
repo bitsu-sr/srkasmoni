@@ -47,8 +47,8 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
   return (
     <div className="payment-filters">
       {/* Search Bar */}
-      <div className="search-section">
-        <div className="search-box">
+      <div className="payment-filters-search-section">
+        <div className="payment-filters-search-box">
           <Search size={20} />
           <input
             type="text"
@@ -59,21 +59,21 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
         </div>
         
         <button
-          className={`filter-toggle ${isExpanded ? 'active' : ''}`}
+          className={`payment-filters-toggle ${isExpanded ? 'payment-filters-toggle-active' : ''}`}
           onClick={() => setIsExpanded(!isExpanded)}
         >
           <Filter size={20} />
           Filters
-          {hasActiveFilters && <span className="filter-indicator" />}
+          {hasActiveFilters && <span className="payment-filters-indicator" />}
         </button>
       </div>
 
       {/* Expanded Filters */}
       {isExpanded && (
-        <div className="filters-expanded">
-          <div className="filters-grid">
+        <div className="payment-filters-expanded">
+          <div className="payment-filters-grid">
             {/* Status Filter */}
-            <div className="filter-group">
+            <div className="payment-filters-group">
               <label>Status</label>
               <select
                 value={filters.status || ''}
@@ -88,7 +88,7 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
             </div>
 
             {/* Payment Method Filter */}
-            <div className="filter-group">
+            <div className="payment-filters-group">
               <label>Payment Method</label>
               <select
                 value={filters.paymentMethod || ''}
@@ -101,7 +101,7 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
             </div>
 
             {/* Group Filter */}
-            <div className="filter-group">
+            <div className="payment-filters-group">
               <label>Group</label>
               <select
                 value={filters.groupId || ''}
@@ -117,7 +117,7 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
             </div>
 
             {/* Date Range Filters */}
-            <div className="filter-group">
+            <div className="payment-filters-group">
               <label>Start Date</label>
               <input
                 type="date"
@@ -126,7 +126,7 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
               />
             </div>
 
-            <div className="filter-group">
+            <div className="payment-filters-group">
               <label>End Date</label>
               <input
                 type="date"
@@ -137,8 +137,8 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
           </div>
 
           {/* Filter Actions */}
-          <div className="filter-actions">
-            <button className="btn btn-secondary" onClick={handleClearFilters}>
+          <div className="payment-filters-actions">
+            <button className="payment-filters-btn payment-filters-btn-secondary" onClick={handleClearFilters}>
               <X size={16} />
               Clear All Filters
             </button>
