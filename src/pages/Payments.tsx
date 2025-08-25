@@ -40,6 +40,10 @@ const Payments = () => {
   const [deletingPayment, setDeletingPayment] = useState<Payment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
   // Load payments and stats on component mount
   useEffect(() => {
     loadPayments()
@@ -215,7 +219,24 @@ const Payments = () => {
     console.log('Filters changed:', newFilters) // Debug log
     console.log('Previous filters:', filters) // Debug log
     setFilters(newFilters)
+    setCurrentPage(1) // Reset to first page when filters change
   }
+
+  // Pagination functions
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize)
+    setCurrentPage(1) // Reset to first page when page size changes
+  }
+
+  // Calculate pagination values
+  const totalPages = Math.ceil(payments.length / pageSize)
+  const startIndex = (currentPage - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const currentPageData = payments.slice(startIndex, endIndex)
 
   const handleClearFilters = () => {
     setFilters({})
@@ -313,6 +334,35 @@ const Payments = () => {
           onClearFilters={handleClearFilters}
         />
 
+        {/* Page Size Selector and Pagination Info */}
+        <div className="payments-pagination-section">
+          <div className="payments-page-size-selector">
+            <label htmlFor="payments-page-size">Rows per page:</label>
+            <select
+              id="payments-page-size"
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+              className="payments-page-size-dropdown"
+            >
+              <option value={10}>10 rows</option>
+              <option value={25}>25 rows</option>
+              <option value={50}>50 rows</option>
+              <option value={100}>100 rows</option>
+            </select>
+          </div>
+          
+          <div className="payments-pagination-info">
+            <div className="payments-pagination-stats">
+              <span className="payments-record-count">
+                Showing {startIndex + 1}-{Math.min(endIndex, payments.length)} of {payments.length} payments
+              </span>
+              <span className="payments-page-info">
+                Page {currentPage} of {totalPages}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Payments Table */}
         <div className="payments-table-section">
           <div className="payments-section-header">
@@ -333,7 +383,7 @@ const Payments = () => {
             </div>
           ) : (
             <PaymentTable
-              payments={payments}
+              payments={currentPageData}
               onEdit={canManagePayments ? handleEditPayment : undefined}
               onDelete={canManagePayments ? handleDeletePayment : undefined}
               onView={handleViewPayment}
@@ -341,6 +391,39 @@ const Payments = () => {
             />
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {!isLoading && payments.length > 0 && totalPages > 1 && (
+          <div className="payments-pagination-controls">
+            <button
+              className="payments-btn-pagination payments-btn-secondary"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            
+            <div className="payments-page-numbers">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  className={`payments-btn-pagination payments-btn-page ${page === currentPage ? 'payments-active' : ''}`}
+                  onClick={() => handlePageChange(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            
+            <button
+              className="payments-btn-pagination payments-btn-secondary"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
 
         {/* Empty State */}
         {!isLoading && payments.length === 0 && (

@@ -2,13 +2,10 @@
   background: var(--secondary);
   border-radius: 12px;
   box-shadow: 0 4px 12px var(--shadow);
-  overflow: hidden;
 }
 
 .payment-table-responsive {
   overflow-x: auto;
-  overflow-y: auto;
-  max-height: 600px;
 }
 
 .payment-table {
@@ -160,9 +157,7 @@
     border-radius: 8px;
   }
 
-  .payment-table-responsive {
-    max-height: 500px;
-  }
+
 
   .payment-table th,
   .payment-table td {
