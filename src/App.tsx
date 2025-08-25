@@ -7,6 +7,7 @@ import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
+import MyDashboard from './pages/MyDashboard'
 import Groups from './pages/Groups'
 import GroupDetails from './pages/GroupDetails'
 import Members from './pages/Members'
@@ -36,6 +37,11 @@ function App() {
                   <Route path="/dashboard" element={
                     <ProtectedRoute>
                       <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/my-dashboard" element={
+                    <ProtectedRoute>
+                      <MyDashboard />
                     </ProtectedRoute>
                   } />
                   <Route path="/groups" element={

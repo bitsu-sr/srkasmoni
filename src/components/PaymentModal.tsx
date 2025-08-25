@@ -163,24 +163,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      const checkForDuplicates = async () => {
        if (formData.memberId && formData.groupId && formData.slotId && !isEditing) {
          try {
-           // For composite slot IDs, we need to extract the actual group, member, and month info
-           let checkData = { ...formData }
-           
-           if (typeof formData.slotId === 'string' && formData.slotId.includes('_')) {
-             // This is a composite ID, extract the actual values
-             const [groupId, memberId] = formData.slotId.split('_')
-             checkData = {
-               ...checkData,
-               groupId: parseInt(groupId),
-               memberId: parseInt(memberId),
-               slotId: 0 // We'll check by member_id and group_id instead
-             }
-           }
-           
            // Check if a payment already exists for this member, group, and slot/month
-           const isDuplicate = await paymentService.checkDuplicatePayment(checkData)
+           const isDuplicate = await paymentService.checkDuplicatePayment(formData)
            if (isDuplicate) {
-             setDuplicateWarning('⚠️ A payment for this member, group, and slot already exists. Duplicate payments are not allowed.')
+             setDuplicateWarning('⚠️ A payment for this member, group, and month already exists. Duplicate payments are not allowed.')
            } else {
              setDuplicateWarning('')
            }

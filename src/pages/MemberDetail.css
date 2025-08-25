@@ -518,4 +518,89 @@
   border: 1px solid #e5e7eb;
 }
 
+/* Success and Error Messages */
+.success-message {
+  background-color: #d1fae5;
+  border: 1px solid #10b981;
+  color: #065f46;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error-message {
+  background-color: #fee2e2;
+  border: 1px solid #ef4444;
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Edit Input Styles */
+.edit-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #374151;
+  background-color: white;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.edit-input:hover {
+  border-color: #d1d5db;
+}
+
+.edit-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #374151;
+  background-color: white;
+  transition: all 0.2s;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.edit-textarea:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.edit-textarea:hover {
+  border-color: #d1d5db;
+}
+
+/* Edit mode styling */
+.detail-item:has(.edit-input),
+.detail-item:has(.edit-textarea) {
+  align-items: stretch;
+}
+
+.detail-item:has(.edit-input) .detail-label,
+.detail-item:has(.edit-textarea) .detail-label {
+  margin-bottom: 4px;
+}
+
 

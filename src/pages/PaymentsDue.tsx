@@ -37,6 +37,9 @@ const PaymentsDue: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('group')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   
+  // Filter state
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid' | 'unpaid'>('all')
+  
   // Payment modal state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<UnpaidSlot | null>(null)
@@ -54,14 +57,23 @@ const PaymentsDue: React.FC = () => {
 
   // Calculate pagination values based on settings
   const pageSize = settings.pageSize
-  const totalPages = Math.ceil(unpaidSlots.length / pageSize)
-  const startIndex = (currentPage - 1) * pageSize
-  const endIndex = startIndex + pageSize
 
   // Handle page size change
   const handlePageSizeChange = (newPageSize: number) => {
     updateSetting('pageSize', newPageSize as 10 | 25 | 50 | 100)
     // Reset to first page when page size changes
+    setCurrentPage(1)
+  }
+
+  // Handle payment status filter change
+  const handlePaymentStatusFilterChange = (status: 'all' | 'paid' | 'unpaid') => {
+    setPaymentStatusFilter(status)
+    setCurrentPage(1) // Reset to first page when filter changes
+  }
+
+  // Clear all filters
+  const clearFilters = () => {
+    setPaymentStatusFilter('all')
     setCurrentPage(1)
   }
 
@@ -215,16 +227,32 @@ const PaymentsDue: React.FC = () => {
     }
   }, [settings.enableParallelCalls, settings.enableOptimizedQueries, canViewAllRecords, user?.username])
 
+  // Get filtered slots
+  const getFilteredSlots = () => {
+    if (paymentStatusFilter === 'all') {
+      return unpaidSlots
+    }
+    
+    return unpaidSlots.filter(slot => {
+      if (paymentStatusFilter === 'paid') {
+        return slot.hasPayment
+      } else if (paymentStatusFilter === 'unpaid') {
+        return !slot.hasPayment
+      }
+      return true
+    })
+  }
+
   // Get sorted slots
   const getSortedSlots = () => {
-    return [...unpaidSlots].sort((a, b) => {
+    return getFilteredSlots().sort((a, b) => {
       let aValue: string | number
       let bValue: string | number
 
       switch (sortField) {
         case 'firstName':
           aValue = a.member?.first_name?.toLowerCase() || ''
-          bValue = b.member?.last_name?.toLowerCase() || ''
+          bValue = b.member?.first_name?.toLowerCase() || ''
           break
         case 'lastName':
           aValue = a.member?.last_name?.toLowerCase() || ''
@@ -247,13 +275,23 @@ const PaymentsDue: React.FC = () => {
           bValue = b.member?.first_name?.toLowerCase() || ''
       }
 
+      // Handle null/undefined values by treating them as empty strings
+      const aVal = aValue === null || aValue === undefined ? '' : aValue
+      const bVal = bValue === null || bValue === undefined ? '' : bValue
+      
       if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+        return aVal < bVal ? -1 : aVal > bVal ? 1 : 0
       } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+        return aVal > bVal ? -1 : aVal < bVal ? 1 : 0
       }
     })
   }
+
+  // Calculate pagination values based on filtered data
+  const filteredSlots = getFilteredSlots()
+  const totalPages = Math.ceil(filteredSlots.length / pageSize)
+  const startIndex = (currentPage - 1) * pageSize
+  const endIndex = startIndex + pageSize
 
   // Get current page data (sorted and paginated)
   const getCurrentPageData = () => {
@@ -314,6 +352,9 @@ const PaymentsDue: React.FC = () => {
   // Calculate totals
   const totalAmount = unpaidSlots.reduce((sum, slot) => sum + slot.amount, 0)
   const totalAmountPaid = paymentStats?.totalAmount || 0
+  
+  // Calculate filtered totals
+  const filteredAmount = getFilteredSlots().reduce((sum, slot) => sum + slot.amount, 0)
 
   // Handle sorting
   const handleSort = (field: SortField) => {
@@ -323,6 +364,9 @@ const PaymentsDue: React.FC = () => {
       setSortField(field)
       setSortDirection('asc')
     }
+    
+    // Debug logging
+    console.log(`Sorting by: ${field}, Direction: ${sortField === field ? (sortDirection === 'asc' ? 'desc' : 'asc') : 'asc'}`)
   }
 
   // Handle row click for payment modal
@@ -413,6 +457,32 @@ const PaymentsDue: React.FC = () => {
           </p>
         </div>
         <div className="header-actions">
+          {/* Payment Status Filter */}
+          <div className="payment-status-filter">
+            <label htmlFor="payment-status">Payment Status:</label>
+            <select
+              id="payment-status"
+              value={paymentStatusFilter}
+              onChange={(e) => handlePaymentStatusFilterChange(e.target.value as 'all' | 'paid' | 'unpaid')}
+              className="payment-status-dropdown"
+            >
+              <option value="all">All Slots</option>
+              <option value="unpaid">Unpaid Only</option>
+              <option value="paid">Paid Only</option>
+            </select>
+          </div>
+          
+          {/* Clear Filters Button */}
+          {paymentStatusFilter !== 'all' && (
+            <button
+              onClick={clearFilters}
+              className="clear-filters-btn"
+              title="Clear all filters"
+            >
+              🗑️ Clear Filters
+            </button>
+          )}
+          
           {/* Page Size Selector */}
           <div className="page-size-selector">
             <label htmlFor="page-size">Rows per page:</label>
@@ -453,14 +523,21 @@ const PaymentsDue: React.FC = () => {
             <span>🔒 Viewing only your records</span>
           </div>
         )}
+        {paymentStatusFilter !== 'all' && (
+          <div className="payments-due-filter-notice">
+            <span>
+              {paymentStatusFilter === 'paid' ? '✅ Showing paid slots only' : '⚠️ Showing unpaid slots only'}
+            </span>
+          </div>
+        )}
         <div className="payments-due-stat-card payments-due-stat-card-default">
           <div className="payments-due-stat-icon">
             💰
           </div>
           <div className="payments-due-stat-content">
-            <div className="payments-due-stat-number">{unpaidSlots.length}</div>
+            <div className="payments-due-stat-number">{getFilteredSlots().length}</div>
             <div className="payments-due-stat-label">
-              {canViewAllRecords ? 'Total Slots' : 'Your Slots'}
+              {canViewAllRecords ? 'Filtered Slots' : 'Your Filtered Slots'}
             </div>
           </div>
         </div>
@@ -469,9 +546,9 @@ const PaymentsDue: React.FC = () => {
             📅
           </div>
           <div className="payments-due-stat-content">
-            <div className="payments-due-stat-number">SRD {Number(totalAmount.toFixed(2)).toLocaleString()}</div>
+            <div className="payments-due-stat-number">SRD {Number(filteredAmount.toFixed(2)).toLocaleString()}</div>
             <div className="payments-due-stat-label">
-              {canViewAllRecords ? 'Total Amount' : 'Your Amount'}
+              {canViewAllRecords ? 'Filtered Amount' : 'Your Filtered Amount'}
             </div>
           </div>
         </div>
@@ -528,8 +605,8 @@ const PaymentsDue: React.FC = () => {
             <div className="pagination-stats">
               <span className="record-count">
                 {settings.paginationType === 'true' 
-                  ? `Showing all ${unpaidSlots.length} ${canViewAllRecords ? 'records' : 'slots'}`
-                  : `Showing ${startIndex + 1}-${Math.min(endIndex, unpaidSlots.length)} of ${unpaidSlots.length} ${canViewAllRecords ? 'records' : 'slots'}`
+                  ? `Showing all ${getFilteredSlots().length} ${canViewAllRecords ? 'records' : 'slots'}`
+                  : `Showing ${startIndex + 1}-${Math.min(endIndex, getFilteredSlots().length)} of ${getFilteredSlots().length} ${canViewAllRecords ? 'records' : 'slots'}`
                 }
               </span>
               {settings.paginationType === 'simple' && (

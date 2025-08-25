@@ -281,4 +281,9 @@
   .mobile-auth {
     display: flex;
   }
+  
+  /* Hide desktop auth section on mobile */
+  .auth-section {
+    display: none;
+  }
 }

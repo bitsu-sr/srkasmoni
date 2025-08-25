@@ -49,7 +49,24 @@ const Payments = () => {
   const loadPayments = async () => {
     try {
       setIsLoading(true)
+      console.log('Loading payments with filters:', filters) // Debug log
       let data = await paymentService.getPayments(filters)
+      console.log('Received payments data:', data?.length, 'payments') // Debug log
+      
+      // Apply client-side search filter if present
+      if (filters?.search) {
+        const searchTerm = filters.search.toLowerCase().trim()
+        console.log('Applying client-side search for:', searchTerm) // Debug log
+        data = data.filter(payment => {
+          const memberFirstName = payment.member?.firstName?.toLowerCase() || ''
+          const memberLastName = payment.member?.lastName?.toLowerCase() || ''
+          const fullName = `${memberFirstName} ${memberLastName}`.toLowerCase()
+          return memberFirstName.includes(searchTerm) || 
+                 memberLastName.includes(searchTerm) || 
+                 fullName.includes(searchTerm)
+        })
+        console.log('After search filter:', data?.length, 'payments') // Debug log
+      }
       
       // Filter payments based on user permissions
       if (!canViewAllRecords && user?.username) {
@@ -195,6 +212,8 @@ const Payments = () => {
   }
 
   const handleFiltersChange = (newFilters: PaymentFiltersType) => {
+    console.log('Filters changed:', newFilters) // Debug log
+    console.log('Previous filters:', filters) // Debug log
     setFilters(newFilters)
   }
 

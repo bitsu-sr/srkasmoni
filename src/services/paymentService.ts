@@ -18,7 +18,14 @@ export const paymentService = {
 
     // Apply filters
     if (filters?.search) {
-      query = query.or(`member.first_name.ilike.%${filters.search}%,member.last_name.ilike.%${filters.search}%`)
+      // Search in member first name and last name
+      const searchTerm = filters.search.trim()
+      if (searchTerm) {
+        console.log('Applying search filter:', searchTerm) // Debug log
+        // For now, let's try a simpler approach and do client-side filtering
+        // This will help us determine if the issue is with the backend query or frontend
+        console.log('Search filter will be applied client-side for now')
+      }
     }
     if (filters?.status) {
       query = query.eq('status', filters.status)
@@ -43,6 +50,12 @@ export const paymentService = {
 
     if (error) {
       throw new Error(`Failed to fetch payments: ${error.message}`)
+    }
+
+    console.log('Raw query result:', data?.length, 'payments') // Debug log
+    if (filters?.search) {
+      console.log('Search filter applied, checking results...') // Debug log
+      console.log('Sample payment data:', data?.[0]) // Debug log
     }
 
     // Transform the data to match frontend interface (snake_case to camelCase)
@@ -427,20 +440,34 @@ export const paymentService = {
         }
 
         return (data || []).length > 0
-      } else {
-        // For composite IDs or when slot_id is not available, check by member_id and group_id
-        // This will catch any existing payment for this member in this group
+      } else if (paymentData.slotId && typeof paymentData.slotId === 'string' && paymentData.slotId.includes('_')) {
+        // For composite IDs, extract the month date and check for duplicate month
+        const [groupId, memberId, monthDate] = paymentData.slotId.split('_')
+        
+        // Check if a payment already exists for this member, group, and month
+        // We need to join with payment_slots to get the month_date
         const { data, error } = await supabase
           .from('payments')
-          .select('id')
-          .eq('member_id', paymentData.memberId)
-          .eq('group_id', paymentData.groupId)
+          .select(`
+            id,
+            payment_slots!inner(
+              month_date
+            )
+          `)
+          .eq('member_id', parseInt(memberId))
+          .eq('group_id', parseInt(groupId))
+          .eq('payment_slots.month_date', monthDate)
 
         if (error) {
           throw new Error(`Failed to check for duplicate payment: ${error.message}`)
         }
 
         return (data || []).length > 0
+      } else {
+        // If we can't determine the specific month, we can't check for duplicates
+        // This should not happen in normal operation, but return false to allow the payment
+        console.warn('Unable to determine slot/month for duplicate payment check, allowing payment')
+        return false
       }
     } catch (error) {
       console.error('Error checking for duplicate payment:', error)

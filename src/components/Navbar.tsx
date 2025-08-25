@@ -11,10 +11,10 @@ const Navbar = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const location = useLocation()
   const menuRef = useRef<HTMLDivElement>(null)
-  const { isAuthenticated, isAdmin } = useAuth()
+  const { isAuthenticated, isAdmin, isSuperUser } = useAuth()
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: Home },
+    { path: isAdmin() || isSuperUser() ? '/dashboard' : '/my-dashboard', label: 'Dashboard', icon: Home },
     { path: '/groups', label: 'Groups', icon: Users },
     { path: '/members', label: 'Members', icon: UserCheck },
     { path: '/payments', label: 'Payments', icon: CreditCard },

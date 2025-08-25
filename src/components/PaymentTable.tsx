@@ -1,6 +1,7 @@
 import { Edit, Trash2, Eye } from 'lucide-react'
 import type { Payment } from '../types/payment'
 import { paymentSlotService } from '../services/paymentSlotService'
+import { formatPaymentDate } from '../utils/dateUtils'
 import './PaymentTable.css'
 
 interface PaymentTableProps {
@@ -42,14 +43,7 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView, canManagePayments = 
     }
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+
 
   const formatAmount = (amount: number) => {
     return `SRD ${amount.toLocaleString()}`
@@ -89,7 +83,7 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView, canManagePayments = 
           <tbody>
             {payments.map((payment) => (
               <tr key={payment.id}>
-                <td>{formatDate(payment.paymentDate)}</td>
+                <td>{formatPaymentDate(payment.paymentDate)}</td>
                 <td>{payment.member?.firstName || 'N/A'}</td>
                 <td>{payment.member?.lastName || 'N/A'}</td>
                 <td>{payment.group?.name || 'N/A'}</td>

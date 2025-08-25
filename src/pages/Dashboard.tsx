@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react'
 import { DollarSign, Users, CreditCard, AlertTriangle, TrendingUp, Calendar, Plus, UserPlus, CheckCircle } from 'lucide-react'
 import { dashboardService, DashboardData } from '../services/dashboardService'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { formatDate } from '../utils/dateUtils'
 import './Dashboard.css'
 
 const Dashboard = () => {
   const navigate = useNavigate()
+  const { user, isAdmin, isSuperUser } = useAuth()
+  
+  // Redirect regular users to My Dashboard
+  if (user && !isAdmin() && !isSuperUser()) {
+    return <Navigate to="/my-dashboard" replace />
+  }
+  
   const [stats, setStats] = useState([
     {
       title: 'Total Amount Expected',
@@ -171,7 +180,7 @@ const Dashboard = () => {
     if (diffInHours < 1) return 'Just now'
     if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`
     if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`
-    return date.toLocaleDateString()
+    return formatDate(dateString)
   }
 
   // Navigation handlers

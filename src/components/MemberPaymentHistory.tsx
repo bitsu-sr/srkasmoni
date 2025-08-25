@@ -3,6 +3,7 @@ import { DollarSign, Building2, CreditCard, Banknote } from 'lucide-react'
 import type { Payment } from '../types/payment'
 import { paymentService } from '../services/paymentService'
 import { paymentSlotService } from '../services/paymentSlotService'
+import { formatPaymentDate } from '../utils/dateUtils'
 import './MemberPaymentHistory.css'
 
 interface MemberPaymentHistoryProps {
@@ -96,13 +97,7 @@ const MemberPaymentHistory = ({ memberId, memberName, onClose }: MemberPaymentHi
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+
 
   const formatAmount = (amount: number) => {
     return `SRD ${amount.toLocaleString()}`
@@ -194,7 +189,7 @@ const MemberPaymentHistory = ({ memberId, memberName, onClose }: MemberPaymentHi
               <tbody>
                 {payments.map((payment) => (
                   <tr key={payment.id}>
-                    <td>{formatDate(payment.paymentDate)}</td>
+                                         <td>{formatPaymentDate(payment.paymentDate)}</td>
                     <td>
                       <div className="group-info">
                         <Building2 size={14} />

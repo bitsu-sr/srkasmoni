@@ -2,13 +2,18 @@ import React, { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Filter, User, Users, Activity, Clock, Eye, FileText, RefreshCw } from 'lucide-react'
 import { paymentLogService } from '../services/paymentLogService'
-
+import { useAuth } from '../contexts/AuthContext'
 
 import type { PaymentLogFilters } from '../types/paymentLog'
 import './PaymentLogs.css'
 
 const PaymentLogs: React.FC = () => {
-
+  const { user } = useAuth()
+  
+  // Determine user permissions
+  const isAdmin = user?.role === 'admin'
+  const isSuperUser = user?.role === 'super_user'
+  const canViewAllRecords = isAdmin || isSuperUser
   
   const [filters, setFilters] = useState<PaymentLogFilters>({})
   const [searchTerm, setSearchTerm] = useState('')
@@ -21,8 +26,24 @@ const PaymentLogs: React.FC = () => {
   
   // Fetch payment logs with filters
   const { data: paymentLogs, isLoading, error, refetch } = useQuery({
-    queryKey: ['paymentLogs', filters],
-    queryFn: () => paymentLogService.getPaymentLogs(filters),
+    queryKey: ['paymentLogs', filters, canViewAllRecords, user?.username],
+    queryFn: () => {
+      // If user can view all records, pass filters as is
+      if (canViewAllRecords) {
+        return paymentLogService.getPaymentLogs(filters)
+      }
+      
+      // If normal user, get their member ID and filter by it
+      if (user?.username) {
+        const userFirstName = user.username.split('.')[0]
+        const userLastName = user.username.split('.')[1]
+        
+        // First get the member ID for this user
+        return paymentLogService.getPaymentLogsByUserEmail(user.email || '', filters)
+      }
+      
+      return paymentLogService.getPaymentLogs(filters)
+    },
     staleTime: 0, // Always fetch fresh data
     refetchOnWindowFocus: true, // Refetch when window regains focus
     refetchOnMount: true, // Refetch when component mounts
@@ -32,8 +53,29 @@ const PaymentLogs: React.FC = () => {
   
   // Fetch payment log statistics
   const { data: stats } = useQuery({
-    queryKey: ['paymentLogStats'],
-    queryFn: () => paymentLogService.getPaymentLogStats(),
+    queryKey: ['paymentLogStats', canViewAllRecords, user?.username],
+    queryFn: () => {
+      if (canViewAllRecords) {
+        return paymentLogService.getPaymentLogStats()
+      }
+      
+      // For normal users, return basic stats based on their logs
+      if (paymentLogs) {
+        const userStats = {
+          totalLogs: paymentLogs.length,
+          updates: paymentLogs.filter(log => log.action === 'updated').length,
+          deletions: paymentLogs.filter(log => log.action === 'deleted').length,
+          todayLogs: paymentLogs.filter(log => {
+            const today = new Date().toDateString()
+            const logDate = new Date(log.createdAt).toDateString()
+            return today === logDate
+          }).length
+        }
+        return userStats
+      }
+      
+      return paymentLogService.getPaymentLogStats()
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: true, // Refetch when window regains focus
     refetchOnMount: true, // Refetch when component mounts
@@ -136,12 +178,38 @@ const PaymentLogs: React.FC = () => {
     )
   }
 
+  // Show message if normal user has no member record
+  if (!canViewAllRecords && paymentLogs && paymentLogs.length === 0 && !isLoading) {
+    return (
+      <div className="payment-logs-container">
+        <div className="no-member-record">
+          <h2>No Payment Logs Found</h2>
+          <p>You don't have any payment logs associated with your account.</p>
+          <p>This usually means your member record hasn't been created yet or there's a mismatch between your user account and member record.</p>
+          <button onClick={() => refetch()} className="retry-button">
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="payment-logs-container">
       <div className="page-header">
         <div className="header-content">
           <h1>Payment Logs</h1>
-          <p>Track all payment activities and changes</p>
+          <p>
+            {canViewAllRecords 
+              ? 'Track all payment activities and changes' 
+              : 'Track your payment activities and changes'
+            }
+          </p>
+          {!canViewAllRecords && (
+            <div className="access-notice">
+              <span>🔒 Viewing only your payment logs</span>
+            </div>
+          )}
         </div>
         <div className="header-actions">
           <button 
@@ -190,8 +258,12 @@ const PaymentLogs: React.FC = () => {
               <FileText size={24} />
             </div>
             <div className="stat-content">
-              <h3>{stats.totalLogs}</h3>
-              <p>TOTAL LOGS</p>
+              <h3>
+                {canViewAllRecords ? stats.totalLogs : (paymentLogs?.length || 0)}
+              </h3>
+              <p>
+                {canViewAllRecords ? 'TOTAL LOGS' : 'YOUR LOGS'}
+              </p>
             </div>
           </div>
           <div className="stat-card">
@@ -200,7 +272,9 @@ const PaymentLogs: React.FC = () => {
             </div>
             <div className="stat-content">
               <h3>{stats.updates}</h3>
-              <p>UPDATES</p>
+              <p>
+                {canViewAllRecords ? 'UPDATES' : 'YOUR UPDATES'}
+              </p>
             </div>
           </div>
           <div className="stat-card">
@@ -209,7 +283,9 @@ const PaymentLogs: React.FC = () => {
             </div>
             <div className="stat-content">
               <h3>{stats.deletions}</h3>
-              <p>DELETIONS</p>
+              <p>
+                {canViewAllRecords ? 'DELETIONS' : 'YOUR DELETIONS'}
+              </p>
             </div>
           </div>
           <div className="stat-card">
@@ -218,7 +294,9 @@ const PaymentLogs: React.FC = () => {
             </div>
             <div className="stat-content">
               <h3>{stats.todayLogs}</h3>
-              <p>TODAY</p>
+              <p>
+                {canViewAllRecords ? 'TODAY' : 'YOUR TODAY'}
+              </p>
             </div>
           </div>
         </div>
@@ -226,11 +304,16 @@ const PaymentLogs: React.FC = () => {
 
       {/* Search and Filters */}
       <div className="search-filters-section">
+        {!canViewAllRecords && (
+          <div className="search-notice">
+            <span>🔍 Search within your payment logs only</span>
+          </div>
+        )}
         <div className="search-box">
           <Search size={20} />
           <input
             type="text"
-            placeholder="Search by member name, group name..."
+            placeholder={canViewAllRecords ? "Search by member name, group name..." : "Search your payment logs..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -242,6 +325,11 @@ const PaymentLogs: React.FC = () => {
 
         {showFilters && (
           <div className="filters-panel">
+            {!canViewAllRecords && (
+              <div className="filter-notice">
+                <span>🔧 Filters apply to your payment logs only</span>
+              </div>
+            )}
             <div className="filter-row">
               <div className="filter-group">
                 <label>Action:</label>
@@ -398,7 +486,8 @@ const PaymentLogs: React.FC = () => {
       {paymentLogs && paymentLogs.length > 0 && (
         <div className="pagination-section">
           <p className="results-count">
-            Showing {paymentLogs.length} payment logs
+            Showing {paymentLogs.length} payment log{paymentLogs.length !== 1 ? 's' : ''}
+            {!canViewAllRecords && ' (your logs only)'}
           </p>
         </div>
       )}

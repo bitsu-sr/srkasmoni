@@ -14,10 +14,16 @@ interface PaymentFiltersProps {
 const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFiltersProps) => {
   const [groups, setGroups] = useState<Group[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
+  const [searchValue, setSearchValue] = useState(filters.search || '')
 
   useEffect(() => {
     loadGroups()
   }, [])
+
+  // Update local search value when filters change
+  useEffect(() => {
+    setSearchValue(filters.search || '')
+  }, [filters.search])
 
   const loadGroups = async () => {
     try {
@@ -28,7 +34,20 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
     }
   }
 
+
+
+  const handleSearchChange = (value: string) => {
+    console.log('Search input changed:', value) // Debug log
+    setSearchValue(value)
+    // Temporarily remove debouncing to test if that's the issue
+    onFiltersChange({
+      ...filters,
+      search: value
+    })
+  }
+
   const handleFilterChange = (key: keyof PaymentFiltersType, value: any) => {
+    console.log('Filter change:', key, value) // Debug log
     onFiltersChange({
       ...filters,
       [key]: value
@@ -36,6 +55,7 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
   }
 
   const handleClearFilters = () => {
+    setSearchValue('') // Clear local search value
     onClearFilters()
     setIsExpanded(false)
   }
@@ -53,8 +73,8 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
           <input
             type="text"
             placeholder="Search payments by member name..."
-            value={filters.search || ''}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
+            value={searchValue}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
         

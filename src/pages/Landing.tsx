@@ -1,9 +1,12 @@
 
 import { Link } from 'react-router-dom'
 import { ArrowRight, Users, Shield, TrendingUp, Clock, CheckCircle } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import './Landing.css'
 
 const Landing = () => {
+  const { isAuthenticated, isAdmin, isSuperUser } = useAuth()
+  
   // Mock data - you can replace these with actual data from your backend
   const stats = {
     groups: 47,
@@ -31,7 +34,7 @@ const Landing = () => {
               to achieve financial goals through mutual support and transparency.
             </p>
             <div className="hero-cta">
-              <Link to="/dashboard" className="cta-button primary">
+              <Link to={isAuthenticated ? (isAdmin() || isSuperUser() ? '/dashboard' : '/my-dashboard') : '/dashboard'} className="cta-button primary">
                 Get Started Today
                 <ArrowRight size={20} />
               </Link>

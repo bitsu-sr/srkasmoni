@@ -26,7 +26,29 @@ const MemberDetail = () => {
   const [memberSlots, setMemberSlots] = useState<MemberSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    birthDate: '',
+    birthplace: '',
+    address: '',
+    city: '',
+    phone: '',
+    email: '',
+    nationalId: '',
+    nationality: '',
+    occupation: '',
+    bankName: '',
+    accountNumber: '',
+    dateOfRegistration: '',
+    totalReceived: 0,
+    lastPayment: '',
+    nextPayment: '',
+    notes: ''
+  })
 
   useEffect(() => {
     if (id) {
@@ -45,6 +67,27 @@ const MemberDetail = () => {
       if (memberWithStatus) {
         setMember(memberWithStatus)
         setMemberSlots(slotsData)
+        // Initialize edit form with current member data
+        setEditForm({
+          firstName: memberWithStatus.firstName,
+          lastName: memberWithStatus.lastName,
+          birthDate: memberWithStatus.birthDate,
+          birthplace: memberWithStatus.birthplace,
+          address: memberWithStatus.address,
+          city: memberWithStatus.city,
+          phone: memberWithStatus.phone,
+          email: memberWithStatus.email,
+          nationalId: memberWithStatus.nationalId,
+          nationality: memberWithStatus.nationality,
+          occupation: memberWithStatus.occupation,
+          bankName: memberWithStatus.bankName,
+          accountNumber: memberWithStatus.accountNumber,
+          dateOfRegistration: memberWithStatus.dateOfRegistration,
+          totalReceived: memberWithStatus.totalReceived,
+          lastPayment: memberWithStatus.lastPayment,
+          nextPayment: memberWithStatus.nextPayment,
+          notes: memberWithStatus.notes || ''
+        })
       } else {
         setError('Member not found')
       }
@@ -68,20 +111,66 @@ const MemberDetail = () => {
     }
   }
 
-  const [isEditing, setIsEditing] = useState(false)
-
   const handleEditMember = () => {
     setIsEditing(true)
+    setError('')
+    setSuccess('')
   }
 
   const handleCancelEdit = () => {
     setIsEditing(false)
+    setError('')
+    setSuccess('')
+    // Reset form to original values
+    if (member) {
+      setEditForm({
+        firstName: member.firstName,
+        lastName: member.lastName,
+        birthDate: member.birthDate,
+        birthplace: member.birthplace,
+        address: member.address,
+        city: member.city,
+        phone: member.phone,
+        email: member.email,
+        nationalId: member.nationalId,
+        nationality: member.nationality,
+        occupation: member.occupation,
+        bankName: member.bankName,
+        accountNumber: member.accountNumber,
+        dateOfRegistration: member.dateOfRegistration,
+        totalReceived: member.totalReceived,
+        lastPayment: member.lastPayment,
+        nextPayment: member.nextPayment,
+        notes: member.notes || ''
+      })
+    }
   }
 
   const handleSaveEdit = async () => {
-    // TODO: Implement save functionality
-    console.log('Saving member changes...')
-    setIsEditing(false)
+    if (!member) return
+    
+    try {
+      const updatedMember = await memberService.updateMember(member.id, editForm)
+      setMember({ ...member, ...updatedMember })
+      setIsEditing(false)
+      setSuccess('Member details updated successfully!')
+      setError('')
+      // Reload member data to get updated status info
+      await loadMember(member.id)
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      setError('Failed to save member changes')
+      setSuccess('')
+      console.error('Error saving member:', err)
+    }
+  }
+
+  const handleInputChange = (field: string, value: string | number) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }))
   }
 
   if (loading) {
@@ -149,6 +238,18 @@ const MemberDetail = () => {
       </div>
 
       <div className="container">
+        {/* Success and Error Messages */}
+        {success && (
+          <div className="success-message">
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+        
         <div className="member-overview">
           <div className="member-card-large">
             <div className="member-header-large">
@@ -217,30 +318,88 @@ const MemberDetail = () => {
             </h2>
             <div className="detail-grid">
               <div className="detail-item">
-                <span className="detail-label">Full Name</span>
-                <span className="detail-value">{member.firstName} {member.lastName}</span>
+                <span className="detail-label">First Name</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">{member.firstName}</span>
+                )}
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Last Name</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">{member.lastName}</span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Date of Birth</span>
-                <span className="detail-value">
-                  <Calendar size={16} />
-                  {new Date(member.birthDate).toLocaleDateString()}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    className="edit-input"
+                    value={editForm.birthDate}
+                    onChange={(e) => handleInputChange('birthDate', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <Calendar size={16} />
+                    {new Date(member.birthDate).toLocaleDateString()}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Birthplace</span>
-                <span className="detail-value">
-                  <MapPin size={16} />
-                  {member.birthplace}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.birthplace}
+                    onChange={(e) => handleInputChange('birthplace', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <MapPin size={16} />
+                    {member.birthplace}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Nationality</span>
-                <span className="detail-value">{member.nationality}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.nationality}
+                    onChange={(e) => handleInputChange('nationality', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">{member.nationality}</span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Occupation</span>
-                <span className="detail-value">{member.occupation}</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.occupation}
+                    onChange={(e) => handleInputChange('occupation', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">{member.occupation}</span>
+                )}
               </div>
             </div>
           </div>
@@ -254,31 +413,67 @@ const MemberDetail = () => {
             <div className="detail-grid">
               <div className="detail-item">
                 <span className="detail-label">Phone</span>
-                <span className="detail-value">
-                  <Phone size={16} />
-                  {member.phone}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="tel"
+                    className="edit-input"
+                    value={editForm.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <Phone size={16} />
+                    {member.phone}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Email</span>
-                <span className="detail-value">
-                  <Mail size={16} />
-                  {member.email}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="email"
+                    className="edit-input"
+                    value={editForm.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <Mail size={16} />
+                    {member.email}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Address</span>
-                <span className="detail-value">
-                  <MapPin size={16} />
-                  {member.address}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.address}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <MapPin size={16} />
+                    {member.address}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">City</span>
-                <span className="detail-value">
-                  <MapPin size={16} />
-                  {member.city}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.city}
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <MapPin size={16} />
+                    {member.city}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -292,38 +487,83 @@ const MemberDetail = () => {
             <div className="detail-grid">
               <div className="detail-item">
                 <span className="detail-label">Bank Name</span>
-                <span className="detail-value">
-                  <CreditCard size={16} />
-                  {member.bankName}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.bankName}
+                    onChange={(e) => handleInputChange('bankName', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <CreditCard size={16} />
+                    {member.bankName}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Account Number</span>
-                <span className="detail-value">
-                  <Hash size={16} />
-                  {member.accountNumber}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.accountNumber}
+                    onChange={(e) => handleInputChange('accountNumber', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <Hash size={16} />
+                    {member.accountNumber}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Total Received</span>
-                <span className="detail-value amount">
-                  <DollarSign size={16} />
-                  SRD {member.totalReceived.toLocaleString()}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    className="edit-input"
+                    value={editForm.totalReceived}
+                    onChange={(e) => handleInputChange('totalReceived', parseFloat(e.target.value) || 0)}
+                  />
+                ) : (
+                  <span className="detail-value amount">
+                    <DollarSign size={16} />
+                    SRD {member.totalReceived.toLocaleString()}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Last Payment</span>
-                <span className="detail-value">
-                  <Calendar size={16} />
-                  {new Date(member.lastPayment).toLocaleDateString()}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    className="edit-input"
+                    value={editForm.lastPayment}
+                    onChange={(e) => handleInputChange('lastPayment', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <Calendar size={16} />
+                    {new Date(member.lastPayment).toLocaleDateString()}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Next Payment</span>
-                <span className="detail-value">
-                  <Calendar size={16} />
-                  {new Date(member.nextPayment).toLocaleDateString()}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    className="edit-input"
+                    value={editForm.nextPayment}
+                    onChange={(e) => handleInputChange('nextPayment', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <Calendar size={16} />
+                    {new Date(member.nextPayment).toLocaleDateString()}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -337,17 +577,35 @@ const MemberDetail = () => {
             <div className="detail-grid">
               <div className="detail-item">
                 <span className="detail-label">Date of Registration</span>
-                <span className="detail-value">
-                  <Calendar size={16} />
-                  {new Date(member.dateOfRegistration).toLocaleDateString()}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    className="edit-input"
+                    value={editForm.dateOfRegistration}
+                    onChange={(e) => handleInputChange('dateOfRegistration', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <Calendar size={16} />
+                    {new Date(member.dateOfRegistration).toLocaleDateString()}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">National ID</span>
-                <span className="detail-value">
-                  <Hash size={16} />
-                  {member.nationalId}
-                </span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.nationalId}
+                    onChange={(e) => handleInputChange('nationalId', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">
+                    <Hash size={16} />
+                    {member.nationalId}
+                  </span>
+                )}
               </div>
               <div className="detail-item">
                 <span className="detail-label">Created</span>
@@ -449,17 +707,25 @@ const MemberDetail = () => {
           </div>
 
           {/* Notes */}
-          {member.notes && (
-            <div className="detail-section full-width">
-              <h2 className="section-title">
-                <FileText size={20} />
-                Notes
-              </h2>
-              <div className="notes-content">
-                <p>{member.notes}</p>
-              </div>
+          <div className="detail-section full-width">
+            <h2 className="section-title">
+              <FileText size={20} />
+              Notes
+            </h2>
+            <div className="notes-content">
+              {isEditing ? (
+                <textarea
+                  className="edit-textarea"
+                  value={editForm.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  placeholder="Enter notes about this member..."
+                  rows={4}
+                />
+              ) : (
+                <p>{member.notes || 'No notes available'}</p>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 

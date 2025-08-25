@@ -1,0 +1,444 @@
+.my-dashboard {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.my-dashboard .page-header {
+  background: linear-gradient(135deg, #217346 0%, #1e6b3d 100%);
+  color: white;
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+}
+
+.my-dashboard .header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.my-dashboard .page-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: white;
+}
+
+.my-dashboard .page-subtitle {
+  font-size: 1.1rem;
+  margin: 0;
+  opacity: 0.9;
+  color: white;
+}
+
+.my-dashboard .btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.my-dashboard .btn-secondary {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.my-dashboard .btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.my-dashboard .btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Stats Grid */
+.my-dashboard .grid.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.my-dashboard .stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-left: 4px solid;
+}
+
+.my-dashboard .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.my-dashboard .stat-card.stat-info {
+  border-left-color: #217346;
+}
+
+.my-dashboard .stat-card.stat-success {
+  border-left-color: #28a745;
+}
+
+.my-dashboard .stat-card.stat-primary {
+  border-left-color: #007bff;
+}
+
+.my-dashboard .stat-card.stat-warning {
+  border-left-color: #ffc107;
+}
+
+.my-dashboard .stat-header {
+  margin-bottom: 1rem;
+}
+
+.my-dashboard .stat-icon-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.my-dashboard .stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.my-dashboard .stat-info .stat-icon {
+  background-color: #217346;
+}
+
+.my-dashboard .stat-success .stat-icon {
+  background-color: #28a745;
+}
+
+.my-dashboard .stat-primary .stat-icon {
+  background-color: #007bff;
+}
+
+.my-dashboard .stat-warning .stat-icon {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.my-dashboard .stat-change {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.my-dashboard .change-info {
+  color: #217346;
+}
+
+.my-dashboard .change-success {
+  color: #28a745;
+}
+
+.my-dashboard .change-primary {
+  color: #007bff;
+}
+
+.my-dashboard .change-warning {
+  color: #ffc107;
+}
+
+.my-dashboard .stat-content {
+  text-align: left;
+}
+
+.my-dashboard .stat-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6c757d;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.my-dashboard .stat-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #212529;
+  margin: 0;
+}
+
+/* User Slots Overview */
+.my-dashboard .user-slots-overview {
+  margin-bottom: 2rem;
+}
+
+.my-dashboard .section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #212529;
+  margin: 0 0 1.5rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.my-dashboard .user-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.my-dashboard .user-slot-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e9ecef;
+}
+
+.my-dashboard .user-slot-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.my-dashboard .slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.my-dashboard .slot-group-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #212529;
+  margin: 0;
+}
+
+.my-dashboard .slot-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.my-dashboard .slot-status.info {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.my-dashboard .slot-status.success {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.my-dashboard .slot-status.warning {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.my-dashboard .slot-stats {
+  margin-bottom: 1rem;
+}
+
+.my-dashboard .stat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.my-dashboard .stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.my-dashboard .stat-item svg {
+  color: #217346;
+}
+
+.my-dashboard .slot-description {
+  padding-top: 1rem;
+  border-top: 1px solid #f1f3f4;
+}
+
+.my-dashboard .slot-description p {
+  margin: 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.my-dashboard .no-slots-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem 2rem;
+  background: white;
+  border-radius: 12px;
+  border: 2px dashed #e9ecef;
+}
+
+.my-dashboard .no-slots-icon {
+  margin-bottom: 1rem;
+  color: #6c757d;
+}
+
+.my-dashboard .no-slots-message h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #495057;
+  margin: 0 0 0.5rem 0;
+}
+
+.my-dashboard .no-slots-message p {
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Recent Activity */
+.my-dashboard .recent-activity {
+  margin-bottom: 2rem;
+}
+
+.my-dashboard .activity-list {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.my-dashboard .activity-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f1f3f4;
+  transition: background-color 0.2s ease;
+}
+
+.my-dashboard .activity-item:last-child {
+  border-bottom: none;
+}
+
+.my-dashboard .activity-item:hover {
+  background-color: #f8f9fa;
+}
+
+.my-dashboard .activity-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.my-dashboard .activity-icon.info {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.my-dashboard .activity-icon.success {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.my-dashboard .activity-icon.warning {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.my-dashboard .activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.my-dashboard .activity-title {
+  font-weight: 600;
+  color: #212529;
+  margin: 0 0 0.25rem 0;
+  font-size: 0.95rem;
+}
+
+.my-dashboard .activity-details {
+  color: #6c757d;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .my-dashboard .page-title {
+    font-size: 2rem;
+  }
+  
+  .my-dashboard .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .my-dashboard .grid.grid-3 {
+    grid-template-columns: 1fr;
+  }
+  
+  .my-dashboard .user-slots-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .my-dashboard .slot-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .my-dashboard .stat-card {
+    padding: 1.25rem;
+  }
+  
+  .my-dashboard .stat-value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .my-dashboard .page-header {
+    padding: 1.5rem 0;
+  }
+  
+  .my-dashboard .page-title {
+    font-size: 1.75rem;
+  }
+  
+  .my-dashboard .stat-card {
+    padding: 1rem;
+  }
+  
+  .my-dashboard .user-slot-card {
+    padding: 1rem;
+  }
+  
+  .my-dashboard .activity-item {
+    padding: 1rem;
+  }
+}
