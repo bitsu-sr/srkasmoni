@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
-import { DollarSign, Users, CreditCard, Calendar, TrendingUp, Clock, CheckCircle, AlertTriangle } from 'lucide-react'
+import { DollarSign, Users, CreditCard, Calendar, TrendingUp, Clock, CheckCircle } from 'lucide-react'
 import { userDashboardService, UserDashboardData } from '../services/userDashboardService'
 import { useAuth } from '../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
+
 import { formatDate } from '../utils/dateUtils'
 import './MyDashboard.css'
 
 const MyDashboard = () => {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const [dashboardData, setDashboardData] = useState<UserDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -21,7 +20,7 @@ const MyDashboard = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true)
-      const data = await userDashboardService.getUserDashboardData(user!.id)
+      const data = await userDashboardService.getUserDashboardData()
       setDashboardData(data)
     } catch (error) {
       console.error('Error loading dashboard data:', error)

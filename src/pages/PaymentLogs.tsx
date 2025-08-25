@@ -35,9 +35,6 @@ const PaymentLogs: React.FC = () => {
       
       // If normal user, get their member ID and filter by it
       if (user?.username) {
-        const userFirstName = user.username.split('.')[0]
-        const userLastName = user.username.split('.')[1]
-        
         // First get the member ID for this user
         return paymentLogService.getPaymentLogsByUserEmail(user.email || '', filters)
       }

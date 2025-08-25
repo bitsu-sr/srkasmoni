@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { PaymentSlot } from '../types/paymentSlot'
+
 
 export interface UserDashboardData {
   stats: {
@@ -26,7 +26,7 @@ export interface UserDashboardData {
 }
 
 export const userDashboardService = {
-  async getUserDashboardData(userId: string): Promise<UserDashboardData> {
+  async getUserDashboardData(): Promise<UserDashboardData> {
     try {
       // First, get the current user's email from auth
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser()
