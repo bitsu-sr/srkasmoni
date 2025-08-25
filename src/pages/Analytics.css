@@ -2,6 +2,120 @@
   min-height: 100vh;
 }
 
+/* Bank Charts Section */
+.analytics-bank-charts-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+/* Sender Bank Chart */
+.analytics-sender-bank-chart {
+  background: var(--secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px var(--shadow);
+  border: 1px solid var(--border);
+}
+
+/* Receiver Bank Chart */
+.analytics-receiver-bank-chart {
+  background: var(--secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.analytics-chart-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.analytics-chart-title-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.analytics-chart-icon {
+  color: var(--primary);
+}
+
+.analytics-chart-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.analytics-chart-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.analytics-chart-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.analytics-chart-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border);
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  animation: analytics-chart-spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes analytics-chart-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.analytics-chart-loading p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.analytics-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.analytics-chart-empty-icon {
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.analytics-chart-empty h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.analytics-chart-empty p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+  max-width: 400px;
+}
+
 /* Metrics Grid */
 .metrics-grid {
   display: grid;
@@ -188,6 +302,20 @@
 }
 
 @media (max-width: 768px) {
+  .analytics-bank-charts-section {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .analytics-sender-bank-chart,
+  .analytics-receiver-bank-chart {
+    padding: 20px;
+  }
+  
+  .analytics-chart-title {
+    font-size: 1.25rem;
+  }
+  
   .metrics-grid {
     grid-template-columns: 1fr;
     gap: 16px;
@@ -219,6 +347,24 @@
 }
 
 @media (max-width: 480px) {
+  .analytics-bank-charts-section {
+    gap: 16px;
+  }
+  
+  .analytics-sender-bank-chart,
+  .analytics-receiver-bank-chart {
+    padding: 16px;
+  }
+  
+  .analytics-chart-title {
+    font-size: 1.125rem;
+  }
+  
+  .analytics-chart-title-section {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
   .metric-icon {
     width: 40px;
     height: 40px;

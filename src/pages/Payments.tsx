@@ -3,6 +3,7 @@ import { Plus, DollarSign, CheckCircle, Clock, XCircle } from 'lucide-react'
 import type { Payment, PaymentFormData, PaymentStats, PaymentFilters as PaymentFiltersType } from '../types/payment'
 import { paymentService } from '../services/paymentService'
 import PaymentModal from '../components/PaymentModal'
+import PaymentDetails from '../components/PaymentDetails'
 import PaymentTable from '../components/PaymentTable'
 import PaymentFilters from '../components/PaymentFilters'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
@@ -39,6 +40,7 @@ const Payments = () => {
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
   const [deletingPayment, setDeletingPayment] = useState<Payment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [viewingPayment, setViewingPayment] = useState<Payment | null>(null)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -163,13 +165,7 @@ const Payments = () => {
   }
 
   const handleViewPayment = (payment: Payment) => {
-    // For now, just open in edit mode for admins, view-only for others
-    if (canManagePayments) {
-      handleEditPayment(payment)
-    } else {
-      // View-only mode - could implement a separate view modal here
-      alert('View-only mode not implemented yet.')
-    }
+    setViewingPayment(payment)
   }
 
   const handleSavePayment = async (paymentData: PaymentFormData) => {
@@ -247,8 +243,17 @@ const Payments = () => {
     setEditingPayment(null)
   }
 
+  const handleBackFromDetails = () => {
+    setViewingPayment(null)
+  }
+
   const closeDeleteModal = () => {
     setDeletingPayment(null)
+  }
+
+  // If viewing payment details, show the details page instead of the main payments page
+  if (viewingPayment) {
+    return <PaymentDetails payment={viewingPayment} onBack={handleBackFromDetails} />
   }
 
   return (

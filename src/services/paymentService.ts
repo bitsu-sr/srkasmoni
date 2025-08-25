@@ -532,6 +532,84 @@ export const paymentService = {
     return stats
   },
 
+  // Get payment statistics by receiver bank
+  async getPaymentStatsByReceiverBank(): Promise<Array<{ bankName: string; totalAmount: number; paymentCount: number }>> {
+    const { data, error } = await supabase
+      .from('payments')
+      .select(`
+        amount,
+        receiverBank:banks!payments_receiver_bank_id_fkey(name, short_name)
+      `)
+      .not('receiver_bank_id', 'is', null)
+
+    if (error) {
+      throw new Error(`Failed to fetch payment stats by receiver bank: ${error.message}`)
+    }
+
+    const bankStats = new Map<string, { totalAmount: number; paymentCount: number }>()
+
+    data?.forEach((payment: any) => {
+      const bankName = payment.receiverBank?.short_name || payment.receiverBank?.name || 'Unknown Bank'
+      const amount = payment.amount || 0
+
+      if (bankStats.has(bankName)) {
+        const current = bankStats.get(bankName)!
+        current.totalAmount += amount
+        current.paymentCount++
+      } else {
+        bankStats.set(bankName, { totalAmount: amount, paymentCount: 1 })
+      }
+    })
+
+    // Convert to array and sort by total amount descending
+    return Array.from(bankStats.entries())
+      .map(([bankName, stats]) => ({
+        bankName,
+        totalAmount: stats.totalAmount,
+        paymentCount: stats.paymentCount
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+  },
+
+  // Get payment statistics by sender bank
+  async getPaymentStatsBySenderBank(): Promise<Array<{ bankName: string; totalAmount: number; paymentCount: number }>> {
+    const { data, error } = await supabase
+      .from('payments')
+      .select(`
+        amount,
+        senderBank:banks!payments_sender_bank_id_fkey(name, short_name)
+      `)
+      .not('sender_bank_id', 'is', null)
+
+    if (error) {
+      throw new Error(`Failed to fetch payment stats by sender bank: ${error.message}`)
+    }
+
+    const bankStats = new Map<string, { totalAmount: number; paymentCount: number }>()
+
+    data?.forEach((payment: any) => {
+      const bankName = payment.senderBank?.short_name || payment.senderBank?.name || 'Unknown Bank'
+      const amount = payment.amount || 0
+
+      if (bankStats.has(bankName)) {
+        const current = bankStats.get(bankName)!
+        current.totalAmount += amount
+        current.paymentCount++
+      } else {
+        bankStats.set(bankName, { totalAmount: amount, paymentCount: 1 })
+      }
+    })
+
+    // Convert to array and sort by total amount descending
+    return Array.from(bankStats.entries())
+      .map(([bankName, stats]) => ({
+        bankName,
+        totalAmount: stats.totalAmount,
+        paymentCount: stats.paymentCount
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+  },
+
   // Get payment history for a specific member
   async getMemberPaymentHistory(memberId: number): Promise<Payment[]> {
     const { data, error } = await supabase
