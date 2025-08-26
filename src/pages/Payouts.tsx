@@ -18,8 +18,15 @@ import './Payouts.css'
 import { Payout, FilterType, StatusFilter, SortField, SortDirection } from '../types/payout'
 import { payoutService } from '../services/payoutService'
 import { pdfService } from '../services/pdfService'
+import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 
 const Payouts: React.FC = () => {
+  // Auth state
+  const { user } = useAuth()
+  const isAdminUser = user?.role === 'admin' || user?.role === 'super_user'
+  const [currentUserMemberId, setCurrentUserMemberId] = useState<number | null>(null)
+  
   // State for data
   const [payouts, setPayouts] = useState<Payout[]>([])
   const [filteredPayouts, setFilteredPayouts] = useState<Payout[]>([])
@@ -67,11 +74,41 @@ const Payouts: React.FC = () => {
   const endIndex = startIndex + pageSize
   const currentPayouts = filteredPayouts.slice(startIndex, endIndex)
 
+  // Fetch current user's member ID
+  const fetchCurrentUserMemberId = async () => {
+    if (!user || isAdminUser) {
+      setCurrentUserMemberId(null)
+      return
+    }
+
+    try {
+      const { data: memberData, error } = await supabase
+        .from('members')
+        .select('id')
+        .eq('email', user.email)
+        .single()
+
+      if (error || !memberData) {
+        setCurrentUserMemberId(null)
+      } else {
+        setCurrentUserMemberId(memberData.id)
+      }
+    } catch (error) {
+      setCurrentUserMemberId(null)
+    }
+  }
+
   // Fetch payouts data
   const fetchPayouts = async () => {
     try {
       setLoading(true)
-      const payoutsData = await payoutService.getAllPayouts()
+      let payoutsData = await payoutService.getAllPayouts()
+      
+      // Filter payouts based on user role
+      if (!isAdminUser && currentUserMemberId !== null) {
+        payoutsData = payoutsData.filter(payout => payout.memberId === currentUserMemberId)
+      }
+      
       setPayouts(payoutsData)
       setFilteredPayouts(payoutsData)
     } catch (err) {
@@ -153,7 +190,15 @@ const Payouts: React.FC = () => {
   // Load data on component mount
   useEffect(() => {
     fetchPayouts()
+    fetchCurrentUserMemberId()
   }, [])
+
+  // Refetch payouts when member ID changes
+  useEffect(() => {
+    if (currentUserMemberId !== null || isAdminUser) {
+      fetchPayouts()
+    }
+  }, [currentUserMemberId, isAdminUser])
 
   // Handle sorting
   const handleSort = (field: SortField) => {
@@ -300,6 +345,19 @@ const Payouts: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Privacy Notice for Normal Users */}
+      {!isAdminUser && (
+        <div className="payouts-privacy-notice">
+          <div className="payouts-privacy-icon">
+            <Eye className="payouts-privacy-icon-svg" />
+          </div>
+          <div className="payouts-privacy-content">
+            <h3>Privacy Notice</h3>
+            <p>You are viewing only your own payout records. Administrators can see all payout records.</p>
+          </div>
+        </div>
+      )}
 
       {/* Summary Statistics */}
       <div className="payouts-summary">

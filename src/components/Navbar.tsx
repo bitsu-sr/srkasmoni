@@ -26,12 +26,12 @@ const Navbar = () => {
     { path: '/payment-logs', label: 'Payment Logs', icon: FileText },
     { path: '/payments-due', label: 'Payments Due', icon: CreditCard },
     { path: '/payouts', label: 'Payouts', icon: DollarSign },
-    { path: '/settings', label: 'Settings', icon: Settings },
   ]
 
   // Add admin-only items
   if (isAdmin()) {
     hamburgerItems.push(
+      { path: '/settings', label: 'Settings', icon: Settings },
       { path: '/login-logs', label: 'Login Logs', icon: Shield },
       { path: '/user-management', label: 'User Management', icon: Shield }
     )
