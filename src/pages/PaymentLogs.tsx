@@ -225,8 +225,8 @@ const PaymentLogs: React.FC = () => {
             className="refresh-button"
             onClick={() => {
               // Force a fresh call to getPaymentLogStats
-              paymentLogService.getPaymentLogStats().then(result => {
-                console.log('📊 Manual stats result:', result)
+              paymentLogService.getPaymentLogStats().then(() => {
+                // Stats refreshed successfully
               }).catch(error => {
                 console.error('❌ Manual stats error:', error)
               })

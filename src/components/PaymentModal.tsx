@@ -30,7 +30,8 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      memberId: 0,
      groupId: 0,
      slotId: '',
-     paymentDate: new Date().toISOString().split('T')[0],
+     paymentDate: new Date().toLocaleDateString('en-CA'), // Use local timezone, format: YYYY-MM-DD
+     paymentMonth: new Date().toISOString().substring(0, 7), // Default to current month (YYYY-MM)
      amount: 0,
      paymentMethod: 'bank_transfer',
      status: 'pending',
@@ -77,6 +78,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
            groupId: payment.groupId,
            slotId: payment.slotId,
            paymentDate: payment.paymentDate,
+           paymentMonth: payment.paymentMonth,
            amount: payment.amount,
            paymentMethod: payment.paymentMethod,
            status: payment.status,
@@ -87,13 +89,6 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
          
          // Set the member data directly from the payment to avoid clearing
          if (payment.member) {
-           console.log('Setting member data for editing:', {
-             paymentMemberId: payment.memberId,
-             memberId: payment.member.id,
-             memberName: `${payment.member.firstName} ${payment.member.lastName}`,
-             fullPaymentMember: payment.member
-           })
-           
            // Use payment.memberId as the member ID since payment.member.id is undefined
            const memberId = payment.member.id || payment.memberId
            
@@ -153,7 +148,6 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
    // Ensure amount is loaded whenever groupId changes
    useEffect(() => {
      if (formData.groupId && formData.groupId !== 0) {
-       console.log('Group changed, loading monthly amount for group:', formData.groupId)
        loadGroupMonthlyAmount(formData.groupId)
      }
    }, [formData.groupId])
@@ -248,9 +242,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      const loadGroupMonthlyAmount = async (groupId: number) => {
      if (!groupId) return
      try {
-       console.log('Loading monthly amount for group:', groupId)
        const amount = await paymentSlotService.getGroupMonthlyAmount(groupId)
-       console.log('Received monthly amount:', amount)
        setFormData(prev => ({
          ...prev,
          amount

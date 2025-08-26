@@ -4,6 +4,7 @@ export interface Payment {
   groupId: number
   slotId: number
   paymentDate: string
+  paymentMonth: string
   amount: number
   paymentMethod: 'cash' | 'bank_transfer'
   senderBankId?: number
@@ -28,6 +29,7 @@ export interface PaymentFormData {
   groupId: number
   slotId: number | string
   paymentDate: string
+  paymentMonth: string
   amount: number
   paymentMethod: 'cash' | 'bank_transfer'
   senderBankId?: number

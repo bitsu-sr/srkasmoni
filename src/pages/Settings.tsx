@@ -137,7 +137,6 @@ const Settings = () => {
   const handleSave = () => {
     setIsEditing(false)
     // Here you would typically save to backend
-    console.log('Saving settings:', formData)
   }
 
   const handleCancel = () => {

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { AuthService } from '../services/authService';
+import { AuthLoggingService } from '../services/authLoggingService';
 import { LoginCredentials, CreateUserData, UpdateUserData, AuthState } from '../types/auth';
 
 interface AuthContextType extends AuthState {
@@ -75,6 +76,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { user, error } = await AuthService.login(credentials);
       
       if (error || !user) {
+        // Note: Failed login logging is already handled in AuthService.login
+        
         setState(prev => ({ 
           ...prev, 
           isLoading: false, 
@@ -83,6 +86,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: error || 'Login failed' };
       }
 
+      // Log successful login
+      await AuthLoggingService.logSuccessfulLogin(
+        credentials.username,
+        user.first_name,
+        user.last_name
+      );
+
       setState({
         user,
         isLoading: false,
@@ -90,10 +100,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         error: null,
       });
 
+      // Auto-redirect based on user role
+      setTimeout(() => {
+        if (user.role === 'admin' || user.role === 'super_user') {
+          window.location.href = '/dashboard';
+        } else {
+          window.location.href = '/my-dashboard';
+        }
+      }, 100);
+
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      
+      // Note: Failed login logging is already handled in AuthService.login
+      
       setState(prev => ({ 
         ...prev, 
         isLoading: false, 
@@ -106,6 +128,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async (): Promise<void> => {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
+      
+      // Log logout event before actually logging out
+      if (state.user) {
+        await AuthLoggingService.logLogout(
+          state.user.username || state.user.email,
+          state.user.first_name,
+          state.user.last_name
+        );
+      }
       
       await AuthService.logout();
       

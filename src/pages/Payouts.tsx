@@ -222,8 +222,7 @@ const Payouts: React.FC = () => {
   }
 
   // Handle download
-  const handleDownload = (payout: Payout) => {
-    console.log('Downloading payout details for:', payout.memberName)
+  const handleDownload = (_payout: Payout) => {
     // Implement PDF generation logic here
   }
 
@@ -235,7 +234,6 @@ const Payouts: React.FC = () => {
     
     try {
       await pdfService.generatePayoutPDF(payout, lastSlotPaid, adminFeePaid)
-      console.log('PDF generated successfully for:', payout.memberName)
       setShowPdfSuccess(true)
       setTimeout(() => setShowPdfSuccess(false), 3000) // Hide after 3 seconds
     } catch (error) {

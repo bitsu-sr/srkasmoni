@@ -29,9 +29,12 @@ const Navbar = () => {
     { path: '/settings', label: 'Settings', icon: Settings },
   ]
 
-  // Add User Management link for admins
+  // Add admin-only items
   if (isAdmin()) {
-    hamburgerItems.push({ path: '/user-management', label: 'User Management', icon: Shield })
+    hamburgerItems.push(
+      { path: '/login-logs', label: 'Login Logs', icon: Shield },
+      { path: '/user-management', label: 'User Management', icon: Shield }
+    )
   }
 
   const toggleMenu = () => {

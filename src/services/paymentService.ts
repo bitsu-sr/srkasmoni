@@ -3,7 +3,7 @@ import type { Payment, PaymentFormData, PaymentFilters, PaymentStats } from '../
 
 export const paymentService = {
   // Get all payments with optional filters
-  async getPayments(filters?: PaymentFilters): Promise<Payment[]> {
+  async getPayments(filters?: PaymentFilters, memberId?: number): Promise<Payment[]> {
     let query = supabase
       .from('payments')
       .select(`
@@ -15,6 +15,11 @@ export const paymentService = {
         receiverBank:banks!payments_receiver_bank_id_fkey(name)
       `)
       .order('created_at', { ascending: false })
+
+    // Filter by member ID if provided (for normal users to see only their payments)
+    if (memberId) {
+      query = query.eq('member_id', memberId)
+    }
 
     // Apply filters
     if (filters?.search) {
@@ -52,12 +57,6 @@ export const paymentService = {
       throw new Error(`Failed to fetch payments: ${error.message}`)
     }
 
-    console.log('Raw query result:', data?.length, 'payments') // Debug log
-    if (filters?.search) {
-      console.log('Search filter applied, checking results...') // Debug log
-      console.log('Sample payment data:', data?.[0]) // Debug log
-    }
-
     // Transform the data to match frontend interface (snake_case to camelCase)
     const transformedPayments: Payment[] = (data || []).map((payment: any) => ({
       id: payment.id,
@@ -65,6 +64,7 @@ export const paymentService = {
       groupId: payment.group_id,
       slotId: payment.slot_id,
       paymentDate: payment.payment_date,
+      paymentMonth: payment.payment_month,
       amount: payment.amount,
       paymentMethod: payment.payment_method,
       senderBankId: payment.sender_bank_id,
@@ -173,6 +173,7 @@ export const paymentService = {
       groupId: data.group_id,
       slotId: data.slot_id,
       paymentDate: data.payment_date,
+      paymentMonth: data.payment_month,
       amount: data.amount,
       paymentMethod: data.payment_method,
       senderBankId: data.sender_bank_id,
@@ -262,6 +263,7 @@ export const paymentService = {
       group_id: paymentData.groupId,
       slot_id: paymentData.slotId,
       payment_date: paymentData.paymentDate,
+      payment_month: paymentData.paymentMonth,
       amount: paymentData.amount,
       payment_method: paymentData.paymentMethod,
       status: paymentData.status,
@@ -295,6 +297,7 @@ export const paymentService = {
     if (paymentData.groupId !== undefined) dbPaymentData.group_id = paymentData.groupId
     if (paymentData.slotId !== undefined) dbPaymentData.slot_id = paymentData.slotId
     if (paymentData.paymentDate !== undefined) dbPaymentData.payment_date = paymentData.paymentDate
+    if (paymentData.paymentMonth !== undefined) dbPaymentData.payment_month = paymentData.paymentMonth
     if (paymentData.amount !== undefined) dbPaymentData.amount = paymentData.amount
     if (paymentData.paymentMethod !== undefined) dbPaymentData.payment_method = paymentData.paymentMethod
     if (paymentData.status !== undefined) dbPaymentData.status = paymentData.status
@@ -635,6 +638,7 @@ export const paymentService = {
       groupId: payment.group_id,
       slotId: payment.slot_id,
       paymentDate: payment.payment_date,
+      paymentMonth: payment.payment_month,
       amount: payment.amount,
       paymentMethod: payment.payment_method,
       senderBankId: payment.sender_bank_id,
@@ -785,6 +789,7 @@ export const paymentService = {
         groupId: payment.group_id,
         slotId: payment.slot_id,
         paymentDate: payment.payment_date,
+        paymentMonth: payment.payment_month,
         amount: payment.amount,
         paymentMethod: payment.payment_method,
         senderBankId: payment.sender_bank_id,
@@ -857,46 +862,69 @@ export const paymentService = {
   // Get overdue payments for dashboard
   async getOverduePayments(): Promise<{ count: number; amount: number }> {
     try {
-      const today = new Date().toISOString().split('T')[0]
-      
-      const { data, error } = await supabase
-        .from('payment_slots')
+      // Get all payments with group information to calculate correct due dates
+      const { data: payments, error } = await supabase
+        .from('payments')
         .select(`
           id,
           amount,
-          due_date,
+          payment_date,
+          payment_month,
           group_id,
-          member_id,
-          member:members(first_name, last_name),
-          group:groups(name)
+          groups!inner(
+            payment_deadline_day
+          )
         `)
-        .lt('due_date', today)
+        .not('payment_date', 'is', null)
+        .not('payment_month', 'is', null)
 
       if (error) {
-        throw new Error(`Failed to fetch overdue payments: ${error.message}`)
+        console.error('❌ Error fetching payments:', error)
+        return { count: 0, amount: 0 }
       }
 
-      // Filter out slots that already have payments
-      const overdueSlots = data || []
       let totalOverdueAmount = 0
       let overdueCount = 0
 
-      for (const slot of overdueSlots) {
-        const hasPayment = await this.checkSlotHasPayment(
-          slot.group_id,
-          slot.member_id,
-          slot.month_date
-        )
-        
-        if (!hasPayment) {
-          totalOverdueAmount += slot.amount || 0
-          overdueCount++
+      if (payments && Array.isArray(payments)) {
+        for (const payment of payments) {
+          try {
+            // Calculate the correct due date for the payment month
+            const [year, month] = payment.payment_month.split('-').map(Number)
+            const deadlineDay = payment.groups.payment_deadline_day || 29
+            
+            // Create the due date for this month
+            let dueDate: Date
+            try {
+              // Try to create the date with the deadline day
+              dueDate = new Date(year, month - 1, deadlineDay)
+              
+              // If the month doesn't have that many days, adjust to the last day of the month
+              if (dueDate.getMonth() !== month - 1) {
+                dueDate = new Date(year, month, 0) // Last day of the month
+              }
+            } catch (dateError) {
+              // Fallback to last day of month if date creation fails
+              dueDate = new Date(year, month, 0)
+            }
+            
+            const paymentDate = new Date(payment.payment_date)
+            
+            // Check if payment was made on or after the due date
+            if (paymentDate >= dueDate) {
+              totalOverdueAmount += payment.amount || 0
+              overdueCount++
+            }
+          } catch (paymentError) {
+            console.error(`Error processing payment ${payment.id}:`, paymentError)
+            continue
+          }
         }
       }
 
       return { count: overdueCount, amount: totalOverdueAmount }
     } catch (error) {
-      console.error('Error fetching overdue payments:', error)
+      console.error('❌ Error in getOverduePayments:', error)
       return { count: 0, amount: 0 }
     }
   }

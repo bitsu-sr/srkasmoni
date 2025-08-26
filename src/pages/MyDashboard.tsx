@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { DollarSign, Users, CreditCard, Calendar, TrendingUp, Clock, CheckCircle } from 'lucide-react'
+import { DollarSign, Users, CreditCard, Calendar, TrendingUp, Clock } from 'lucide-react'
 import { userDashboardService, UserDashboardData } from '../services/userDashboardService'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -23,7 +23,6 @@ const MyDashboard = () => {
       const data = await userDashboardService.getUserDashboardData()
       setDashboardData(data)
     } catch (error) {
-      console.error('Error loading dashboard data:', error)
       // Set empty data on error
       setDashboardData({
         stats: {
@@ -42,22 +41,19 @@ const MyDashboard = () => {
     }
   }
 
-  const getStatusIcon = (slot: any) => {
-    if (slot.isCurrentMonth) return <Clock size={16} />
-    if (slot.isFuture) return <Calendar size={16} />
-    return <CheckCircle size={16} />
-  }
-
-  const getStatusColor = (slot: any) => {
-    if (slot.isCurrentMonth) return 'warning'
-    if (slot.isFuture) return 'info'
-    return 'success'
-  }
-
-  const getStatusText = (slot: any) => {
-    if (slot.isCurrentMonth) return 'Current Month'
-    if (slot.isFuture) return 'Upcoming'
-    return 'Completed'
+  const getPaymentStatusText = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'Paid'
+      case 'pending':
+        return 'Pending'
+      case 'settled':
+        return 'Settled'
+      case 'not_paid':
+        return 'Not Paid'
+      default:
+        return 'Unknown'
+    }
   }
 
   const formatRelativeTime = (dateString: string): string => {
@@ -194,72 +190,76 @@ const MyDashboard = () => {
         {/* User Slots Overview */}
         <div className="user-slots-overview">
           <h2 className="section-title">My Slots Overview</h2>
-          <div className="user-slots-grid">
-            {loading ? (
-              // Loading skeleton
-              Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="user-slot-card">
-                  <div className="slot-header">
-                    <h3 className="slot-group-name">Loading...</h3>
-                    <div className="slot-status info">Loading...</div>
-                  </div>
-                  <div className="slot-stats">
-                    <div className="stat-row">
-                      <div className="stat-item">
-                        <DollarSign size={16} />
-                        <span>SRD 0/month</span>
-                      </div>
-                    </div>
-                    <div className="stat-row">
-                      <div className="stat-item">
-                        <Calendar size={16} />
-                        <span>Month: Loading...</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : dashboardData?.userSlots.length ? (
-              dashboardData.userSlots.map((slot) => (
-                <div key={slot.id} className="user-slot-card">
-                  <div className="slot-header">
-                    <h3 className="slot-group-name">{slot.groupName}</h3>
-                    <div className={`slot-status ${getStatusColor(slot)}`}>
-                      {getStatusIcon(slot)}
-                      {getStatusText(slot)}
-                    </div>
-                  </div>
-                  <div className="slot-stats">
-                    <div className="stat-row">
-                      <div className="stat-item">
-                        <DollarSign size={16} />
-                        <span>SRD {slot.monthlyAmount.toLocaleString()}/month</span>
-                      </div>
-                    </div>
-                    <div className="stat-row">
-                      <div className="stat-item">
-                        <Calendar size={16} />
-                        <span>Month: {slot.assignedMonthFormatted}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {slot.groupDescription && (
-                    <div className="slot-description">
-                      <p>{slot.groupDescription}</p>
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="no-slots-message">
-                <div className="no-slots-icon">
-                  <Calendar size={48} />
-                </div>
-                <h3>No Slots Found</h3>
-                <p>You don't have any assigned slots yet. Contact your group administrator to get started.</p>
+          {loading ? (
+            // Loading skeleton
+            <div className="user-slots-table-skeleton">
+              <div className="table-header-skeleton">
+                <div className="header-cell-skeleton">Group Name</div>
+                <div className="header-cell-skeleton">Status</div>
+                <div className="header-cell-skeleton">Monthly Amount</div>
+                <div className="header-cell-skeleton">Assigned Month</div>
+                <div className="header-cell-skeleton">Payment Status</div>
+                <div className="header-cell-skeleton">Description</div>
               </div>
-            )}
-          </div>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="table-row-skeleton">
+                  <div className="cell-skeleton">Loading...</div>
+                  <div className="cell-skeleton">Loading...</div>
+                  <div className="cell-skeleton">Loading...</div>
+                  <div className="cell-skeleton">Loading...</div>
+                  <div className="cell-skeleton">Loading...</div>
+                  <div className="cell-skeleton">Loading...</div>
+                </div>
+              ))}
+            </div>
+          ) : dashboardData?.userSlots.length ? (
+            <div className="user-slots-table-container">
+              <table className="user-slots-table">
+                  <thead>
+                    <tr>
+                      <th>Group Name</th>
+                      <th>Monthly Amount</th>
+                      <th>Payment Status</th>
+                      <th>Assigned Month</th>
+                      <th>Payout</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboardData.userSlots.map((slot) => (
+                      <tr key={slot.id} className="slot-table-row">
+                        <td className="slot-group-name-cell">
+                          <span className="group-name-text">{slot.groupName}</span>
+                        </td>
+                        <td className="slot-amount-cell">
+                          <span className="amount-display">SRD {slot.monthlyAmount}</span>
+                        </td>
+                        <td className="slot-payment-status-cell">
+                          <span className={`payment-status-badge payment-status-${slot.paymentStatus}`}>
+                            {getPaymentStatusText(slot.paymentStatus)}
+                          </span>
+                        </td>
+                        <td className="slot-month-cell">
+                          <span className="month-display">{slot.assignedMonthFormatted}</span>
+                        </td>
+                        <td className="slot-status-cell">
+                          <span className={`slot-status-badge ${slot.isFuture ? 'future' : slot.isCurrentMonth ? 'current' : 'past'}`}>
+                            {slot.isFuture ? 'Upcoming' : slot.isCurrentMonth ? 'Current' : 'Completed'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+            <div className="no-slots-message">
+              <div className="no-slots-icon">
+                <Calendar size={48} />
+              </div>
+              <h3>No Slots Found</h3>
+              <p>You don't have any assigned slots yet. Contact your group administrator to get started.</p>
+            </div>
+          )}
         </div>
 
         {/* Recent Activity */}

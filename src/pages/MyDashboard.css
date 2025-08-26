@@ -192,109 +192,228 @@
   border-bottom: 2px solid #e9ecef;
 }
 
-.my-dashboard .user-slots-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 1.5rem;
-}
-
-.my-dashboard .user-slot-card {
+/* Table Styles */
+.my-dashboard .user-slots-table {
+  width: 100%;
+  border-collapse: collapse;
   background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
+  border-radius: 8px;
+  overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 1px solid #e9ecef;
 }
 
-.my-dashboard .user-slot-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+.my-dashboard .user-slots-table th {
+  background: #f8f9fa;
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #e9ecef;
+  font-size: 14px;
 }
 
-.my-dashboard .slot-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #f1f3f4;
+.my-dashboard .user-slots-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #e9ecef;
+  vertical-align: middle;
 }
 
-.my-dashboard .slot-group-name {
-  font-size: 1.2rem;
+.my-dashboard .user-slots-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.slot-table-row:last-child td {
+  border-bottom: none;
+}
+
+.slot-group-name-cell {
+  min-width: 150px;
+}
+
+.group-name-text {
   font-weight: 600;
   color: #212529;
-  margin: 0;
 }
 
-.my-dashboard .slot-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+.slot-amount-cell {
+  min-width: 120px;
+}
+
+.amount-display {
+  font-weight: 600;
+  color: #28a745;
+}
+
+.slot-payment-status-cell {
+  min-width: 120px;
+}
+
+.payment-status-badge {
+  display: inline-block;
+  padding: 6px 12px;
   border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.payment-status-badge.payment-status-paid {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.payment-status-badge.payment-status-pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.payment-status-badge.payment-status-settled {
+  background-color: #cce7ff;
+  color: #004085;
+}
+
+.payment-status-badge.payment-status-not_paid {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.slot-month-cell {
+  min-width: 120px;
+}
+
+.month-display {
+  color: #6c757d;
   font-weight: 500;
 }
 
-.my-dashboard .slot-status.info {
+.slot-status-cell {
+  min-width: 100px;
+}
+
+.slot-status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.slot-status-badge.future {
   background-color: #e3f2fd;
-  color: #1976d2;
+  color: #0d47a1;
 }
 
-.my-dashboard .slot-status.success {
-  background-color: #e8f5e8;
-  color: #2e7d32;
+.slot-status-badge.current {
+  background-color: #fff8e1;
+  color: #f57f17;
 }
 
-.my-dashboard .slot-status.warning {
-  background-color: #fff3e0;
-  color: #f57c00;
+.slot-status-badge.past {
+  background-color: #f3e5f5;
+  color: #4a148c;
 }
 
-.my-dashboard .slot-stats {
-  margin-bottom: 1rem;
-}
-
-.my-dashboard .stat-row {
+/* Table Skeleton Loading */
+.my-dashboard .user-slots-table-skeleton {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.my-dashboard .stat-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #6c757d;
-  font-size: 0.9rem;
+.table-header-skeleton {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr 1.5fr 1fr;
+  gap: 12px;
+  padding: 16px 12px;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
 }
 
-.my-dashboard .stat-item svg {
-  color: #217346;
+.header-cell-skeleton {
+  height: 20px;
+  background: linear-gradient(90deg, #e9ecef 25%, #f8f9fa 50%, #e9ecef 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
 }
 
-.my-dashboard .slot-description {
-  padding-top: 1rem;
-  border-top: 1px solid #f1f3f4;
+.table-row-skeleton {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr 1.5fr 1fr;
+  gap: 12px;
+  padding: 16px 12px;
+  background: white;
+  border-bottom: 1px solid #e9ecef;
 }
 
-.my-dashboard .slot-description p {
-  margin: 0;
-  color: #6c757d;
-  font-size: 0.9rem;
-  line-height: 1.5;
+.cell-skeleton {
+  height: 16px;
+  background: linear-gradient(90deg, #e9ecef 25%, #f8f9fa 50%, #e9ecef 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Responsive Table */
+@media (max-width: 768px) {
+  .my-dashboard .user-slots-table-container {
+    overflow-x: auto;
+    border-radius: 8px;
+  }
+
+  .my-dashboard .user-slots-table {
+    min-width: 600px;
+    font-size: 0.8rem;
+  }
+
+  .my-dashboard .user-slots-table th,
+  .my-dashboard .user-slots-table td {
+    padding: 12px 8px;
+  }
+
+  .slot-group-name-cell {
+    min-width: 120px;
+  }
+
+  .slot-amount-cell {
+    min-width: 100px;
+  }
+
+  .slot-payment-status-cell {
+    min-width: 100px;
+  }
+
+  .slot-month-cell {
+    min-width: 100px;
+  }
+
+  .slot-status-cell {
+    min-width: 80px;
+  }
+
+  .payment-status-badge,
+  .slot-status-badge {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
+
+/* No Slots Message */
 .my-dashboard .no-slots-message {
-  grid-column: 1 / -1;
   text-align: center;
   padding: 3rem 2rem;
   background: white;
   border-radius: 12px;
   border: 2px dashed #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .my-dashboard .no-slots-icon {

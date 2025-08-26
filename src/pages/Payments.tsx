@@ -9,6 +9,7 @@ import PaymentFilters from '../components/PaymentFilters'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { useAuth } from '../contexts/AuthContext'
 import './Payments.css'
+import { supabase } from '../lib/supabase'
 
 const Payments = () => {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ const Payments = () => {
   
   const [payments, setPayments] = useState<Payment[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [currentUserMemberId, setCurrentUserMemberId] = useState<number | null>(null)
   const [stats, setStats] = useState<PaymentStats>({
     totalPayments: 0,
     totalAmount: 0,
@@ -48,47 +50,60 @@ const Payments = () => {
 
   // Load payments and stats on component mount
   useEffect(() => {
-    loadPayments()
-    loadStats()
-  }, [filters])
+    if (user) {
+      fetchCurrentUserMemberId()
+    }
+  }, [user])
 
-  const loadPayments = async () => {
+  useEffect(() => {
+    if (currentUserMemberId !== null || canViewAllRecords) {
+      loadPayments()
+      loadStats()
+    }
+  }, [filters, currentUserMemberId, canViewAllRecords])
+
+  // Recalculate stats when payments change
+  useEffect(() => {
+    if (payments.length > 0 || (!canViewAllRecords && currentUserMemberId !== null)) {
+      loadStats()
+    }
+  }, [payments, canViewAllRecords, currentUserMemberId])
+
+  const fetchCurrentUserMemberId = async () => {
+    if (canViewAllRecords) {
+      // Admin users don't need member ID filtering
+      setCurrentUserMemberId(null)
+      return
+    }
+
+    try {
+      // Find the member record that corresponds to this user by email
+      const { data: memberData, error: memberError } = await supabase
+        .from('members')
+        .select('id')
+        .eq('email', user?.email)
+        .single()
+
+      if (memberError || !memberData) {
+        console.error('Could not find member record for current user:', memberError)
+        setCurrentUserMemberId(null)
+        return
+      }
+
+      setCurrentUserMemberId(memberData.id)
+    } catch (error) {
+      console.error('Error fetching current user member ID:', error)
+      setCurrentUserMemberId(null)
+    }
+  }
+
+  const loadPayments = async (filters: PaymentFiltersType = {}) => {
     try {
       setIsLoading(true)
-      console.log('Loading payments with filters:', filters) // Debug log
-      let data = await paymentService.getPayments(filters)
-      console.log('Received payments data:', data?.length, 'payments') // Debug log
-      
-      // Apply client-side search filter if present
-      if (filters?.search) {
-        const searchTerm = filters.search.toLowerCase().trim()
-        console.log('Applying client-side search for:', searchTerm) // Debug log
-        data = data.filter(payment => {
-          const memberFirstName = payment.member?.firstName?.toLowerCase() || ''
-          const memberLastName = payment.member?.lastName?.toLowerCase() || ''
-          const fullName = `${memberFirstName} ${memberLastName}`.toLowerCase()
-          return memberFirstName.includes(searchTerm) || 
-                 memberLastName.includes(searchTerm) || 
-                 fullName.includes(searchTerm)
-        })
-        console.log('After search filter:', data?.length, 'payments') // Debug log
-      }
-      
-      // Filter payments based on user permissions
-      if (!canViewAllRecords && user?.username) {
-        // Normal user: only show their own payments
-        const userFirstName = user.username.split('.')[0]
-        const userLastName = user.username.split('.')[1]
-        
-        data = data.filter(payment => {
-          const memberFirstName = payment.member?.firstName?.toLowerCase() || ''
-          const memberLastName = payment.member?.lastName?.toLowerCase() || ''
-          return memberFirstName === userFirstName?.toLowerCase() && 
-                 memberLastName === userLastName?.toLowerCase()
-        })
-      }
-      
-      setPayments(data)
+      // Pass member ID for normal users to filter their payments only
+      const memberIdToFilter = canViewAllRecords ? undefined : (currentUserMemberId || undefined)
+      const payments = await paymentService.getPayments(filters, memberIdToFilter)
+      setPayments(payments)
     } catch (error) {
       console.error('Error loading payments:', error)
     } finally {
@@ -101,34 +116,25 @@ const Payments = () => {
       let data = await paymentService.getPaymentStats()
       
       // Filter stats based on user permissions
-      if (!canViewAllRecords && user?.username) {
-        // Normal user: only show stats for their payments
-        const userPayments = payments.filter(payment => {
-          const userFirstName = user.username.split('.')[0]
-          const userLastName = user.username.split('.')[1]
-          const memberFirstName = payment.member?.firstName?.toLowerCase() || ''
-          const memberLastName = payment.member?.lastName?.toLowerCase() || ''
-          return memberFirstName === userFirstName?.toLowerCase() && 
-                 memberLastName === userLastName?.toLowerCase()
-        })
-        
-        const userTotalAmount = userPayments.reduce((sum, payment) => sum + payment.amount, 0)
-        const userTotalPayments = userPayments.length
+      if (!canViewAllRecords && payments.length > 0) {
+        // Normal user: only show stats for their payments (already filtered by member ID)
+        const userTotalAmount = payments.reduce((sum, payment) => sum + payment.amount, 0)
+        const userTotalPayments = payments.length
         
         data = {
           ...data,
           totalPayments: userTotalPayments,
           totalAmount: userTotalAmount,
-          receivedAmount: userPayments.filter(p => p.status === 'received').reduce((sum, p) => sum + p.amount, 0),
-          pendingAmount: userPayments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0),
-          notPaidAmount: userPayments.filter(p => p.status === 'not_paid').reduce((sum, p) => sum + p.amount, 0),
-          settledAmount: userPayments.filter(p => p.status === 'settled').reduce((sum, p) => sum + p.amount, 0),
-          cashPayments: userPayments.filter(p => p.paymentMethod === 'cash').length,
-          bankTransferPayments: userPayments.filter(p => p.paymentMethod === 'bank_transfer').length,
-          receivedCount: userPayments.filter(p => p.status === 'received').length,
-          pendingCount: userPayments.filter(p => p.status === 'pending').length,
-          notPaidCount: userPayments.filter(p => p.status === 'not_paid').length,
-          settledCount: userPayments.filter(p => p.status === 'settled').length
+          receivedAmount: payments.filter(p => p.status === 'received').reduce((sum, p) => sum + p.amount, 0),
+          pendingAmount: payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0),
+          notPaidAmount: payments.filter(p => p.status === 'not_paid').reduce((sum, p) => sum + p.amount, 0),
+          settledAmount: payments.filter(p => p.status === 'settled').reduce((sum, p) => sum + p.amount, 0),
+          cashPayments: payments.filter(p => p.paymentMethod === 'cash').length,
+          bankTransferPayments: payments.filter(p => p.paymentMethod === 'bank_transfer').length,
+          receivedCount: payments.filter(p => p.status === 'received').length,
+          pendingCount: payments.filter(p => p.status === 'pending').length,
+          notPaidCount: payments.filter(p => p.status === 'not_paid').length,
+          settledCount: payments.filter(p => p.status === 'settled').length
         }
       }
       
@@ -212,8 +218,6 @@ const Payments = () => {
   }
 
   const handleFiltersChange = (newFilters: PaymentFiltersType) => {
-    console.log('Filters changed:', newFilters) // Debug log
-    console.log('Previous filters:', filters) // Debug log
     setFilters(newFilters)
     setCurrentPage(1) // Reset to first page when filters change
   }
@@ -370,6 +374,15 @@ const Payments = () => {
 
         {/* Payments Table */}
         <div className="payments-table-section">
+          {!canViewAllRecords && (
+            <div className="payments-privacy-notice">
+              <div className="payments-privacy-icon">🔒</div>
+              <div className="payments-privacy-text">
+                <strong>Privacy Notice:</strong> You are only viewing your own payment records. 
+                Administrators can see all payments across the system.
+              </div>
+            </div>
+          )}
           <div className="payments-section-header">
             <h2>
               {canViewAllRecords ? 'All Payments' : 'Your Payments'}
@@ -401,6 +414,15 @@ const Payments = () => {
         {!isLoading && payments.length > 0 && totalPages > 1 && (
           <div className="payments-pagination-controls">
             <button
+              className="payments-btn-pagination payments-btn-first payments-btn-secondary"
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              title="Go to first page"
+            >
+              First
+            </button>
+            
+            <button
               className="payments-btn-pagination payments-btn-secondary"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
@@ -426,6 +448,15 @@ const Payments = () => {
               disabled={currentPage === totalPages}
             >
               Next
+            </button>
+            
+            <button
+              className="payments-btn-pagination payments-btn-last payments-btn-secondary"
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              title="Go to last page"
+            >
+              Last
             </button>
           </div>
         )}

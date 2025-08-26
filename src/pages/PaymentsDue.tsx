@@ -358,15 +358,9 @@ const PaymentsDue: React.FC = () => {
 
   // Handle sorting
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDirection('asc')
-    }
-    
-    // Debug logging
-    console.log(`Sorting by: ${field}, Direction: ${sortField === field ? (sortDirection === 'asc' ? 'desc' : 'asc') : 'asc'}`)
+    const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc'
+    setSortField(field)
+    setSortDirection(newDirection)
   }
 
   // Handle row click for payment modal
@@ -703,6 +697,15 @@ const PaymentsDue: React.FC = () => {
       {settings.paginationType === 'simple' ? (
         <div className="pagination-controls">
           <button
+            className="btn-pagination btn-pagination-first btn-secondary"
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+            title="Go to first page"
+          >
+            First
+          </button>
+          
+          <button
             className="btn-pagination btn-secondary"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
@@ -728,6 +731,15 @@ const PaymentsDue: React.FC = () => {
             disabled={currentPage === totalPages}
           >
             Next
+          </button>
+          
+          <button
+            className="btn-pagination btn-pagination-last btn-secondary"
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            title="Go to last page"
+          >
+            Last
           </button>
         </div>
       ) : settings.paginationType === 'infinite' ? (

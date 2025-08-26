@@ -37,21 +37,13 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
 
 
   const handleSearchChange = (value: string) => {
-    console.log('Search input changed:', value) // Debug log
     setSearchValue(value)
-    // Temporarily remove debouncing to test if that's the issue
-    onFiltersChange({
-      ...filters,
-      search: value
-    })
+    onFiltersChange({ ...filters, search: value })
   }
 
   const handleFilterChange = (key: keyof PaymentFiltersType, value: any) => {
-    console.log('Filter change:', key, value) // Debug log
-    onFiltersChange({
-      ...filters,
-      [key]: value
-    })
+    const newFilters = { ...filters, [key]: value }
+    onFiltersChange(newFilters)
   }
 
   const handleClearFilters = () => {

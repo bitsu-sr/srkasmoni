@@ -573,6 +573,55 @@
   .add-payment-btn span {
     display: none;
   }
+
+  /* Responsive pagination controls */
+  .pagination-controls {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 16px 0px 0px 0px;
+  }
+
+  .pagination-controls .btn,
+  .btn-pagination,
+  .btn-pagination-first,
+  .btn-pagination-last {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-width: 60px;
+  }
+
+  .page-numbers {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+    margin: 8px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .pagination-controls {
+    gap: 4px;
+    padding: 12px 0px 0px 0px;
+  }
+
+  .pagination-controls .btn,
+  .btn-pagination,
+  .btn-pagination-first,
+  .btn-pagination-last {
+    padding: 5px 10px;
+    font-size: 12px;
+    min-width: 50px;
+  }
+
+  .page-numbers {
+    gap: 4px;
+    margin: 6px 0;
+  }
+
+  .btn-page {
+    padding: 6px 10px;
+    min-width: 32px;
+  }
 }
 
 /* Performance button styling */
@@ -827,11 +876,35 @@
   transform: translateY(-1px);
 }
 
-.btn-page.active:hover {
-  background-color: #053f12;
-  color: #FFFFFF;
-  font-weight: 700;
-  border-color: #053f12;
+/* Unique styles for First and Last pagination buttons */
+.btn-pagination-first {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-color: #6c757d;
+  color: #495057;
+  font-weight: 600;
+}
+
+.btn-pagination-first:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+  border-color: #495057;
+  color: #212529;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.btn-pagination-last {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-color: #6c757d;
+  color: #495057;
+  font-weight: 600;
+}
+
+.btn-pagination-last:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+  border-color: #495057;
+  color: #212529;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
 }
 
 /* Infinite Scroll Controls */

@@ -1,12 +1,11 @@
 import { supabase } from '../lib/supabase';
 import { AuthUser, LoginCredentials, CreateUserData, UpdateUserData } from '../types/auth';
+import { AuthLoggingService } from './authLoggingService';
 
 export class AuthService {
   // Login with username (case-insensitive) and password
   static async login(credentials: LoginCredentials): Promise<{ user: AuthUser | null; error: string | null }> {
     try {
-      console.log('Login attempt with username:', credentials.username);
-      
       // For now, let's use a simple approach - try to login with the username as email
       // This assumes the username is also the email (like admin@system.local)
       let email = credentials.username;
@@ -15,11 +14,9 @@ export class AuthService {
       if (!email.includes('@')) {
         if (email.toLowerCase() === 'admin') {
           email = 'admin@system.local';
-          console.log('Username is admin, using email:', email);
         } else {
           // For other usernames, try to find them in auth_users table if it exists
           try {
-            console.log('Looking up user in auth_users table...');
             const { data: users, error: searchError } = await supabase
               .from('auth_users')
               .select('*')
@@ -28,18 +25,12 @@ export class AuthService {
 
             if (!searchError && users) {
               email = users.email;
-              console.log('Found user in auth_users table, using email:', email);
-            } else {
-              console.log('User not found in auth_users table, search error:', searchError);
             }
           } catch (tableError) {
             // Table doesn't exist yet, continue with username as email
-            console.log('auth_users table not found, using username as email');
           }
         }
       }
-
-      console.log('Attempting Supabase Auth login with email:', email);
       
       // Now authenticate with Supabase using the email
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -48,21 +39,19 @@ export class AuthService {
       });
 
       if (authError) {
-        console.error('Auth error:', authError);
-        console.error('Auth error details:', {
-          message: authError.message,
-          status: authError.status,
-          name: authError.name
-        });
+        // Log failed login attempt with detailed error information
+        try {
+          await AuthLoggingService.logFailedLogin(credentials.username, authError.message);
+        } catch (loggingError) {
+          console.error('Failed to log failed login attempt:', loggingError);
+        }
+        
         return { user: null, error: 'Invalid username or password' };
       }
 
       if (authData.user) {
-        console.log('Supabase Auth successful, user ID:', authData.user.id);
-        
         // Try to get user data from auth_users table if it exists
         try {
-          console.log('Looking up user data in auth_users table...');
           const { data: userData, error: userError } = await supabase
             .from('auth_users')
             .select('*')
@@ -70,14 +59,12 @@ export class AuthService {
             .single();
 
           if (!userError && userData) {
-            console.log('Found user data in auth_users table:', userData);
+            // Note: Login logging is handled in AuthContext to avoid duplicates
+            
             return { user: userData, error: null };
-          } else {
-            console.log('User data not found in auth_users table, error:', userError);
           }
         } catch (tableError) {
           // Table doesn't exist yet, create a basic user object from auth data
-          console.log('auth_users table not found, creating basic user object');
         }
 
         // If we can't get from auth_users table, create a basic user object
@@ -93,15 +80,21 @@ export class AuthService {
           created_at: authData.user.created_at,
           updated_at: authData.user.updated_at,
         };
-
-        console.log('Created basic user object:', basicUser);
+        
+        // Note: Login logging is handled in AuthContext to avoid duplicates
+        
         return { user: basicUser, error: null };
       }
 
-      console.log('No auth data returned from Supabase');
       return { user: null, error: 'Authentication failed' };
     } catch (error) {
-      console.error('Login error:', error);
+      // Log failed login attempt with detailed error information
+      try {
+        await AuthLoggingService.logFailedLogin(credentials.username, 'An unexpected error occurred');
+      } catch (loggingError) {
+        console.error('Failed to log failed login attempt (general error):', loggingError);
+      }
+      
       return { user: null, error: 'An unexpected error occurred' };
     }
   }
@@ -110,6 +103,9 @@ export class AuthService {
   static async logout(): Promise<{ error: string | null }> {
     try {
       const { error } = await supabase.auth.signOut();
+      
+      // Note: Logging is handled in AuthContext to ensure we have user data
+      
       return { error };
     } catch (error) {
       console.error('Logout error:', error);

@@ -6,6 +6,7 @@ import { memberService } from '../services/memberService'
 import { groupService } from '../services/groupService'
 import { paymentSlotService } from '../services/paymentSlotService'
 import { optimizedQueryService } from '../services/optimizedQueryService'
+import { dashboardService } from '../services/dashboardService'
 
 // Custom hook for cached payments data
 export const useCachedPayments = (filters?: any) => {
@@ -117,6 +118,21 @@ export const useCachedOptimizedPaymentStats = () => {
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 2 * 60 * 1000, // 2 minutes
     enabled: isFeatureEnabled('enableCaching') && isFeatureEnabled('enableOptimizedQueries'),
+  })
+}
+
+// Custom hook for cached dashboard data
+export const useCachedDashboard = () => {
+  const queryKey = ['dashboard']
+  
+  return useQuery({
+    queryKey,
+    queryFn: () => dashboardService.getDashboardData(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,   // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    enabled: true, // Temporarily always enabled to debug the issue
   })
 }
 

@@ -94,19 +94,16 @@ const Messaging: React.FC = () => {
   };
 
   // Handle message actions
-  const handleReply = (messageId: number) => {
+  const handleReply = (_messageId: number) => {
     // Implement reply functionality
-    console.log('Reply to message:', messageId);
   };
 
-  const handleForward = (messageId: number) => {
+  const handleForward = (_messageId: number) => {
     // Implement forward functionality
-    console.log('Forward message:', messageId);
   };
 
-  const handleDelete = async (messageId: number) => {
+  const handleDelete = async (_messageId: number) => {
     // Implement delete functionality
-    console.log('Delete message:', messageId);
     setSelectedMessageId(null);
   };
 

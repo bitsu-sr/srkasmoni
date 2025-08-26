@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
+import RootRedirect from './components/RootRedirect'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import MyDashboard from './pages/MyDashboard'
@@ -21,6 +22,7 @@ import Payouts from './pages/Payouts'
 import UserManagement from './pages/UserManagement'
 import UserProfile from './pages/UserProfile'
 import Messaging from './pages/Messaging'
+import LoginLogs from './pages/LoginLogs'
 import './App.css'
 
 function App() {
@@ -33,7 +35,8 @@ function App() {
               <Navbar />
               <main className="main-content">
                 <Routes>
-                  <Route path="/" element={<Landing />} />
+                  <Route path="/" element={<RootRedirect />} />
+                  <Route path="/landing" element={<Landing />} />
                   <Route path="/dashboard" element={
                     <ProtectedRoute>
                       <Dashboard />
@@ -107,6 +110,11 @@ function App() {
                   <Route path="/messaging" element={
                     <ProtectedRoute>
                       <Messaging />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/login-logs" element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <LoginLogs />
                     </ProtectedRoute>
                   } />
                 </Routes>

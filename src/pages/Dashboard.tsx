@@ -1,158 +1,242 @@
-import { useState, useEffect } from 'react'
-import { DollarSign, Users, CreditCard, AlertTriangle, TrendingUp, Calendar, Plus, UserPlus, CheckCircle } from 'lucide-react'
-import { dashboardService, DashboardData } from '../services/dashboardService'
-import { useNavigate, Navigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import { formatDate } from '../utils/dateUtils'
+import { useNavigate } from 'react-router-dom'
+import { Plus, Users, UserPlus, TrendingUp, DollarSign, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react'
+import { useCachedDashboard } from '../hooks/useCachedQueries'
+import { dashboardService } from '../services/dashboardService'
 import './Dashboard.css'
+
+// Dashboard Skeleton Component
+const DashboardSkeleton = () => (
+  <div className="dashboard">
+    <div className="page-header">
+      <div className="container">
+        <div className="header-content">
+          <div className="header-text">
+            <div className="skeleton-title"></div>
+            <div className="skeleton-subtitle"></div>
+          </div>
+          <div className="header-actions">
+            <div className="skeleton-button"></div>
+            <div className="skeleton-button"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div className="container">
+      {/* Stats Cards Skeleton */}
+      <div className="stats-grid">
+        {Array.from({ length: 7 }).map((_, index) => (
+          <div key={index} className="stat-card skeleton-card">
+            <div className="skeleton-icon"></div>
+            <div className="skeleton-content">
+              <div className="skeleton-value"></div>
+              <div className="skeleton-title"></div>
+              <div className="skeleton-change"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent Activity Skeleton */}
+      <div className="recent-activity">
+        <div className="skeleton-section-header"></div>
+        <div className="activity-grid">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="activity-card skeleton-card">
+              <div className="skeleton-activity-content">
+                <div className="skeleton-activity-title"></div>
+                <div className="skeleton-activity-subtitle"></div>
+                <div className="skeleton-activity-meta"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Groups Table Skeleton */}
+      <div className="groups-section">
+        <div className="skeleton-section-header"></div>
+        <div className="groups-table skeleton-table">
+          <div className="skeleton-table-header"></div>
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="skeleton-table-row"></div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+)
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { user, isAdmin, isSuperUser } = useAuth()
   
-  // Redirect regular users to My Dashboard
-  if (user && !isAdmin() && !isSuperUser()) {
-    return <Navigate to="/my-dashboard" replace />
+  // Navigation handlers
+  const handleAddPayment = () => {
+    navigate('/payments')
+  }
+
+  const handleCreateGroup = () => {
+    navigate('/groups')
   }
   
-  const [stats, setStats] = useState([
+  // Redirect regular users to My Dashboard
+  // Temporarily commented out to debug the issue
+  // if (user && !isAdmin() && !isSuperUser()) {
+  //   return <Navigate to="/my-dashboard" replace />
+  // }
+
+  // Use cached dashboard data with React Query
+  const { data: dashboardData, isLoading, error, refetch, isFetching } = useCachedDashboard()
+
+  // Show skeleton while loading
+  if (isLoading) {
+    return <DashboardSkeleton />
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="dashboard">
+        <div className="container">
+          <div className="error-state">
+            <h2>Error Loading Dashboard</h2>
+            <p>There was a problem loading the dashboard data.</p>
+            <button onClick={() => refetch()} className="retry-button">
+              Try Again
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  await dashboardService.testDatabaseConnection()
+                  alert('Database connection test completed successfully')
+                } catch (err) {
+                  alert('Database connection test failed')
+                }
+              }} 
+              className="retry-button"
+              style={{ marginLeft: '10px' }}
+            >
+              Test Database
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show empty state if no data
+  if (!dashboardData || (!dashboardData.stats && !dashboardData.groups && !dashboardData.recentPayments)) {
+    return (
+      <div className="dashboard">
+        <div className="page-header">
+          <div className="container">
+            <div className="header-content">
+              <div className="header-text">
+                <h1>Dashboard</h1>
+                <p>Overview of your Kasmoni groups and payments</p>
+              </div>
+              <div className="header-actions">
+                <button className="btn btn-primary" onClick={handleAddPayment}>
+                  <Plus size={20} />
+                  Add Payment
+                </button>
+                <button className="btn btn-secondary" onClick={handleCreateGroup}>
+                  <UserPlus size={20} />
+                  Create Group
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="container">
+          <div className="empty-dashboard">
+            <div className="empty-icon">
+              <Users size={64} />
+            </div>
+            <h2>Welcome to Sranan Kasmoni</h2>
+            <p>Your dashboard is ready but there's no data yet. Get started by:</p>
+            <div className="empty-actions">
+              <button className="btn btn-primary" onClick={handleCreateGroup}>
+                <UserPlus size={20} />
+                Create Your First Group
+              </button>
+              <button className="btn btn-secondary" onClick={handleAddPayment}>
+                <Plus size={20} />
+                Add Your First Payment
+              </button>
+            </div>
+            <div className="empty-info">
+              <p>Once you have data, your dashboard will show:</p>
+              <ul>
+                <li>📊 Financial statistics and overview</li>
+                <li>👥 Active groups and members</li>
+                <li>💰 Recent payment activities</li>
+                <li>📈 Progress tracking and insights</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading indicator if refetching
+  const showLoadingIndicator = isFetching && !isLoading
+
+  // Transform data for display
+  const stats = [
     {
       title: 'Total Amount Expected',
-      value: 'SRD 0',
-      change: '0%',
-      icon: Calendar,
+      value: `SRD ${(dashboardData?.stats?.totalExpected || 0).toLocaleString()}`,
+      change: (dashboardData?.stats?.totalExpected || 0) > 0 ? '+100%' : '0%',
+      icon: Users, // Changed from Calendar to Users
       color: 'info'
     },
     {
       title: 'Total Amount Paid',
-      value: 'SRD 0',
-      change: '0%',
+      value: `SRD ${(dashboardData?.stats?.totalPaid || 0).toLocaleString()}`,
+      change: (dashboardData?.stats?.totalPaid || 0) > 0 && (dashboardData?.stats?.totalExpected || 0) > 0 ? 
+        `+${Math.round(((dashboardData?.stats?.totalPaid || 0) / (dashboardData?.stats?.totalExpected || 1)) * 100)}%` : '0%',
       icon: DollarSign,
       color: 'success'
     },
     {
       title: 'Total Amount Received',
-      value: 'SRD 0',
-      change: '0%',
+      value: `SRD ${(dashboardData?.stats?.totalReceived || 0).toLocaleString()}`,
+      change: (dashboardData?.stats?.totalReceived || 0) > 0 ? `+100%` : '0%',
       icon: TrendingUp,
       color: 'primary'
     },
     {
       title: 'Pending Payments',
-      value: 'SRD 0',
-      change: '0',
-      icon: CreditCard,
+      value: `SRD ${(dashboardData?.stats?.totalPending || 0).toLocaleString()}`,
+      change: (dashboardData?.stats?.totalPending || 0) > 0 ? `+${dashboardData?.stats?.totalPending || 0}` : '0',
+      icon: Clock, // Changed from CreditCard to Clock
       color: 'info'
     },
     {
       title: 'Overdue Payments',
-      value: 'SRD 0',
-      change: '0',
-      icon: AlertTriangle,
+      value: `SRD ${(dashboardData?.stats?.totalOverdue || 0).toLocaleString()}`,
+      change: (dashboardData?.stats?.totalOverdue || 0) > 0 ? `+${dashboardData?.stats?.totalOverdue || 0}` : '0',
+      icon: XCircle, // Changed from AlertTriangle to XCircle
       color: 'warning'
     },
     {
       title: 'Active Groups',
-      value: '0',
-      change: '0',
-      icon: Users,
+      value: (dashboardData?.stats?.activeGroups || 0).toString(),
+      change: (dashboardData?.stats?.activeGroups || 0) > 0 ? `+${dashboardData?.stats?.activeGroups || 0}` : '0',
+      icon: Users, // Changed from Users to Users
       color: 'success'
     },
     {
       title: 'Active Members',
-      value: '0/0',
-      change: '0',
-      icon: UserPlus,
-      color: 'primary'
-    }
-  ])
-
-  const [loading, setLoading] = useState(true)
-  const [recentPayments, setRecentPayments] = useState<any[]>([])
-  const [recentMembers, setRecentMembers] = useState<any[]>([])
-  const [recentGroups, setRecentGroups] = useState<any[]>([])
-  const [dashboardGroups, setDashboardGroups] = useState<any[]>([])
-
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true)
-      
-      // Use the optimized dashboard service
-      const dashboardData: DashboardData = await dashboardService.getDashboardData()
-
-      // Update stats with optimized data
-      const newStats = [
-        {
-          title: 'Total Amount Expected',
-          value: `SRD ${dashboardData.stats.totalExpected.toLocaleString()}`,
-          change: dashboardData.stats.totalExpected > 0 ? '+100%' : '0%',
-          icon: Calendar,
-          color: 'info'
-        },
-        {
-          title: 'Total Amount Paid',
-          value: `SRD ${dashboardData.stats.totalPaid.toLocaleString()}`,
-          change: dashboardData.stats.totalPaid > 0 ? `+${Math.round((dashboardData.stats.totalPaid / dashboardData.stats.totalExpected) * 100)}%` : '0%',
-          icon: DollarSign,
-          color: 'success'
-        },
-        {
-          title: 'Total Amount Received',
-          value: `SRD ${dashboardData.stats.totalReceived.toLocaleString()}`,
-          change: dashboardData.stats.totalReceived > 0 ? `+100%` : '0%',
-          icon: TrendingUp,
-          color: 'primary'
-        },
-        {
-          title: 'Pending Payments',
-          value: `SRD ${dashboardData.stats.totalPending.toLocaleString()}`,
-          change: dashboardData.stats.totalPending > 0 ? `+${dashboardData.stats.totalPending}` : '0',
-          icon: CreditCard,
-          color: 'info'
-        },
-        {
-          title: 'Overdue Payments',
-          value: `SRD ${dashboardData.stats.totalOverdue.toLocaleString()}`,
-          change: dashboardData.stats.totalOverdue > 0 ? `+${dashboardData.stats.totalOverdue}` : '0',
-          icon: AlertTriangle,
-          color: 'warning'
-        },
-        {
-          title: 'Active Groups',
-          value: dashboardData.stats.activeGroups.toString(),
-          change: dashboardData.stats.activeGroups > 0 ? `+${dashboardData.stats.activeGroups}` : '0',
-          icon: Users,
-          color: 'success'
-        },
-        {
-          title: 'Active Members',
-          value: `${dashboardData.stats.activeMembers}/${dashboardData.stats.totalMembers}`,
-          change: dashboardData.stats.activeMembers > 0 ? `+${dashboardData.stats.activeMembers}` : '0',
+      value: `${dashboardData?.stats?.activeMembers || 0}/${dashboardData?.stats?.totalMembers || 0}`,
+      change: (dashboardData?.stats?.activeMembers || 0) > 0 ? `+${dashboardData?.stats?.activeMembers || 0}` : '0',
           icon: UserPlus,
           color: 'primary'
         }
       ]
-
-      setStats(newStats)
-      setRecentPayments(dashboardData.recentPayments)
-      setRecentMembers(dashboardData.recentMembers)
-      setRecentGroups(dashboardData.recentGroups)
-      
-      // Sort dashboard groups by name in ascending order
-      const sortedGroups = [...dashboardData.groups].sort((a, b) => 
-        a.name.localeCompare(b.name)
-      )
-      setDashboardGroups(sortedGroups)
-    } catch (error) {
-      console.error('Error loading dashboard data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // Helper function to format month-year
   const formatMonthYear = (dateString: string): string => {
@@ -180,16 +264,7 @@ const Dashboard = () => {
     if (diffInHours < 1) return 'Just now'
     if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`
     if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`
-    return formatDate(dateString)
-  }
-
-  // Navigation handlers
-  const handleAddPayment = () => {
-    navigate('/payments')
-  }
-
-  const handleCreateGroup = () => {
-    navigate('/groups')
+    return formatMonthYear(dateString) // Changed to use formatMonthYear
   }
 
   return (
@@ -198,288 +273,222 @@ const Dashboard = () => {
         <div className="container">
           <div className="header-content">
             <div className="header-text">
-              <h1 className="page-title">Dashboard</h1>
-              <p className="page-subtitle">Overview of your group savings activities</p>
+              <h1>Dashboard</h1>
+              <p>Overview of your Kasmoni groups and payments</p>
+              {showLoadingIndicator && (
+                <div className="loading-indicator">
+                  <div className="loading-spinner"></div>
+                  <span>Refreshing data...</span>
+                </div>
+              )}
             </div>
-            <button 
-              className="btn btn-secondary" 
-              onClick={loadDashboardData}
-              disabled={loading}
-            >
-              {loading ? 'Refreshing...' : 'Refresh Data'}
+            <div className="header-actions">
+              <button className="btn btn-primary" onClick={handleAddPayment}>
+                <Plus size={20} />
+                Add Payment
+              </button>
+              <button className="btn btn-secondary" onClick={handleCreateGroup}>
+                <UserPlus size={20} />
+                Create Group
             </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="container">
-                 {/* Stats Grid */}
-         <div className="grid grid-3">
-           {loading ? (
-             // Loading skeleton - keeping exact same structure
-             Array.from({ length: 7 }).map((_, index) => {
-               const IconComponent = [Calendar, DollarSign, TrendingUp, CreditCard, AlertTriangle, Users, UserPlus][index]
-               return (
-                 <div key={index} className={`stat-card stat-${['info', 'success', 'primary', 'info', 'warning', 'success', 'primary'][index]}`}>
-                   <div className="stat-header">
-                     <div className="stat-icon-status">
-                       <div className="stat-icon">
-                         <IconComponent size={10} />
-                       </div>
-                       <div className="stat-change">
-                         <span className={`change-${['success', 'primary', 'info', 'warning', 'success', 'primary', 'info'][index]}`}>...</span>
-                       </div>
-                     </div>
-                   </div>
-                   <div className="stat-content">
-                     <h3 className="stat-title">Loading...</h3>
-                     <div className="stat-value">SRD 0</div>
-                   </div>
-                 </div>
-               )
-             })
-           ) : (
-            stats.map((stat, index) => {
-              const Icon = stat.icon
+        {/* Stats Cards */}
+        <div className="stats-grid">
+          {stats.map((stat, index) => {
+            const IconComponent = stat.icon
               return (
                 <div key={index} className={`stat-card stat-${stat.color}`}>
-                  <div className="stat-header">
-                    <div className="stat-icon-status">
                       <div className="stat-icon">
-                        <Icon size={24} />
-                      </div>
-                      <div className="stat-change">
-                        <span className={`change-${stat.color}`}>{stat.change}</span>
-                      </div>
-                    </div>
+                  <IconComponent size={24} />
                   </div>
                   <div className="stat-content">
-                    <h3 className="stat-title">{stat.title}</h3>
                     <div className="stat-value">{stat.value}</div>
-                  </div>
+                  <div className="stat-title">{stat.title}</div>
+                  <div className="stat-change">{stat.change}</div>
+                </div>
                 </div>
               )
-            })
-          )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="quick-actions">
-          <h2 className="section-title">Quick Actions</h2>
-          <div className="grid grid-2">
-            <div className="action-card">
-              <h3>Add New Payment</h3>
-              <p>Record a new payment from a group member</p>
-              <button className="btn" onClick={handleAddPayment}>
-                <Plus size={16} />
-                Add Payment
-              </button>
-            </div>
-            <div className="action-card">
-              <h3>Create New Group</h3>
-              <p>Start a new savings group</p>
-              <button className="btn" onClick={handleCreateGroup}>
-                <Users size={16} />
-                Create Group
-              </button>
-            </div>
-          </div>
+          })}
         </div>
 
                  {/* Recent Activity */}
          <div className="recent-activity">
-           <h2 className="section-title">Recent Activity</h2>
-           <div className="activity-list">
-             {loading ? (
-               // Loading skeleton
-               Array.from({ length: 3 }).map((_, index) => (
-                 <div key={index} className="activity-item">
-                   <div className="activity-icon info">
-                     <DollarSign size={16} />
-                   </div>
-                   <div className="activity-content">
-                     <div className="activity-title">Loading...</div>
-                     <div className="activity-details">Loading...</div>
-                   </div>
-                 </div>
-               ))
-             ) : (
-               <>
-                 {/* Recent Payments */}
-                 {recentPayments.slice(0, 2).map((payment) => (
-                   <div key={payment.id} className="activity-item">
-                     <div className="activity-icon success">
-                       <DollarSign size={16} />
-                     </div>
-                     <div className="activity-content">
-                       <div className="activity-title">
-                         Payment {payment.status} from {payment.member?.firstName} {payment.member?.lastName}
-                       </div>
-                       <div className="activity-details">
-                         SRD {payment.amount.toLocaleString()} • {payment.group?.name} • {formatRelativeTime(payment.createdAt)}
-                       </div>
-                     </div>
-                   </div>
-                 ))}
+          <h2>Recent Activity</h2>
+          <div className="activity-grid">
+            {/* Recent Payments */}
+            <div className="activity-card">
+              <div className="activity-header">
+                <h3>Recent Payments</h3>
+                <span className="activity-count">{dashboardData?.recentPayments.length || 0}</span>
+              </div>
+              <div className="activity-list">
+                {dashboardData?.recentPayments.slice(0, 3).map((payment: any, index: number) => {
+                  // Determine icon and styling based on payment status
+                  let icon, titleText, statusClass
+                  
+                  switch (payment.status) {
+                    case 'received':
+                      icon = <CheckCircle size={16} />
+                      titleText = `Payment of SRD ${payment.amount?.toLocaleString()} received`
+                      statusClass = 'status-received'
+                      break
+                    case 'pending':
+                      icon = <Clock size={16} />
+                      titleText = `Payment of SRD ${payment.amount?.toLocaleString()} pending`
+                      statusClass = 'status-pending'
+                      break
+                    case 'settled':
+                      icon = <CheckCircle size={16} />
+                      titleText = `Payment of SRD ${payment.amount?.toLocaleString()} settled`
+                      statusClass = 'status-settled'
+                      break
+                    case 'cancelled':
+                      icon = <XCircle size={16} />
+                      titleText = `Payment of SRD ${payment.amount?.toLocaleString()} cancelled`
+                      statusClass = 'status-cancelled'
+                      break
+                    default:
+                      icon = <ArrowRight size={16} />
+                      titleText = `Payment of SRD ${payment.amount?.toLocaleString()} - ${payment.status}`
+                      statusClass = 'status-default'
+                  }
+                  
+                  return (
+                    <div key={index} className={`activity-item ${statusClass}`}>
+                      <div className="activity-icon">
+                        {icon}
+                      </div>
+                      <div className="activity-content">
+                        <div className="activity-title">
+                          {titleText}
+                        </div>
+                        <div className="activity-subtitle">
+                          {payment.member_name || 'Unknown Member'}
+                        </div>
+                        <div className="activity-meta">
+                          {formatRelativeTime(payment.payment_date)}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {(!dashboardData?.recentPayments || dashboardData.recentPayments.length === 0) && (
+                  <div className="activity-empty">No recent payments</div>
+                )}
+              </div>
+            </div>
 
                  {/* Recent Members */}
-                 {recentMembers.slice(0, 1).map((member) => (
-                   <div key={member.id} className="activity-item">
-                     <div className="activity-icon info">
+            <div className="activity-card">
+              <div className="activity-header">
+                <h3>Recent Members</h3>
+                <span className="activity-count">{dashboardData?.recentMembers.length || 0}</span>
+              </div>
+              <div className="activity-list">
+                {dashboardData?.recentMembers.slice(0, 3).map((member: any, index: number) => (
+                  <div key={index} className="activity-item">
+                    <div className="activity-icon">
                        <UserPlus size={16} />
                      </div>
-                     <div className="activity-content">
                        <div className="activity-content">
                          <div className="activity-title">
-                           New member registered: {member.firstName} {member.lastName}
+                        {member.first_name} {member.last_name}
+                      </div>
+                      <div className="activity-subtitle">
+                        {member.email || 'No email'}
                          </div>
-                         <div className="activity-details">
+                      <div className="activity-meta">
                            {formatRelativeTime(member.created_at)}
                          </div>
                        </div>
+                  </div>
+                ))}
+                {(!dashboardData?.recentMembers || dashboardData.recentMembers.length === 0) && (
+                  <div className="activity-empty">No recent members</div>
+                )}
                      </div>
                    </div>
-                 ))}
 
                  {/* Recent Groups */}
-                 {recentGroups.slice(0, 1).map((group) => (
-                   <div key={group.id} className="activity-item">
-                     <div className="activity-icon info">
+            <div className="activity-card">
+              <div className="activity-header">
+                <h3>Recent Groups</h3>
+                <span className="activity-count">{dashboardData?.recentGroups.length || 0}</span>
+              </div>
+              <div className="activity-list">
+                {dashboardData?.recentGroups.slice(0, 3).map((group: any, index: number) => (
+                  <div key={index} className="activity-item">
+                    <div className="activity-icon">
                        <Users size={16} />
                      </div>
                      <div className="activity-content">
-                       <div className="activity-title">
-                         New group created: {group.name}
+                      <div className="activity-title">{group.name}</div>
+                      <div className="activity-subtitle">
+                        SRD {group.monthly_amount?.toLocaleString()}/month
                        </div>
-                       <div className="activity-details">
-                         Monthly: SRD {group.monthlyAmount.toLocaleString()} • {formatRelativeTime(group.createdAt)}
+                      <div className="activity-meta">
+                        {formatRelativeTime(group.created_at)}
                        </div>
                      </div>
                    </div>
                  ))}
-
-                 {/* Show message if no recent activity */}
-                 {recentPayments.length === 0 && recentMembers.length === 0 && recentGroups.length === 0 && (
-                   <div className="activity-item">
-                     <div className="activity-icon info">
-                       <Calendar size={16} />
-                     </div>
-                     <div className="activity-content">
-                       <div className="activity-title">No recent activity</div>
-                       <div className="activity-details">Start by adding payments, members, or groups</div>
-                     </div>
-                   </div>
-                 )}
-               </>
+                {(!dashboardData?.recentGroups || dashboardData.recentGroups.length === 0) && (
+                  <div className="activity-empty">No recent groups</div>
              )}
            </div>
          </div>
+                       </div>
+                     </div>
 
-         {/* Groups Overview */}
-         <div className="groups-overview">
-           <h2 className="section-title">Groups Overview</h2>
-           <div className="dashboard-groups-grid">
-             {loading ? (
-               // Loading skeleton
-               Array.from({ length: 3 }).map((_, index) => (
-                 <div key={index} className="dashboard-group-card">
-                   <div className="group-header">
-                     <h3 className="group-name">Loading...</h3>
-                   </div>
-                   <div className="group-stats">
-                     <div className="stat-row">
-                       <div className="stat-item">
-                         <DollarSign size={16} />
-                         <span>SRD 0/month</span>
+        {/* Groups Table */}
+        <div className="dashboard-groups-section">
+          <h2>All Groups</h2>
+          <div className="dashboard-groups-table">
+            <div className="dashboard-table-header">
+              <div className="dashboard-header-cell">Group Name</div>
+              <div className="dashboard-header-cell">Monthly Amount</div>
+              <div className="dashboard-header-cell">Next Recipient</div>
+              <div className="dashboard-header-cell">Slots Progress</div>
+              <div className="dashboard-header-cell">Created</div>
                        </div>
+            {dashboardData?.groups
+              .sort((a: any, b: any) => a.name.localeCompare(b.name))
+              .map((group: any) => (
+              <div key={group.id} className="dashboard-table-row">
+                <div className="dashboard-table-cell">
+                  <div className="dashboard-group-name">{group.name}</div>
                      </div>
-                     <div className="stat-row">
-                       <div className="stat-item">
-                         <CheckCircle size={16} />
-                         <span>Slots: 0 / 0</span>
-                       </div>
-                     </div>
+                <div className="dashboard-table-cell">
+                  SRD {group.monthlyAmount?.toLocaleString()}
                    </div>
-                   <div className="payment-progress">
-                     <div className="progress-header">
-                       <span className="progress-label">Payment Progress</span>
-                       <span className="progress-percentage">0%</span>
+                <div className="dashboard-table-cell">
+                  {group.nextRecipient}
                      </div>
-                     <div className="progress-bar">
-                       <div className="progress-fill" style={{ width: '0%' }}></div>
-                     </div>
-                   </div>
-                   <div className="group-period">
-                     <div className="period-info">
-                       <span>Period:</span>
-                       <span>Loading...</span>
-                     </div>
-                   </div>
-                   <div className="next-recipient">
-                     <span>Next Recipient:</span>
-                     <span>Loading...</span>
-                   </div>
-                 </div>
-               ))
-             ) : (
-               dashboardGroups.map((group) => (
-                 <div key={group.id} className="dashboard-group-card">
-                   <div className="group-header">
-                     <h3 className="group-name">{group.name}</h3>
-                   </div>
-                   <div className="group-stats">
-                     <div className="stat-row">
-                       <div className="stat-item">
-                         <DollarSign size={16} />
-                         <span>SRD {group.monthlyAmount.toLocaleString()}/month</span>
-                       </div>
-                     </div>
-                     <div className="stat-row">
-                       <div className="stat-item">
-                         <CheckCircle size={16} />
-                         <span>Slots: {Math.min(group.slotsPaid, group.slotsTotal)} / {group.slotsTotal}</span>
-                       </div>
-                     </div>
-                   </div>
-                   <div className="payment-progress">
-                     <div className="progress-header">
-                       <span className="progress-label">Payment Progress</span>
-                       <span className="progress-percentage">
-                         {group.slotsTotal > 0 
-                           ? Math.min(100, Math.round((group.slotsPaid / group.slotsTotal) * 100))
-                           : 0
-                         }%
+                <div className="dashboard-table-cell">
+                  <div className="dashboard-slots-progress">
+                    <span className="dashboard-slots-text">
+                      {group.slotsPaid}/{group.slotsTotal}
                        </span>
-                     </div>
-                     <div className="progress-bar">
-                       <div 
-                         className="progress-fill"
-                         style={{
-                           width: `${group.slotsTotal > 0 
-                             ? Math.min(100, (group.slotsPaid / group.slotsTotal) * 100)
-                             : 0
-                           }%`
-                         }}
+                    <div className="dashboard-progress-bar">
+                      <div 
+                        className="dashboard-progress-fill" 
+                        style={{ width: `${group.slotsTotal > 0 ? (group.slotsPaid / group.slotsTotal) * 100 : 0}%` }}
                        ></div>
                      </div>
                    </div>
-                   <div className="group-period">
-                     <div className="period-info">
-                       <span>Period:</span>
-                       <span>
-                         {group.startDate && group.endDate ? 
-                           `${formatMonthYear(group.startDate)} - ${formatMonthYear(group.endDate)}`
-                           : 'N/A'
-                         }
-                       </span>
                      </div>
-                   </div>
-                   <div className="next-recipient">
-                     <span>Next Recipient:</span>
-                     <span>{group.nextRecipient}</span>
+                <div className="dashboard-table-cell">
+                  {formatMonthYear(group.created_at)}
                    </div>
                  </div>
-               ))
+            ))}
+            {(!dashboardData?.groups || dashboardData.groups.length === 0) && (
+              <div className="dashboard-table-empty">No active groups</div>
              )}
            </div>
          </div>

@@ -21,6 +21,7 @@ export interface UserDashboardData {
     isFuture: boolean
     isCurrentMonth: boolean
     isPast: boolean
+    paymentStatus: 'paid' | 'pending' | 'settled' | 'not_paid'
   }[]
   recentPayments: any[]
 }
@@ -44,7 +45,6 @@ export const userDashboardService = {
 
       if (memberError || !memberData) {
         // If no member found, return empty data
-        console.log('No member record found for user email:', currentUser.email)
         return {
           stats: {
             totalSlots: 0,
@@ -61,7 +61,7 @@ export const userDashboardService = {
 
       const memberId = memberData.id
 
-      // Get user's slots across all groups
+      // Get user's slots across all groups (using group_members to get ALL slots)
       const { data: slotsData, error: slotsError } = await supabase
         .from('group_members')
         .select(`
@@ -83,7 +83,38 @@ export const userDashboardService = {
       const now = new Date()
       const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-      // Transform slots data
+      // Use the exact same logic as PaymentsDue to check payment status
+      // First, get all payment_slots that match the criteria
+      const { data: paymentSlots, error: slotError } = await supabase
+        .from('payment_slots')
+        .select('id, group_id, member_id, month_date')
+        .eq('member_id', memberId)
+
+      if (slotError) throw slotError
+
+      // Get the slot IDs that have payments
+      const slotIds = paymentSlots?.map((slot: any) => slot.id) || []
+      
+      // Check which of these slots have payments
+      const { data: payments, error: paymentError } = await supabase
+        .from('payments')
+        .select('slot_id, status')
+        .in('slot_id', slotIds)
+
+      if (paymentError) throw paymentError
+
+      // Create a set of slots that have payments (EXACT same logic as PaymentsDue)
+      const slotsWithPayments = new Set<string>()
+      const paidSlotIds = new Set(payments?.map((p: any) => p.slot_id) || [])
+      
+      paymentSlots?.forEach((slot: any) => {
+        if (paidSlotIds.has(slot.id)) {
+          const slotKey = `${slot.group_id}-${slot.member_id}-${slot.month_date}`
+          slotsWithPayments.add(slotKey)
+        }
+      })
+
+      // Transform slots data with payment status
       const userSlots = (slotsData || []).map((slot: any) => {
         const monthDate = slot.assigned_month_date
         const isFuture = monthDate >= currentMonth
@@ -98,17 +129,55 @@ export const userDashboardService = {
         ]
         const assignedMonthFormatted = `${monthNames[month - 1]} ${year}`
 
+        // Check payment status using the EXACT same logic as PaymentsDue
+        const slotKey = `${slot.group_id}-${memberId}-${monthDate}`
+        const hasPayment = slotsWithPayments.has(slotKey)
+        
+        // Determine detailed payment status based on actual payment status
+        let paymentStatus: 'paid' | 'pending' | 'settled' | 'not_paid' = 'not_paid'
+        
+        if (hasPayment) {
+          // Find the payment_slot that matches this group/member/month
+          const matchingPaymentSlot = paymentSlots?.find((ps: any) => 
+            ps.group_id === slot.group_id && 
+            ps.member_id === memberId && 
+            ps.month_date === monthDate
+          )
+          
+          if (matchingPaymentSlot) {
+            // Find the payment to get its status
+            const payment = payments?.find((p: any) => p.slot_id === matchingPaymentSlot.id)
+            
+            if (payment) {
+              switch (payment.status) {
+                case 'received':
+                  paymentStatus = 'paid'
+                  break
+                case 'pending':
+                  paymentStatus = 'pending'
+                  break
+                case 'settled':
+                  paymentStatus = 'settled'
+                  break
+                default:
+                  paymentStatus = 'not_paid'
+              }
+            }
+          }
+        }
+
         return {
           id: slot.id,
           groupId: slot.group_id,
           groupName: slot.group.name,
           groupDescription: slot.group.description,
-          monthlyAmount: slot.group.monthly_amount,
+          monthlyAmount: slot.group.monthly_amount, // Use amount from groups table
           assignedMonthDate: monthDate,
           assignedMonthFormatted,
           isFuture,
           isCurrentMonth,
-          isPast
+          isPast,
+          paymentStatus
         }
       })
 
@@ -149,6 +218,7 @@ export const userDashboardService = {
           id,
           amount,
           status,
+          payment_month,
           created_at,
           group:groups(name)
         `)

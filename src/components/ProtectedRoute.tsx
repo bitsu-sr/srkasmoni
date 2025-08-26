@@ -22,12 +22,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
 
   // Redirect to landing page if not authenticated
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/landing" replace />;
   }
 
   // Check if admin access is required
-  if (requireAdmin && user?.role !== 'admin') {
-    return <Navigate to="/" replace />;
+  if (requireAdmin && user?.role !== 'admin' && user?.role !== 'super_user') {
+    return <Navigate to="/landing" replace />;
   }
 
   // User is authenticated and has required permissions
