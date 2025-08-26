@@ -21,8 +21,8 @@ const Navbar = () => {
     if (isAdmin() || isSuperUser()) {
       const checkPendingRequests = () => {
         try {
-          const requests = JSON.parse(localStorage.getItem('password_reset_requests') || '[]');
-          const pendingCount = requests.filter((req: any) => req.status === 'pending').length;
+          // const requests = JSON.parse(localStorage.getItem('password_reset_requests') || '[]');
+          // const pendingCount = requests.filter((req: any) => req.status === 'pending').length;
           // setPendingResetRequests(pendingCount); // This line is removed
         } catch (error) {
           console.log('Error checking pending requests:', error);

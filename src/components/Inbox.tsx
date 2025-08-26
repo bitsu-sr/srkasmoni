@@ -86,7 +86,8 @@ const Inbox: React.FC<InboxProps> = ({ onMessageClick }) => {
       profile_change_request: 'Profile Request',
       profile_deletion_request: 'Deletion Request',
       profile_update_notification: 'Profile Update',
-      system_notification: 'System'
+      system_notification: 'System',
+      password_reset_request: 'Password Reset'
     };
     return typeMap[type] || type;
   };
@@ -140,6 +141,7 @@ const Inbox: React.FC<InboxProps> = ({ onMessageClick }) => {
             <option value="profile_deletion_request">Deletion Requests</option>
             <option value="profile_update_notification">Profile Updates</option>
             <option value="system_notification">System Messages</option>
+            <option value="password_reset_request">Password Reset Requests</option>
           </select>
         </div>
 
