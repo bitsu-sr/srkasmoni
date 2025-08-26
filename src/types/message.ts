@@ -1,4 +1,4 @@
-export type MessageType = 'payment_notification' | 'profile_change_request' | 'profile_deletion_request' | 'profile_update_notification' | 'system_notification';
+export type MessageType = 'payment_notification' | 'profile_change_request' | 'profile_deletion_request' | 'profile_update_notification' | 'system_notification' | 'password_reset_request';
 export type SenderType = 'admin' | 'member' | 'system';
 export type RequestType = 'profile_update' | 'profile_deletion';
 export type RequestStatus = 'pending' | 'approved' | 'rejected';

@@ -1,3 +1,12 @@
+/* Global overflow prevention for very small screens */
+@media (max-width: 480px) {
+  body, html {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+}
+
 .my-dashboard {
   min-height: 100vh;
   background-color: #f8f9fa;
@@ -63,14 +72,14 @@
 }
 
 /* Stats Grid */
-.my-dashboard .grid.grid-3 {
+.my-dashboard .my-dashboard-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.my-dashboard .stat-card {
+.my-dashboard .my-dashboard-stat-card {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
@@ -79,38 +88,38 @@
   border-left: 4px solid;
 }
 
-.my-dashboard .stat-card:hover {
+.my-dashboard .my-dashboard-stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
-.my-dashboard .stat-card.stat-info {
+.my-dashboard .my-dashboard-stat-card.my-dashboard-stat-info {
   border-left-color: #217346;
 }
 
-.my-dashboard .stat-card.stat-success {
+.my-dashboard .my-dashboard-stat-card.my-dashboard-stat-success {
   border-left-color: #28a745;
 }
 
-.my-dashboard .stat-card.stat-primary {
+.my-dashboard .my-dashboard-stat-card.my-dashboard-stat-primary {
   border-left-color: #007bff;
 }
 
-.my-dashboard .stat-card.stat-warning {
+.my-dashboard .my-dashboard-stat-card.my-dashboard-stat-warning {
   border-left-color: #ffc107;
 }
 
-.my-dashboard .stat-header {
+.my-dashboard .my-dashboard-stat-header {
   margin-bottom: 1rem;
 }
 
-.my-dashboard .stat-icon-status {
+.my-dashboard .my-dashboard-stat-icon-status {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.my-dashboard .stat-icon {
+.my-dashboard .my-dashboard-stat-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -120,49 +129,49 @@
   color: white;
 }
 
-.my-dashboard .stat-info .stat-icon {
+.my-dashboard .my-dashboard-stat-info .my-dashboard-stat-icon {
   background-color: #217346;
 }
 
-.my-dashboard .stat-success .stat-icon {
+.my-dashboard .my-dashboard-stat-success .my-dashboard-stat-icon {
   background-color: #28a745;
 }
 
-.my-dashboard .stat-primary .stat-icon {
+.my-dashboard .my-dashboard-stat-primary .my-dashboard-stat-icon {
   background-color: #007bff;
 }
 
-.my-dashboard .stat-warning .stat-icon {
+.my-dashboard .my-dashboard-stat-warning .my-dashboard-stat-icon {
   background-color: #ffc107;
   color: #212529;
 }
 
-.my-dashboard .stat-change {
+.my-dashboard .my-dashboard-stat-change {
   font-size: 0.85rem;
   font-weight: 500;
 }
 
-.my-dashboard .change-info {
+.my-dashboard .my-dashboard-change-info {
   color: #217346;
 }
 
-.my-dashboard .change-success {
+.my-dashboard .my-dashboard-change-success {
   color: #28a745;
 }
 
-.my-dashboard .change-primary {
+.my-dashboard .my-dashboard-change-primary {
   color: #007bff;
 }
 
-.my-dashboard .change-warning {
+.my-dashboard .my-dashboard-change-warning {
   color: #ffc107;
 }
 
-.my-dashboard .stat-content {
+.my-dashboard .my-dashboard-stat-content {
   text-align: left;
 }
 
-.my-dashboard .stat-title {
+.my-dashboard .my-dashboard-stat-title {
   font-size: 0.9rem;
   font-weight: 600;
   color: #6c757d;
@@ -171,7 +180,7 @@
   letter-spacing: 0.5px;
 }
 
-.my-dashboard .stat-value {
+.my-dashboard .my-dashboard-stat-value {
   font-size: 1.8rem;
   font-weight: 700;
   color: #212529;
@@ -369,40 +378,117 @@
     border-radius: 8px;
   }
 
+   .main-content {
+     padding-top: 50px;
+   }
+
   .my-dashboard .user-slots-table {
-    min-width: 600px;
+    min-width: 300px;
     font-size: 0.8rem;
+    table-layout: auto;
   }
 
   .my-dashboard .user-slots-table th,
   .my-dashboard .user-slots-table td {
-    padding: 12px 8px;
+    padding: 8px 6px;
+    white-space: nowrap;
+  }
+  
+  /* Make table more compact on mobile */
+  .my-dashboard .user-slots-table th {
+    padding: 8px 6px;
+    font-weight: 600;
+  }
+  
+  .my-dashboard .user-slots-table td {
+    padding: 8px 6px;
   }
 
+  /* Shorten column headers on mobile */
+  .my-dashboard .user-slots-table th:nth-child(1)::after {
+    content: "Group";
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+  }
+  
+  .my-dashboard .user-slots-table th:nth-child(2)::after {
+    content: "Amount";
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+  }
+  
+  .my-dashboard .user-slots-table th:nth-child(3)::after {
+    content: "Status";
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+  }
+  
+  .my-dashboard .user-slots-table th:nth-child(4)::after {
+    content: "Month";
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+  }
+  
+  .my-dashboard .user-slots-table th:nth-child(5)::after {
+    content: "Payout";
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+  }
+
+  /* Hide original header text on mobile */
+  .my-dashboard .user-slots-table th {
+    font-size: 0;
+    position: relative;
+  }
+
+  /* Make columns fit content on mobile */
   .slot-group-name-cell {
-    min-width: 120px;
+    width: auto;
+    min-width: auto;
   }
 
   .slot-amount-cell {
-    min-width: 100px;
+    width: auto;
+    min-width: auto;
   }
 
   .slot-payment-status-cell {
-    min-width: 100px;
+    width: auto;
+    min-width: auto;
   }
 
   .slot-month-cell {
-    min-width: 100px;
+    width: auto;
+    min-width: auto;
   }
 
   .slot-status-cell {
-    min-width: 80px;
+    width: auto;
+    min-width: auto;
   }
 
   .payment-status-badge,
   .slot-status-badge {
-    padding: 4px 8px;
-    font-size: 11px;
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+  
+  /* Make text more compact on mobile */
+  .group-name-text {
+    font-size: 0.85rem;
+  }
+  
+  .amount-display {
+    font-size: 0.85rem;
+  }
+  
+  .month-display {
+    font-size: 0.85rem;
   }
 }
 
@@ -517,8 +603,8 @@
     align-items: flex-start;
   }
   
-  .my-dashboard .grid.grid-3 {
-    grid-template-columns: 1fr;
+  .my-dashboard .my-dashboard-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
   
   .my-dashboard .user-slots-grid {
@@ -531,26 +617,115 @@
     gap: 0.75rem;
   }
   
-  .my-dashboard .stat-card {
-    padding: 1.25rem;
+  .my-dashboard .my-dashboard-stat-card {
+    padding: 1rem;
   }
   
-  .my-dashboard .stat-value {
-    font-size: 1.5rem;
+  .my-dashboard .my-dashboard-stat-value {
+    font-size: 1.25rem;
   }
 }
 
 @media (max-width: 480px) {
+  /* Prevent horizontal scrolling on very small screens */
+  .my-dashboard {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+  
+  .my-dashboard .container {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    width: 100%;
+  }
+  
+  /* Force all direct children to respect container width */
+  .my-dashboard > * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
   .my-dashboard .page-header {
-    padding: 1.5rem 0;
+    padding: 0.5rem 0;
+    width: 100%;
+    max-width: 100vw;
   }
   
   .my-dashboard .page-title {
     font-size: 1.75rem;
+    justify-content: center;
+    margin: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .my-dashboard .page-subtitle {
+    font-size: 1rem;
+    justify-content: center;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /*.my-dashboard .page-subtitle:after {
+    content: "Welcome to your personal dashboard!";
+    font-size: 1rem;
+  }
+
+  .my-dashboard .page-subtitle {
+    font-size: 0;
+  }*/
+  
+  /* Even shorter column headers for very small screens */
+  .my-dashboard .user-slots-table th:nth-child(1)::after {
+    content: "Group";
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #495057;
+  }
+
+  .my-dashboard .my-dashboard-stat-header {
+    margin-bottom: 0.2rem;
+  }
+
+  .my-dashboard .my-dashboard-stat-title {
+    margin-bottom: 0.2rem;
   }
   
-  .my-dashboard .stat-card {
-    padding: 1rem;
+  .my-dashboard .user-slots-table th:nth-child(2)::after {
+    content: "Amount";
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #495057;
+  }
+  
+  .my-dashboard .user-slots-table th:nth-child(3)::after {
+    content: "Status";
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #495057;
+  }
+  
+  .my-dashboard .user-slots-table th:nth-child(4)::after {
+    content: "Month";
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #495057;
+  }
+  
+  .my-dashboard .user-slots-table th:nth-child(5)::after {
+    content: "Payout";
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #495057;
+  }
+  
+  .my-dashboard .my-dashboard-stat-card {
+    padding: 0.75rem;
   }
   
   .my-dashboard .user-slot-card {
@@ -559,5 +734,92 @@
   
   .my-dashboard .activity-item {
     padding: 1rem;
+  }
+}
+
+/* CRITICAL: Force mobile grid layout to show 2 tiles per row */
+@media (max-width: 768px) {
+  .my-dashboard .my-dashboard-stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem !important;
+  }
+  
+  .my-dashboard .my-dashboard-stat-card {
+    padding: 1rem !important;
+  }
+  
+  .my-dashboard .my-dashboard-stat-title {
+    font-size: 0.9rem !important;
+  }
+  
+  .my-dashboard .my-dashboard-stat-value {
+    font-size: 1.25rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .my-dashboard .my-dashboard-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  
+  .my-dashboard .my-dashboard-stat-card {
+    padding: 0.75rem !important;
+  }
+  
+  .my-dashboard .my-dashboard-stat-title {
+    font-size: 0.7rem !important;
+  }
+  
+  .my-dashboard .my-dashboard-stat-value {
+    font-size: 0.9rem !important;
+  }
+  
+  /* Make stat card icons smaller on very small screens */
+  .my-dashboard .my-dashboard-stat-icon {
+    width: 30px !important;
+    height: 30px !important;
+  }
+  
+  .my-dashboard .my-dashboard-stat-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+  
+  /* Ensure stats grid doesn't overflow */
+  .my-dashboard .my-dashboard-stats-grid {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
+  
+  /* Ensure individual stat cards don't overflow */
+  .my-dashboard .my-dashboard-stat-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  
+  /* Ensure table container doesn't overflow */
+  .my-dashboard .user-slots-table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  
+  /* Ensure activity list doesn't overflow */
+  .my-dashboard .activity-list {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 }

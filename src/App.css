@@ -1,7 +1,21 @@
+/* Global overflow prevention */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+
 .app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 .main-content {
@@ -53,7 +67,12 @@
 
 @media (max-width: 768px) {
   .main-content {
-    padding-top: 70px;
+    padding-top: 0px;
+  }
+
+  .main-content:not(.landing-page) {
+    padding-top: 0px;
+    min-width: 200px;
   }
   
   .page-header {
@@ -66,5 +85,26 @@
   
   .grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .app {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .main-content {
+    padding-top: 70px;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
   }
 }

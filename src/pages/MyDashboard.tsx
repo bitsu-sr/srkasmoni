@@ -95,26 +95,26 @@ const MyDashboard = () => {
 
       <div className="container">
         {/* Stats Grid */}
-        <div className="grid grid-3">
+        <div className="my-dashboard-stats-grid">
           {loading ? (
             // Loading skeleton
             Array.from({ length: 6 }).map((_, index) => {
               const IconComponent = [Calendar, DollarSign, TrendingUp, Users, CreditCard, Clock][index]
               return (
-                <div key={index} className={`stat-card stat-${['info', 'success', 'primary', 'success', 'info', 'warning'][index]}`}>
-                  <div className="stat-header">
-                    <div className="stat-icon-status">
-                      <div className="stat-icon">
+                <div key={index} className={`my-dashboard-stat-card my-dashboard-stat-${['info', 'success', 'primary', 'success', 'info', 'warning'][index]}`}>
+                  <div className="my-dashboard-stat-header">
+                    <div className="my-dashboard-stat-icon-status">
+                      <div className="my-dashboard-stat-icon">
                         <IconComponent size={24} />
                       </div>
-                      <div className="stat-change">
-                        <span className={`change-${['info', 'success', 'primary', 'success', 'info', 'warning'][index]}`}>...</span>
+                      <div className="my-dashboard-stat-change">
+                        <span className={`my-dashboard-change-${['info', 'success', 'primary', 'success', 'info', 'warning'][index]}`}>...</span>
                       </div>
                     </div>
                   </div>
-                  <div className="stat-content">
-                    <h3 className="stat-title">Loading...</h3>
-                    <div className="stat-value">SRD 0</div>
+                  <div className="my-dashboard-stat-content">
+                    <h3 className="my-dashboard-stat-title">Loading...</h3>
+                    <div className="my-dashboard-stat-value">SRD 0</div>
                   </div>
                 </div>
               )
@@ -166,20 +166,20 @@ const MyDashboard = () => {
             ].map((stat, index) => {
               const Icon = stat.icon
               return (
-                <div key={index} className={`stat-card stat-${stat.color}`}>
-                  <div className="stat-header">
-                    <div className="stat-icon-status">
-                      <div className="stat-icon">
+                <div key={index} className={`my-dashboard-stat-card my-dashboard-stat-${stat.color}`}>
+                  <div className="my-dashboard-stat-header">
+                    <div className="my-dashboard-stat-icon-status">
+                      <div className="my-dashboard-stat-icon">
                         <Icon size={24} />
                       </div>
-                      <div className="stat-change">
-                        <span className={`change-${stat.color}`}>{stat.change}</span>
+                      <div className="my-dashboard-stat-change">
+                        <span className={`my-dashboard-change-${stat.color}`}>{stat.change}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="stat-content">
-                    <h3 className="stat-title">{stat.title}</h3>
-                    <div className="stat-value">{stat.value}</div>
+                  <div className="my-dashboard-stat-content">
+                    <h3 className="my-dashboard-stat-title">{stat.title}</h3>
+                    <div className="my-dashboard-stat-value">{stat.value}</div>
                   </div>
                 </div>
               )

@@ -9,9 +9,32 @@ import './Navbar.css'
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  // Remove old password reset state and functions
+  // const [pendingResetRequests, setPendingResetRequests] = useState(0);
+  // const checkPendingRequests = () => { ... };
   const location = useLocation()
   const menuRef = useRef<HTMLDivElement>(null)
   const { isAuthenticated, isAdmin, isSuperUser } = useAuth()
+
+  // Check for pending password reset requests
+  useEffect(() => {
+    if (isAdmin() || isSuperUser()) {
+      const checkPendingRequests = () => {
+        try {
+          const requests = JSON.parse(localStorage.getItem('password_reset_requests') || '[]');
+          const pendingCount = requests.filter((req: any) => req.status === 'pending').length;
+          // setPendingResetRequests(pendingCount); // This line is removed
+        } catch (error) {
+          console.log('Error checking pending requests:', error);
+        }
+      };
+
+      checkPendingRequests();
+      // Check every 30 seconds for new requests
+      const interval = setInterval(checkPendingRequests, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAdmin, isSuperUser]);
 
   const navItems = [
     { path: isAdmin() || isSuperUser() ? '/dashboard' : '/my-dashboard', label: 'Dashboard', icon: Home },
@@ -33,7 +56,13 @@ const Navbar = () => {
     hamburgerItems.push(
       { path: '/settings', label: 'Settings', icon: Settings },
       { path: '/login-logs', label: 'Login Logs', icon: Shield },
-      { path: '/user-management', label: 'User Management', icon: Shield }
+      { path: '/user-management', label: 'User Management', icon: Shield },
+      { 
+        path: '/password-reset-requests', 
+        label: 'Password Reset Requests', 
+        icon: MessageSquare,
+        // badge: pendingResetRequests > 0 ? pendingResetRequests : undefined // This line is removed
+      }
     )
   }
 
@@ -210,6 +239,9 @@ const Navbar = () => {
               >
                 <Icon className="nav-icon" />
                 <span>{item.label}</span>
+                {/* {item.badge && ( // This line is removed
+                  <span className="nav-badge">{item.badge}</span>
+                )} */}
               </Link>
             )
           })}

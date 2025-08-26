@@ -238,6 +238,120 @@
   transform: translateY(0);
 }
 
+/* Forgot Password Link */
+.forgot-password-link {
+  text-align: center;
+  padding: 0 24px 24px;
+}
+
+.forgot-password-btn {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: all 0.2s;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.forgot-password-btn:hover:not(:disabled) {
+  color: #2563eb;
+  background-color: #f3f4f6;
+  text-decoration: none;
+}
+
+.forgot-password-btn:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Forgot Password Form */
+.forgot-password-form {
+  padding: 24px;
+}
+
+.forgot-password-message {
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.forgot-password-message.success {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.forgot-password-message.error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+.forgot-password-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.back-to-login-btn {
+  flex: 1;
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-to-login-btn:hover:not(:disabled) {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.back-to-login-btn:disabled {
+  background-color: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.send-request-btn {
+  flex: 1;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.send-request-btn:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.send-request-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.send-request-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
 .login-modal-footer {
   padding: 16px 24px 24px;
   background-color: #f9fafb;
