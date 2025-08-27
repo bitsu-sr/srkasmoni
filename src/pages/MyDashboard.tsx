@@ -34,7 +34,8 @@ const MyDashboard = () => {
           activeGroups: 0
         },
         userSlots: [],
-        recentPayments: []
+        recentPayments: [],
+        groups: []
       })
     } finally {
       setLoading(false)

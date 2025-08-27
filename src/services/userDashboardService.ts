@@ -275,7 +275,7 @@ export const userDashboardService = {
       if (membersError) throw membersError
 
       // Get all payments to calculate paid slots
-      const { data: allPayments, error: allPaymentsError } = await supabase
+      let { data: allPayments, error: allPaymentsError } = await supabase
         .from('payments')
         .select(`
           group_id,
@@ -288,7 +288,7 @@ export const userDashboardService = {
       if (allPaymentsError) {
         console.warn(`Warning: Could not fetch all payments with status 'received': ${allPaymentsError.message}`)
         // Return empty array instead of throwing error
-        const allPayments = []
+        allPayments = []
       }
 
       // Calculate slots progress for each group (same logic as main dashboard)

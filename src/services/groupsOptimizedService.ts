@@ -65,7 +65,7 @@ export const groupsOptimizedService = {
       if (!groupsData || groupsData.length === 0) return []
 
       // Get payment information to calculate slots correctly
-      const { data: paymentsData, error: paymentsError } = await supabase
+      let { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select(`
           group_id,
@@ -78,7 +78,7 @@ export const groupsOptimizedService = {
       if (paymentsError) {
         console.warn(`Warning: Could not fetch payments with status 'received': ${paymentsError.message}`)
         // Return empty array instead of throwing error
-        const paymentsData = []
+        paymentsData = []
       }
 
       // Transform the data
