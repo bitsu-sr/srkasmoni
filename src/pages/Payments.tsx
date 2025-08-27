@@ -60,7 +60,7 @@ const Payments = () => {
       loadPayments()
       loadStats()
     }
-  }, [filters, currentUserMemberId, canViewAllRecords])
+  }, [currentUserMemberId, canViewAllRecords])
 
   // Recalculate stats when payments change
   useEffect(() => {
@@ -174,6 +174,16 @@ const Payments = () => {
     setViewingPayment(payment)
   }
 
+  const handleStatusUpdate = (updatedPayment: Payment) => {
+    setPayments(prevPayments => 
+      prevPayments.map(payment => 
+        payment.id === updatedPayment.id ? updatedPayment : payment
+      )
+    )
+    // Reload stats to reflect the status change
+    loadStats()
+  }
+
   const handleSavePayment = async (paymentData: PaymentFormData) => {
     if (!canManagePayments) {
       alert('Only administrators can save payments.')
@@ -220,6 +230,8 @@ const Payments = () => {
   const handleFiltersChange = (newFilters: PaymentFiltersType) => {
     setFilters(newFilters)
     setCurrentPage(1) // Reset to first page when filters change
+    // Load payments with new filters
+    loadPayments(newFilters)
   }
 
   // Pagination functions
@@ -405,6 +417,7 @@ const Payments = () => {
               onEdit={canManagePayments ? handleEditPayment : undefined}
               onDelete={canManagePayments ? handleDeletePayment : undefined}
               onView={handleViewPayment}
+              onStatusUpdate={handleStatusUpdate}
               canManagePayments={canManagePayments}
             />
           )}

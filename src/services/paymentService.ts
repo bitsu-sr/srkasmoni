@@ -26,10 +26,8 @@ export const paymentService = {
       // Search in member first name and last name
       const searchTerm = filters.search.trim()
       if (searchTerm) {
-        console.log('Applying search filter:', searchTerm) // Debug log
-        // For now, let's try a simpler approach and do client-side filtering
-        // This will help us determine if the issue is with the backend query or frontend
-        console.log('Search filter will be applied client-side for now')
+        // Note: Backend search is complex with Supabase joins, so we'll use client-side filtering
+        // This ensures reliable search functionality across all fields
       }
     }
     if (filters?.status) {
@@ -57,8 +55,26 @@ export const paymentService = {
       throw new Error(`Failed to fetch payments: ${error.message}`)
     }
 
+    // Apply client-side search filtering if backend search didn't work or wasn't applied
+    let filteredData = data || []
+    if (filters?.search && filters.search.trim()) {
+      const searchTerm = filters.search.trim().toLowerCase()
+      
+      filteredData = filteredData.filter((payment: any) => {
+        const firstName = payment.member?.first_name?.toLowerCase() || ''
+        const lastName = payment.member?.last_name?.toLowerCase() || ''
+        const groupName = payment.group?.name?.toLowerCase() || ''
+        const fullName = `${firstName} ${lastName}`.toLowerCase()
+        
+        return firstName.includes(searchTerm) || 
+               lastName.includes(searchTerm) || 
+               fullName.includes(searchTerm) ||
+               groupName.includes(searchTerm)
+      })
+    }
+
     // Transform the data to match frontend interface (snake_case to camelCase)
-    const transformedPayments: Payment[] = (data || []).map((payment: any) => ({
+    const transformedPayments: Payment[] = filteredData.map((payment: any) => ({
       id: payment.id,
       memberId: payment.member_id,
       groupId: payment.group_id,

@@ -56,13 +56,7 @@ const Navbar = () => {
     hamburgerItems.push(
       { path: '/settings', label: 'Settings', icon: Settings },
       { path: '/login-logs', label: 'Login Logs', icon: Shield },
-      { path: '/user-management', label: 'User Management', icon: Shield },
-      { 
-        path: '/password-reset-requests', 
-        label: 'Password Reset Requests', 
-        icon: MessageSquare,
-        // badge: pendingResetRequests > 0 ? pendingResetRequests : undefined // This line is removed
-      }
+      { path: '/user-management', label: 'User Management', icon: Shield }
     )
   }
 

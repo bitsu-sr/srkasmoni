@@ -23,7 +23,7 @@ import UserManagement from './pages/UserManagement'
 import UserProfile from './pages/UserProfile'
 import Messaging from './pages/Messaging'
 import LoginLogs from './pages/LoginLogs'
-import PasswordResetRequests from './pages/PasswordResetRequests'
+
 import './App.css'
 
 function App() {
@@ -118,11 +118,7 @@ function App() {
                       <LoginLogs />
                     </ProtectedRoute>
                   } />
-                  <Route path="/password-reset-requests" element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <PasswordResetRequests />
-                    </ProtectedRoute>
-                  } />
+
                 </Routes>
               </main>
               <Footer />

@@ -71,20 +71,17 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     try {
       console.log('Creating password reset request via messaging system...');
       
-      // Create a password reset message using the existing messaging system
-      const messageData = {
-        sender_id: '00000000-0000-0000-0000-000000000000', // System UUID
-        sender_type: 'system' as any, // Required field
-        subject: 'Password Reset Request',
-        content: `User ${credentials.username || 'Unknown'} has requested a password reset for email: ${forgotPasswordEmail}`,
-        message_type: 'password_reset_request' as any,
-        sender_ip_address: null // Set to null to avoid INET type issues
-      };
-
-      // Insert the message
+      // Create the message
       const { data: message, error: messageError } = await supabase
         .from('messages')
-        .insert(messageData)
+        .insert({
+          subject: 'Password Reset Request',
+          content: `User ${forgotPasswordEmail} has requested a password reset for email: ${forgotPasswordEmail}`,
+          message_type: 'password_reset_request',
+          sender_id: '00000000-0000-0000-0000-000000000000',
+          sender_type: 'system',
+          sender_ip_address: null
+        })
         .select()
         .single();
 
@@ -93,62 +90,51 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         throw new Error('Failed to create password reset request');
       }
 
-      // Get all admin users to notify
-      // Since we're using Supabase auth, we need to check the user's role from JWT claims
-      // For now, we'll send the message and let RLS policies handle access control
       console.log('Password reset request created successfully');
-      
-      // Now create message recipients for all admin users
-      try {
-        // Get admin users from auth_users table using the role column
-        const { data: adminUsers, error: adminError } = await supabase
-          .from('auth_users')
-          .select('id')
-          .eq('role', 'admin');
 
-        if (adminError) {
-          console.log('Could not fetch admin users from auth_users table:', adminError);
-        } else if (adminUsers && adminUsers.length > 0) {
-          console.log(`Found ${adminUsers.length} admin users to notify:`, adminUsers);
-          
-          const recipients = adminUsers.map((admin: any) => ({
-            message_id: message.id,
-            recipient_id: admin.id,
-            is_read: false
-          }));
+      // Get all admin users
+      const { data: adminUsers, error: adminError } = await supabase
+        .from('auth_users')
+        .select('id')
+        .eq('role', 'admin');
 
-          const { error: recipientError } = await supabase
-            .from('message_recipients')
-            .insert(recipients);
-
-          if (recipientError) {
-            console.log('Error creating message recipients:', recipientError);
-          } else {
-            console.log(`Successfully sent password reset request to ${adminUsers.length} administrators`);
-          }
-        } else {
-          console.log('No admin users found in auth_users table');
-        }
-      } catch (recipientError) {
-        console.log('Error setting up message recipients:', recipientError);
+      if (adminError) {
+        console.error('Could not fetch admin users from auth_users table:', adminError);
+        throw new Error('Failed to fetch admin users');
       }
-      
-      // Note: The message will be visible to users with appropriate permissions
-      // based on the RLS policies we set up in the database migration
 
-      // Show success message
-      setForgotPasswordMessage('Password reset request sent successfully. An administrator will contact you soon.');
+      if (!adminUsers || adminUsers.length === 0) {
+        throw new Error('No admin users found');
+      }
+
+      // Create message recipients for all admin users
+      const recipientData = adminUsers.map((admin: { id: string }) => ({
+        message_id: message.id,
+        recipient_id: admin.id,
+        is_read: false
+      }));
+
+      const { error: recipientError } = await supabase
+        .from('message_recipients')
+        .insert(recipientData);
+
+      if (recipientError) {
+        console.error('Error creating message recipients:', recipientError);
+        throw new Error('Failed to create message recipients');
+      }
+
+      setForgotPasswordMessage('Password reset request sent successfully. An admin will contact you soon.');
       setForgotPasswordEmail('');
       
-      // Close forgot password modal after a delay
+      // Reset form after 3 seconds
       setTimeout(() => {
         setShowForgotPassword(false);
         setForgotPasswordMessage(null);
       }, 3000);
-      
+
     } catch (error) {
       console.error('Error sending password reset request:', error);
-      setForgotPasswordMessage('Failed to send password reset request. Please try again.');
+      setForgotPasswordMessage(error instanceof Error ? error.message : 'Failed to send password reset request');
     } finally {
       setIsSendingRequest(false);
     }
@@ -173,87 +159,85 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         {!showForgotPassword ? (
-          <>
-            <form onSubmit={handleSubmit} className="login-form">
-          {error && (
-            <div className="login-error">
-              {error}
-            </div>
-          )}
+          <form onSubmit={handleSubmit} className="login-form">
+            {error && (
+              <div className="login-error">
+                {error}
+              </div>
+            )}
 
-          <div className="form-group">
-            <label htmlFor="username">Username</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={credentials.username}
-              onChange={handleInputChange}
-              required
-              disabled={isLoading}
-              placeholder="Enter your username"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <div className="password-input-container">
+            <div className="form-group">
+              <label htmlFor="username">Username</label>
               <input
-                type={showPassword ? "text" : "password"}
-                id="password"
-                name="password"
-                value={credentials.password}
+                type="text"
+                id="username"
+                name="username"
+                value={credentials.username}
                 onChange={handleInputChange}
                 required
                 disabled={isLoading}
-                placeholder="Enter your password"
+                placeholder="Enter your username"
               />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <div className="password-input-container">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  value={credentials.password}
+                  onChange={handleInputChange}
+                  required
+                  disabled={isLoading}
+                  placeholder="Enter your password"
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={togglePasswordVisibility}
+                  disabled={isLoading}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group checkbox-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="rememberMe"
+                  checked={credentials.rememberMe}
+                  onChange={handleInputChange}
+                  disabled={isLoading}
+                />
+                <span className="checkmark"></span>
+                Remember me
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              className="login-submit-btn"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
+
+            <div className="form-footer">
               <button
                 type="button"
-                className="password-toggle-btn"
-                onClick={togglePasswordVisibility}
+                className="forgot-password-link"
+                onClick={() => setShowForgotPassword(true)}
                 disabled={isLoading}
-                title={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? "👁️" : "👁️‍🗨️"}
+                Forgot your password?
               </button>
             </div>
-          </div>
-
-          <div className="form-group checkbox-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="rememberMe"
-                checked={credentials.rememberMe}
-                onChange={handleInputChange}
-                disabled={isLoading}
-              />
-              <span className="checkmark"></span>
-              Remember me
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            className="login-submit-btn"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-
-        <div className="forgot-password-link">
-          <button
-            type="button"
-            className="forgot-password-btn"
-            onClick={() => setShowForgotPassword(true)}
-            disabled={isLoading}
-          >
-            Forgot your password?
-          </button>
-        </div>
-          </>
+          </form>
         ) : (
           <form onSubmit={handleForgotPassword} className="forgot-password-form">
             {forgotPasswordMessage && (
@@ -275,7 +259,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               />
             </div>
 
-            <div className="forgot-password-actions">
+            <div className="form-actions">
+              <button
+                type="submit"
+                className="forgot-password-submit-btn"
+                disabled={isSendingRequest}
+              >
+                {isSendingRequest ? 'Sending...' : 'Send Reset Request'}
+              </button>
               <button
                 type="button"
                 className="back-to-login-btn"
@@ -283,13 +274,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 disabled={isSendingRequest}
               >
                 Back to Login
-              </button>
-              <button
-                type="submit"
-                className="send-request-btn"
-                disabled={isSendingRequest}
-              >
-                {isSendingRequest ? 'Sending...' : 'Send Request'}
               </button>
             </div>
           </form>

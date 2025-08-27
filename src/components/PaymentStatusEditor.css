@@ -1,0 +1,162 @@
+.payment-status-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payment-status-editor-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.payment-status-received {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.payment-status-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.payment-status-settled {
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #c4b5fd;
+}
+
+.payment-status-not-paid {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.payment-status-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.payment-status-display:hover .payment-status-edit-btn {
+  opacity: 1;
+}
+
+.payment-status-edit-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.payment-status-editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payment-status-select {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  min-width: 100px;
+}
+
+.payment-status-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.payment-status-select:disabled {
+  background: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.payment-status-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.payment-status-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.75rem;
+}
+
+.payment-status-save-btn {
+  background: #10b981;
+  color: white;
+}
+
+.payment-status-save-btn:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.payment-status-save-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.payment-status-cancel-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.payment-status-cancel-btn:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.payment-status-cancel-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .payment-status-editor {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  
+  .payment-status-select {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .payment-status-actions {
+    justify-content: center;
+  }
+}

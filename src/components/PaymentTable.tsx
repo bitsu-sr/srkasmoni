@@ -2,6 +2,7 @@ import { Edit, Trash2, Eye } from 'lucide-react'
 import type { Payment } from '../types/payment'
 import { paymentSlotService } from '../services/paymentSlotService'
 import { formatPaymentDate } from '../utils/dateUtils'
+import PaymentStatusEditor from './PaymentStatusEditor'
 import './PaymentTable.css'
 
 interface PaymentTableProps {
@@ -9,39 +10,12 @@ interface PaymentTableProps {
   onEdit?: (payment: Payment) => void
   onDelete?: (payment: Payment) => void
   onView: (payment: Payment) => void
+  onStatusUpdate?: (updatedPayment: Payment) => void
   canManagePayments?: boolean
 }
 
-const PaymentTable = ({ payments, onEdit, onDelete, onView, canManagePayments = false }: PaymentTableProps) => {
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case 'received':
-        return 'payment-table-status-received'
-      case 'pending':
-        return 'payment-table-status-pending'
-      case 'settled':
-        return 'payment-table-status-settled'
-      case 'not_paid':
-        return 'payment-table-status-not-paid'
-      default:
-        return 'payment-table-status-pending'
-    }
-  }
+const PaymentTable = ({ payments, onEdit, onDelete, onView, onStatusUpdate, canManagePayments = false }: PaymentTableProps) => {
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'received':
-        return 'Received'
-      case 'pending':
-        return 'Pending'
-      case 'settled':
-        return 'Settled'
-      case 'not_paid':
-        return 'Not Paid'
-      default:
-        return 'Pending'
-    }
-  }
 
 
 
@@ -102,9 +76,11 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView, canManagePayments = 
                   }
                 </td>
                 <td>
-                  <span className={`payment-table-status-badge ${getStatusClass(payment.status)}`}>
-                    {getStatusLabel(payment.status)}
-                  </span>
+                  <PaymentStatusEditor
+                    payment={payment}
+                    onStatusUpdate={onStatusUpdate || (() => {})}
+                    canEdit={canManagePayments}
+                  />
                 </td>
                 <td className="payment-table-actions">
                   <button

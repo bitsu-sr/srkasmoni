@@ -2,7 +2,7 @@ import { Search, Filter, X } from 'lucide-react'
 import type { PaymentFilters as PaymentFiltersType } from '../types/payment'
 import type { Group } from '../types/member'
 import { groupService } from '../services/groupService'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './PaymentFilters.css'
 
 interface PaymentFiltersProps {
@@ -36,9 +36,23 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
 
 
 
+  // Debounced search to avoid too many API calls
+  const debouncedSearch = useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout
+      return (value: string) => {
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(() => {
+          onFiltersChange({ ...filters, search: value })
+        }, 300) // 300ms delay
+      }
+    })(),
+    [filters, onFiltersChange]
+  )
+
   const handleSearchChange = (value: string) => {
     setSearchValue(value)
-    onFiltersChange({ ...filters, search: value })
+    debouncedSearch(value)
   }
 
   const handleFilterChange = (key: keyof PaymentFiltersType, value: any) => {
@@ -64,7 +78,7 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
           <Search size={20} />
           <input
             type="text"
-            placeholder="Search payments by member name..."
+            placeholder="Search by member name, group name..."
             value={searchValue}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
