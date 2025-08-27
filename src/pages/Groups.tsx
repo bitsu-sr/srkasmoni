@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye, Download, Upload, CheckCircle } from 'lucide-react'
+import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye, Download, Upload, CheckCircle, Grid, List } from 'lucide-react'
 import type { Group, GroupFormData } from '../types/member'
 import { groupService } from '../services/groupService'
 import { groupsOptimizedService, GroupWithDetails } from '../services/groupsOptimizedService'
@@ -36,6 +36,9 @@ const Groups = () => {
   // Sorting state
   const [sortField, setSortField] = useState<'name' | 'monthlyAmount' | 'members'>('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+
+  // View mode state
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
 
   useEffect(() => {
     loadGroups()
@@ -577,141 +580,274 @@ const Groups = () => {
           </div>
         )}
 
-        {/* Groups Grid */}
-        <div className="groups-grid">
-          {getSortedGroups().map((group) => {
-            const memberCount = group.members?.length || 0
-            const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
-            return (
-              <div key={group.id} className="group-card">
-                <div className="group-header">
-                  <div className="group-info">
-                    <h3 className="group-name">{group.name}</h3>
-                    {group.description && (
-                      <p className="group-description">{group.description}</p>
-                    )}
-                  </div>
-                  <div className="group-actions">
-                    {isAdmin && (
-                      <>
-                        <button 
-                          className="action-btn view-btn"
-                          onClick={() => navigateToGroupDetails(group.id)}
-                          title="View Details"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button 
-                          className="action-btn edit-btn"
-                          onClick={() => openEditModal(group)}
-                          title="Edit Group"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button 
-                          className="action-btn delete-btn"
-                          onClick={() => openDeleteModal(group)}
-                          title="Delete Group"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="group-stats">
-                  <div className="stat-row">
-                    <div className="stat-item">
-                      <Users size={16} />
-                      <span>{memberCount} / {group.maxMembers} members</span>
-                    </div>
-                    <div className="stat-item">
-                      <Calendar size={16} />
-                      <span>
-                        {group.startDate && group.endDate ? 
-                          `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
-                          : 'N/A'
-                        }
-                      </span>
-                    </div>
-                  </div>
-                  <div className="stat-row">
-                    <div className="stat-item">
-                      <DollarSign size={16} />
-                      <span>SRD {group.monthlyAmount.toLocaleString()}/month</span>
-                    </div>
-                    <div className="stat-item">
-                      <CheckCircle size={16} />
-                      <span>
-                        Slots Paid: {slotsInfo.paid || 0} / {slotsInfo.total || 0}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="stat-row">
-                    <div className="stat-item">
-                      <Calendar size={16} />
-                      <span>Due: {group.paymentDeadlineDay}th</span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="fine-info">
-                        {group.lateFineFixedAmount > 0 
-                          ? `Fine: SRD ${group.lateFineFixedAmount}`
-                          : `Fine: ${group.lateFinePercentage}%`
-                        }
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Payment Progress Bar */}
-                  <div className="payment-progress">
-                    <div className="progress-header">
-                      <span className="progress-label">Payment Progress</span>
-                      <span className="progress-percentage">
-                        {slotsInfo.total > 0 
-                          ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
-                          : 0
-                        }%
-                      </span>
-                    </div>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill"
-                        style={{
-                          width: `${slotsInfo.total > 0 
-                            ? (slotsInfo.paid || 0) / slotsInfo.total * 100
-                            : 0
-                          }%`
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="group-period">
-                  <div className="period-info">
-                    <span>Period:</span>
-                    <span>
-                      {formatDateRange(group.startDate, group.endDate)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Main Action Button - Only show for admins */}
-                {isAdmin && (
-                  <div className="group-actions-main">
-                    <button 
-                      className="btn btn-secondary"
-                      onClick={() => navigateToGroupDetails(group.id)}
-                    >
-                      View Details
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
+        {/* View Mode Toggle */}
+        <div className="view-mode-toggle">
+          <div className="toggle-label">View Mode:</div>
+          <div className="toggle-switch">
+            <button 
+              className={`toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
+              onClick={() => setViewMode('card')}
+              title="Card View"
+            >
+              <Grid size={18} />
+              <span>Cards</span>
+            </button>
+            <button 
+              className={`toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+              title="Table View"
+            >
+              <List size={18} />
+              <span>Table</span>
+            </button>
+          </div>
         </div>
+
+        {/* Groups Display */}
+        {viewMode === 'card' ? (
+          /* Groups Grid */
+          <div className="groups-grid">
+            {getSortedGroups().map((group) => {
+              const memberCount = group.members?.length || 0
+              const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
+              return (
+                <div key={group.id} className="group-card">
+                  <div className="group-header">
+                    <div className="group-info">
+                      <h3 className="group-name">{group.name}</h3>
+                      {group.description && (
+                        <p className="group-description">{group.description}</p>
+                      )}
+                    </div>
+                    <div className="group-actions">
+                      {isAdmin && (
+                        <>
+                          <button 
+                            className="action-btn view-btn"
+                            onClick={() => navigateToGroupDetails(group.id)}
+                            title="View Details"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button 
+                            className="action-btn edit-btn"
+                            onClick={() => openEditModal(group)}
+                            title="Edit Group"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button 
+                            className="action-btn delete-btn"
+                            onClick={() => openDeleteModal(group)}
+                            title="Delete Group"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="group-stats">
+                    <div className="stat-row">
+                      <div className="stat-item">
+                        <Users size={16} />
+                        <span>{memberCount} / {group.maxMembers} members</span>
+                      </div>
+                      <div className="stat-item">
+                        <Calendar size={16} />
+                        <span>
+                          {group.startDate && group.endDate ? 
+                            `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
+                            : 'N/A'
+                          }
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-item">
+                        <DollarSign size={16} />
+                        <span>SRD {group.monthlyAmount.toLocaleString()}/month</span>
+                      </div>
+                      <div className="stat-item">
+                        <CheckCircle size={16} />
+                        <span>
+                          Slots Paid: {slotsInfo.paid || 0} / {slotsInfo.total || 0}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-item">
+                        <Calendar size={16} />
+                        <span>Due: {group.paymentDeadlineDay}th</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="fine-info">
+                          {group.lateFineFixedAmount > 0 
+                            ? `Fine: SRD ${group.lateFineFixedAmount}`
+                            : `Fine: ${group.lateFinePercentage}%`
+                          }
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Payment Progress Bar */}
+                    <div className="payment-progress">
+                      <div className="progress-header">
+                        <span className="progress-label">Payment Progress</span>
+                        <span className="progress-percentage">
+                          {slotsInfo.total > 0 
+                            ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
+                            : 0
+                          }%
+                        </span>
+                      </div>
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill"
+                          style={{
+                            width: `${slotsInfo.total > 0 
+                              ? (slotsInfo.paid || 0) / slotsInfo.total * 100
+                              : 0
+                            }%`
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="group-period">
+                    <div className="period-info">
+                      <span>Period:</span>
+                      <span>
+                        {formatDateRange(group.startDate, group.endDate)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Main Action Button - Only show for admins */}
+                  {isAdmin && (
+                    <div className="group-actions-main">
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={() => navigateToGroupDetails(group.id)}
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          /* Groups Table */
+          <div className="groups-table-container">
+            <table className="groups-table">
+              <thead>
+                <tr>
+                  <th>Group Name</th>
+                  <th>Description</th>
+                  <th>Members</th>
+                  <th>Monthly Amount</th>
+                  <th>Duration</th>
+                  <th>Payment Deadline</th>
+                  <th>Progress</th>
+                  {isAdmin && <th>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {getSortedGroups().map((group) => {
+                  const memberCount = group.members?.length || 0
+                  const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
+                  const progressPercentage = slotsInfo.total > 0 
+                    ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
+                    : 0
+                  
+                  return (
+                    <tr key={group.id}>
+                      <td className="group-name-cell">
+                        <div className="group-name-info">
+                          <h4 className="group-name">{group.name}</h4>
+                        </div>
+                      </td>
+                      <td className="group-description-cell">
+                        {group.description || 'No description'}
+                      </td>
+                      <td className="group-members-cell">
+                        <div className="members-info">
+                          <Users size={16} />
+                          <span>{memberCount} / {group.maxMembers}</span>
+                        </div>
+                      </td>
+                      <td className="group-amount-cell">
+                        <div className="amount-info">
+                          <DollarSign size={16} />
+                          <span>SRD {group.monthlyAmount.toLocaleString()}</span>
+                        </div>
+                      </td>
+                      <td className="group-duration-cell">
+                        <div className="duration-info">
+                          <Calendar size={16} />
+                          <span>
+                            {group.startDate && group.endDate ? 
+                              `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
+                              : 'N/A'
+                            }
+                          </span>
+                        </div>
+                      </td>
+                      <td className="group-deadline-cell">
+                        <div className="deadline-info">
+                          <Calendar size={16} />
+                          <span>{group.paymentDeadlineDay}th</span>
+                        </div>
+                      </td>
+                      <td className="group-progress-cell">
+                        <div className="progress-info">
+                          <div className="progress-bar-table">
+                            <div 
+                              className="progress-fill-table"
+                              style={{ width: `${progressPercentage}%` }}
+                            ></div>
+                          </div>
+                          <span className="progress-text">{progressPercentage}%</span>
+                        </div>
+                      </td>
+                      {isAdmin && (
+                        <td className="group-actions-cell">
+                          <div className="table-actions">
+                            <button 
+                              className="action-btn view-btn"
+                              onClick={() => navigateToGroupDetails(group.id)}
+                              title="View Details"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button 
+                              className="action-btn edit-btn"
+                              onClick={() => openEditModal(group)}
+                              title="Edit Group"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button 
+                              className="action-btn delete-btn"
+                              onClick={() => openDeleteModal(group)}
+                              title="Delete Group"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Empty State */}
         {groups.length === 0 && (

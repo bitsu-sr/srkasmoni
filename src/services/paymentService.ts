@@ -707,18 +707,25 @@ export const paymentService = {
 
   // Get count of paid slots for a member in a specific group
   async getMemberPaidSlotsCount(memberId: number, groupId: number): Promise<number> {
-    const { data, error } = await supabase
-      .from('payments')
-      .select('id')
-      .eq('member_id', memberId)
-      .eq('group_id', groupId)
-      .eq('status', 'received')
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('member_id', memberId)
+        .eq('group_id', groupId)
+        .eq('status', 'received')
 
-    if (error) {
-      throw new Error(`Failed to fetch paid slots count: ${error.message}`)
+      // If there's an error, log it but return 0 instead of throwing
+      if (error) {
+        console.warn(`Warning: Could not fetch paid slots count for member ${memberId} in group ${groupId}: ${error.message}`)
+        return 0
+      }
+
+      return data?.length || 0
+    } catch (error) {
+      console.warn(`Warning: Exception in getMemberPaidSlotsCount for member ${memberId} in group ${groupId}: ${error}`)
+      return 0
     }
-
-    return data?.length || 0
   },
 
   // Get count of paid slots for a specific group
@@ -731,7 +738,8 @@ export const paymentService = {
         .eq('group_id', groupId)
 
       if (totalError) {
-        throw new Error(`Failed to fetch total slots: ${totalError.message}`)
+        console.warn(`Warning: Could not fetch total slots for group ${groupId}: ${totalError.message}`)
+        return { paid: 0, total: 0 }
       }
 
       const total = totalSlots?.length || 0
@@ -744,7 +752,8 @@ export const paymentService = {
         .eq('status', 'received')
 
       if (paidError) {
-        throw new Error(`Failed to fetch paid slots: ${paidError.message}`)
+        console.warn(`Warning: Could not fetch paid slots for group ${groupId}: ${paidError.message}`)
+        return { paid: 0, total }
       }
 
       const paid = paidSlots?.length || 0

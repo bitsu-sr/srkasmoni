@@ -7,6 +7,7 @@ export interface DashboardStats {
   totalReceived: number
   totalPending: number
   totalOverdue: number
+  totalAmountDue: number
   activeGroups: number
   totalMembers: number
   activeMembers: number
@@ -136,6 +137,7 @@ export const dashboardService = {
               totalReceived: receivedAmount,
               totalPending: pendingAmount,
               totalOverdue: 0,
+              totalAmountDue: Math.max(0, totalAmount - totalAmount),
               activeGroups: uniqueGroups.size,
               totalMembers: uniqueMembers.size,
               activeMembers: uniqueMembers.size
@@ -154,6 +156,7 @@ export const dashboardService = {
           totalReceived: 0,
           totalPending: 0,
           totalOverdue: 0,
+          totalAmountDue: 0,
           activeGroups: 0,
           totalMembers: 0,
           activeMembers: 0
@@ -188,6 +191,7 @@ export const dashboardService = {
           totalReceived: 0,
           totalPending: 0,
           totalOverdue: 0,
+          totalAmountDue: 0,
           activeGroups: 0,
           totalMembers: 0,
           activeMembers: 0
@@ -315,6 +319,9 @@ export const dashboardService = {
       const totalReceived = paymentStats?.receivedAmount || 0
       const totalPending = paymentStats?.pendingAmount || 0
       const totalOverdue = overduePayments?.amount || 0
+      
+      // Calculate total amount due using the same logic as PaymentsDue page
+      const totalAmountDue = Math.max(0, totalExpected - totalPaid)
 
       const stats = {
         totalExpected,
@@ -322,6 +329,7 @@ export const dashboardService = {
         totalReceived,
         totalPending,
         totalOverdue,
+        totalAmountDue,
         activeGroups: groupsData?.length || 0,
         totalMembers: uniqueMemberIds.size,
         activeMembers: uniqueMemberIds.size
@@ -336,6 +344,7 @@ export const dashboardService = {
         totalReceived: 0,
         totalPending: 0,
         totalOverdue: 0,
+        totalAmountDue: 0,
         activeGroups: 0,
         totalMembers: 0,
         activeMembers: 0

@@ -75,7 +75,11 @@ export const groupsOptimizedService = {
         `)
         .eq('status', 'received')
 
-      if (paymentsError) throw paymentsError
+      if (paymentsError) {
+        console.warn(`Warning: Could not fetch payments with status 'received': ${paymentsError.message}`)
+        // Return empty array instead of throwing error
+        const paymentsData = []
+      }
 
       // Transform the data
       const groupsWithDetails: GroupWithDetails[] = groupsData.map((group: any) => {

@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase'
 
-
 export interface UserDashboardData {
   stats: {
     totalSlots: number
@@ -24,6 +23,17 @@ export interface UserDashboardData {
     paymentStatus: 'paid' | 'pending' | 'settled' | 'not_paid'
   }[]
   recentPayments: any[]
+  groups: {
+    id: number
+    name: string
+    description: string
+    monthlyAmount: number
+    startDate: string
+    endDate: string
+    slotsPaid: number
+    slotsTotal: number
+    created_at: string
+  }[]
 }
 
 export const userDashboardService = {
@@ -55,7 +65,8 @@ export const userDashboardService = {
             activeGroups: 0
           },
           userSlots: [],
-          recentPayments: []
+          recentPayments: [],
+          groups: []
         }
       }
 
@@ -237,6 +248,83 @@ export const userDashboardService = {
 
       const totalExpected = totalSlots * totalMonthlyAmount
 
+      // Get all groups with slots progress (same logic as main dashboard)
+      const { data: groupsData, error: groupsError } = await supabase
+        .from('groups')
+        .select(`
+          id,
+          name,
+          description,
+          monthly_amount,
+          start_date,
+          end_date,
+          created_at
+        `)
+        .order('created_at', { ascending: false })
+
+      if (groupsError) throw groupsError
+
+      // Get all group members to calculate slots progress
+      const { data: allGroupMembers, error: membersError } = await supabase
+        .from('group_members')
+        .select(`
+          group_id,
+          member_id
+        `)
+
+      if (membersError) throw membersError
+
+      // Get all payments to calculate paid slots
+      const { data: allPayments, error: allPaymentsError } = await supabase
+        .from('payments')
+        .select(`
+          group_id,
+          member_id,
+          slot_id,
+          status
+        `)
+        .eq('status', 'received')
+
+      if (allPaymentsError) {
+        console.warn(`Warning: Could not fetch all payments with status 'received': ${allPaymentsError.message}`)
+        // Return empty array instead of throwing error
+        const allPayments = []
+      }
+
+      // Calculate slots progress for each group (same logic as main dashboard)
+      const groups = (groupsData || []).map((group: any) => {
+        const groupMembers = allGroupMembers?.filter((member: any) => member.group_id === group.id) || []
+        const slotsTotal = groupMembers.length
+        
+        // Count paid slots for this group
+        let slotsPaid = 0
+        if (allPayments && groupMembers.length > 0) {
+          const groupPayments = allPayments.filter((payment: any) => payment.group_id === group.id)
+          const paidSlots = new Set()
+          
+          groupPayments.forEach((payment: any) => {
+            if (payment.slot_id) {
+              const slotKey = `${payment.group_id}-${payment.member_id}-${payment.slot_id}`
+              paidSlots.add(slotKey)
+            }
+          })
+          
+          slotsPaid = paidSlots.size
+        }
+
+        return {
+          id: group.id,
+          name: group.name,
+          description: group.description,
+          monthlyAmount: group.monthly_amount,
+          startDate: group.start_date,
+          endDate: group.end_date,
+          slotsPaid,
+          slotsTotal,
+          created_at: group.created_at
+        }
+      })
+
       return {
         stats: {
           totalSlots,
@@ -247,7 +335,8 @@ export const userDashboardService = {
           activeGroups
         },
         userSlots,
-        recentPayments
+        recentPayments,
+        groups
       }
     } catch (error) {
       console.error('Error fetching user dashboard data:', error)
