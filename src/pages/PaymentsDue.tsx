@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { Download } from 'lucide-react'
 import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
 import { useAuth } from '../contexts/AuthContext'
 import { paymentSlotService } from '../services/paymentSlotService'
 import { paymentService } from '../services/paymentService'
 import { optimizedQueryService } from '../services/optimizedQueryService'
+import { pdfService } from '../services/pdfService'
 import { PaymentSlot } from '../types/paymentSlot'
 import { PaymentStats } from '../types/payment'
 import PaymentModal from '../components/PaymentModal'
@@ -54,6 +56,11 @@ const PaymentsDue: React.FC = () => {
     phase2Time?: number
     totalTime?: number
   }>({})
+
+  // PDF export state
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null)
 
   // Calculate pagination values based on settings
   const pageSize = settings.pageSize
@@ -415,6 +422,44 @@ const PaymentsDue: React.FC = () => {
     }
   }
 
+  // PDF export functions
+  const handleExportPDF = async (exportType: 'all' | 'paid' | 'unpaid') => {
+    setIsExporting(true)
+    setExportError(null)
+    setExportSuccess(null)
+    
+    try {
+      const stats = {
+        totalSlots: unpaidSlots.length,
+        totalAmount: unpaidSlots.reduce((sum, slot) => sum + slot.amount, 0),
+        totalAmountPaid: unpaidSlots.filter(slot => slot.hasPayment).reduce((sum, slot) => sum + slot.amount, 0),
+        totalAmountDue: unpaidSlots.filter(slot => !slot.hasPayment).reduce((sum, slot) => sum + slot.amount, 0)
+      }
+      
+      await pdfService.generatePaymentsDuePDF(unpaidSlots, exportType, stats)
+      
+      const exportTypeText = exportType === 'all' ? 'All Rows' : 
+                            exportType === 'paid' ? 'Paid Rows Only' : 'Unpaid Rows Only'
+      setExportSuccess(`PDF exported successfully: ${exportTypeText}`)
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setExportSuccess(null), 3000)
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      setExportError('Failed to export PDF. Please try again.')
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setExportError(null), 5000)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const clearExportMessages = () => {
+    setExportError(null)
+    setExportSuccess(null)
+  }
+
   if (loading) {
     return (
       <div className="payments-due-container">
@@ -450,65 +495,125 @@ const PaymentsDue: React.FC = () => {
             }
           </p>
         </div>
-        <div className="header-actions">
-          {/* Payment Status Filter */}
-          <div className="payment-status-filter">
-            <label htmlFor="payment-status">Payment Status:</label>
-            <select
-              id="payment-status"
-              value={paymentStatusFilter}
-              onChange={(e) => handlePaymentStatusFilterChange(e.target.value as 'all' | 'paid' | 'unpaid')}
-              className="payment-status-dropdown"
-            >
-              <option value="all">All Slots</option>
-              <option value="unpaid">Unpaid Only</option>
-              <option value="paid">Paid Only</option>
-            </select>
+        
+        <div className="header-controls">
+          {/* Primary Controls Row */}
+          <div className="primary-controls">
+            {/* PDF Export Section */}
+            <div className="pdf-export-section">
+              <span className="export-label">Export to PDF:</span>
+              <div className="export-buttons">
+                <button
+                  onClick={() => handleExportPDF('all')}
+                  className="export-btn export-all-btn"
+                  disabled={isExporting || unpaidSlots.length === 0}
+                  title="Export all rows to PDF"
+                >
+                  <Download className="export-btn-icon" />
+                  All Rows
+                </button>
+                <button
+                  onClick={() => handleExportPDF('paid')}
+                  className="export-btn export-paid-btn"
+                  disabled={isExporting || unpaidSlots.filter(slot => slot.hasPayment).length === 0}
+                  title="Export only paid rows to PDF"
+                >
+                  <Download className="export-btn-icon" />
+                  Paid Only
+                </button>
+                <button
+                  onClick={() => handleExportPDF('unpaid')}
+                  className="export-btn export-unpaid-btn"
+                  disabled={isExporting || unpaidSlots.filter(slot => !slot.hasPayment).length === 0}
+                  title="Export only unpaid rows to PDF"
+                >
+                  <Download className="export-btn-icon" />
+                  Unpaid Only
+                </button>
+              </div>
+            </div>
+
+            {/* Payment Status Filter */}
+            <div className="filter-section">
+              <div className="payment-status-filter">
+                <label htmlFor="payment-status">Payment Status:</label>
+                <select
+                  id="payment-status"
+                  value={paymentStatusFilter}
+                  onChange={(e) => handlePaymentStatusFilterChange(e.target.value as 'all' | 'paid' | 'unpaid')}
+                  className="payment-status-dropdown"
+                >
+                  <option value="all">All Slots</option>
+                  <option value="unpaid">Unpaid Only</option>
+                  <option value="paid">Paid Only</option>
+                </select>
+              </div>
+              
+              {/* Clear Filters Button */}
+              {paymentStatusFilter !== 'all' && (
+                <button
+                  onClick={clearFilters}
+                  className="clear-filters-btn"
+                  title="Clear all filters"
+                >
+                  🗑️ Clear Filters
+                </button>
+              )}
+            </div>
           </div>
-          
-          {/* Clear Filters Button */}
-          {paymentStatusFilter !== 'all' && (
-            <button
-              onClick={clearFilters}
-              className="clear-filters-btn"
-              title="Clear all filters"
-            >
-              🗑️ Clear Filters
-            </button>
-          )}
-          
-          {/* Page Size Selector */}
-          <div className="page-size-selector">
-            <label htmlFor="page-size">Rows per page:</label>
-            <select
-              id="page-size"
-              value={settings.pageSize}
-              onChange={(e) => handlePageSizeChange(parseInt(e.target.value) as 10 | 25 | 50 | 100)}
-              className="page-size-dropdown"
-            >
-              <option value={10}>10 rows</option>
-              <option value={25}>25 rows</option>
-              <option value={50}>50 rows</option>
-              <option value={100}>100 rows</option>
-            </select>
+
+          {/* Secondary Controls Row */}
+          <div className="secondary-controls">
+            {/* Page Size Selector */}
+            <div className="page-size-selector">
+              <label htmlFor="page-size">Rows per page:</label>
+              <select
+                id="page-size"
+                value={settings.pageSize}
+                onChange={(e) => handlePageSizeChange(parseInt(e.target.value) as 10 | 25 | 50 | 100)}
+                className="page-size-dropdown"
+              >
+                <option value={10}>10 rows</option>
+                <option value={25}>25 rows</option>
+                <option value={50}>50 rows</option>
+                <option value={100}>100 rows</option>
+              </select>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="action-buttons">
+              <button 
+                onClick={loadUnpaidSlots} 
+                className="refresh-btn"
+                title="Refresh"
+              >
+                🔄 Refresh
+              </button>
+              <button 
+                onClick={comparePerformance}
+                className="performance-btn"
+                title="Show Performance Comparison"
+              >
+                📊 Performance
+              </button>
+            </div>
           </div>
-          
-          <button 
-            onClick={loadUnpaidSlots} 
-            className="refresh-btn"
-            title="Refresh"
-          >
-            🔄 Refresh
-          </button>
-          <button 
-            onClick={comparePerformance}
-            className="performance-btn"
-            title="Show Performance Comparison"
-          >
-            📊 Performance
-          </button>
         </div>
       </div>
+
+      {/* Export Status Messages */}
+      {exportSuccess && (
+        <div className="export-success-message">
+          <span>✅ {exportSuccess}</span>
+          <button onClick={clearExportMessages} className="export-message-close">×</button>
+        </div>
+      )}
+      {exportError && (
+        <div className="export-error-message">
+          <span>❌ {exportError}</span>
+          <button onClick={clearExportMessages} className="export-message-close">×</button>
+        </div>
+      )}
 
       {/* Statistics Section */}
       <div className="statistics-section">
