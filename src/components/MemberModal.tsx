@@ -112,7 +112,36 @@ const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoa
       setEmailValid(null)
     }
     setErrors({})
-  }, [member, isEditing])
+  }, [member, isEditing, isOpen])
+
+  // Additional effect to ensure form is reset when modal opens for new member
+  useEffect(() => {
+    if (isOpen && !member && !isEditing) {
+      // Reset form completely when opening for new member
+      setFormData({
+        firstName: '',
+        lastName: '',
+        birthDate: '',
+        birthplace: '',
+        address: '',
+        city: '',
+        phone: '',
+        email: '',
+        nationalId: '',
+        nationality: '',
+        occupation: '',
+        bankName: '',
+        accountNumber: '',
+        dateOfRegistration: new Date().toISOString().split('T')[0],
+        totalReceived: 0,
+        lastPayment: '',
+        nextPayment: '',
+        notes: ''
+      })
+      setEmailValid(null)
+      setErrors({})
+    }
+  }, [isOpen, member, isEditing])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target

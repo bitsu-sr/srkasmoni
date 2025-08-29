@@ -283,10 +283,10 @@ export const userDashboardService = {
           slot_id,
           status
         `)
-        .eq('status', 'received')
+        .in('status', ['received', 'settled'])
 
       if (allPaymentsError) {
-        console.warn(`Warning: Could not fetch all payments with status 'received': ${allPaymentsError.message}`)
+        console.warn(`Warning: Could not fetch all payments with status 'received' or 'settled': ${allPaymentsError.message}`)
         // Return empty array instead of throwing error
         allPayments = []
       }

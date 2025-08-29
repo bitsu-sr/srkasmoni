@@ -292,11 +292,14 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      return Object.keys(newErrors).length === 0
    }
 
-     const handleSubmit = async (e: React.FormEvent) => {
-     e.preventDefault()
-     
-     // Check if user has permission to create/edit payments
-     if (!canManagePayments) {
+       const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Debug logging
+    console.log('🔍 Form submission data:', formData)
+    
+    // Check if user has permission to create/edit payments
+    if (!canManagePayments) {
        alert('You do not have permission to create or edit payments. Only administrators can perform this action.');
        return;
      }

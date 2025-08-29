@@ -44,12 +44,12 @@ export const groupsOptimizedService = {
         .from('groups')
         .select(`
           *,
-          group_members!inner(
+          group_members(
             id,
             member_id,
             group_id,
             assigned_month_date,
-            members!inner(
+            members(
               id,
               first_name,
               last_name,
@@ -73,10 +73,10 @@ export const groupsOptimizedService = {
           slot_id,
           status
         `)
-        .eq('status', 'received')
+        .in('status', ['received', 'settled'])
 
       if (paymentsError) {
-        console.warn(`Warning: Could not fetch payments with status 'received': ${paymentsError.message}`)
+        console.warn(`Warning: Could not fetch payments with status 'received' or 'settled': ${paymentsError.message}`)
         // Return empty array instead of throwing error
         paymentsData = []
       }

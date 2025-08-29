@@ -52,6 +52,7 @@ const Payouts: React.FC = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [lastSlotPaid, setLastSlotPaid] = useState(false)
   const [adminFeePaid, setAdminFeePaid] = useState(false)
+  const [settledDeductionAmount, setSettledDeductionAmount] = useState(0)
   const [showPdfSuccess, setShowPdfSuccess] = useState(false)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
@@ -254,7 +255,30 @@ const Payouts: React.FC = () => {
     const lastSlotDeduction = lastSlotPaid ? 0 : selectedPayout.monthlyAmount
     const adminFeeDeduction = adminFeePaid ? 0 : 200
     
-    return baseAmount - lastSlotDeduction - adminFeeDeduction
+    return baseAmount - lastSlotDeduction - adminFeeDeduction - settledDeductionAmount
+  }
+
+  // Fetch settled payments for the selected member
+  const fetchSettledPayments = async (memberId: number) => {
+    try {
+      const { data: payments, error } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('member_id', memberId)
+        .eq('status', 'settled')
+
+      if (error) {
+        console.error('Error fetching settled payments:', error)
+        setSettledDeductionAmount(0)
+        return
+      }
+
+      const totalSettledAmount = payments?.reduce((sum: number, payment: { amount: number }) => sum + payment.amount, 0) || 0
+      setSettledDeductionAmount(totalSettledAmount)
+    } catch (error) {
+      console.error('Error fetching settled payments:', error)
+      setSettledDeductionAmount(0)
+    }
   }
 
   // Handle view details
@@ -264,6 +288,9 @@ const Payouts: React.FC = () => {
     // Reset toggle states for new payout
     setLastSlotPaid(false)
     setAdminFeePaid(false)
+    setSettledDeductionAmount(0)
+    // Fetch settled payments for the selected member
+    fetchSettledPayments(payout.memberId)
   }
 
   // Handle download
@@ -278,7 +305,7 @@ const Payouts: React.FC = () => {
     setShowPdfSuccess(false)
     
     try {
-      await pdfService.generatePayoutPDF(payout, lastSlotPaid, adminFeePaid)
+      await pdfService.generatePayoutPDF(payout, lastSlotPaid, adminFeePaid, settledDeductionAmount)
       setShowPdfSuccess(true)
       setTimeout(() => setShowPdfSuccess(false), 3000) // Hide after 3 seconds
     } catch (error) {
@@ -751,6 +778,12 @@ const Payouts: React.FC = () => {
                   <div className="payouts-calculation-row">
                     <span className="payouts-calculation-label">Base Amount</span>
                     <span className="payouts-calculation-value">SRD {(selectedPayout.monthlyAmount * selectedPayout.duration).toLocaleString()}.00</span>
+                  </div>
+                  <div className="payouts-calculation-row">
+                    <span className="payouts-calculation-label">Settled Deduction</span>
+                    <span className="payouts-calculation-value deduction">
+                      -SRD {settledDeductionAmount.toLocaleString()}.00
+                    </span>
                   </div>
                   <div className="payouts-calculation-row">
                     <span className="payouts-calculation-label">Last Slot Deduction</span>

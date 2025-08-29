@@ -324,6 +324,9 @@ export const paymentService = {
     if (paymentData.isLatePayment !== undefined) dbPaymentData.is_late_payment = paymentData.isLatePayment
     if (paymentData.paymentDeadline !== undefined) dbPaymentData.payment_deadline = paymentData.paymentDeadline
 
+    // Debug logging
+    console.log('🔍 Updating payment:', { id, paymentData, dbPaymentData })
+
     const { data, error } = await supabase
       .from('payments')
       .update(dbPaymentData)
@@ -332,9 +335,11 @@ export const paymentService = {
       .single()
 
     if (error) {
+      console.error('❌ Payment update error:', error)
       throw new Error(`Failed to update payment: ${error.message}`)
     }
 
+    console.log('✅ Payment updated successfully:', data)
     return data
   },
 

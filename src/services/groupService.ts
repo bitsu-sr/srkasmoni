@@ -166,7 +166,8 @@ export const groupService = {
           late_fine_percentage: groupData.lateFinePercentage,
           late_fine_fixed_amount: groupData.lateFineFixedAmount,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          created_by: (await supabase.auth.getUser()).data.user?.id
         })
         .select()
         .single()

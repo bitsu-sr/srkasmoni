@@ -252,6 +252,11 @@ const Payments = () => {
 
   const handleClearFilters = () => {
     setFilters({})
+    setCurrentPage(1) // Reset to first page when clearing filters
+    // Reload payments with no filters to show all records
+    loadPayments({})
+    // Reload stats to reflect unfiltered data
+    loadStats()
   }
 
   const closeModal = () => {
@@ -427,15 +432,6 @@ const Payments = () => {
         {!isLoading && payments.length > 0 && totalPages > 1 && (
           <div className="payments-pagination-controls">
             <button
-              className="payments-btn-pagination payments-btn-first payments-btn-secondary"
-              onClick={() => handlePageChange(1)}
-              disabled={currentPage === 1}
-              title="Go to first page"
-            >
-              First
-            </button>
-            
-            <button
               className="payments-btn-pagination payments-btn-secondary"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
@@ -444,15 +440,87 @@ const Payments = () => {
             </button>
             
             <div className="payments-page-numbers">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  className={`payments-btn-pagination payments-btn-page ${page === currentPage ? 'payments-active' : ''}`}
-                  onClick={() => handlePageChange(page)}
-                >
-                  {page}
-                </button>
-              ))}
+              {(() => {
+                const pages = [];
+                const maxVisiblePages = 5; // Show max 5 page numbers at a time
+                
+                if (totalPages <= maxVisiblePages) {
+                  // If total pages is small, show all pages
+                  for (let i = 1; i <= totalPages; i++) {
+                    pages.push(
+                      <button
+                        key={i}
+                        className={`payments-btn-pagination payments-btn-page ${i === currentPage ? 'payments-active' : ''}`}
+                        onClick={() => handlePageChange(i)}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+                } else {
+                  // Show smart pagination with ellipsis
+                  let startPage = Math.max(1, currentPage - 2);
+                  let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                  
+                  // Adjust start page if we're near the end
+                  if (endPage - startPage < maxVisiblePages - 1) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                  }
+                  
+                  // Always show first page
+                  if (startPage > 1) {
+                    pages.push(
+                      <button
+                        key={1}
+                        className="payments-btn-pagination payments-btn-page"
+                        onClick={() => handlePageChange(1)}
+                      >
+                        1
+                      </button>
+                    );
+                    
+                    if (startPage > 2) {
+                      pages.push(
+                        <span key="ellipsis1" className="payments-ellipsis">...</span>
+                      );
+                    }
+                  }
+                  
+                  // Show visible page numbers
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <button
+                        key={i}
+                        className={`payments-btn-pagination payments-btn-page ${i === currentPage ? 'payments-active' : ''}`}
+                        onClick={() => handlePageChange(i)}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+                  
+                  // Show ellipsis and last page if needed
+                  if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                      pages.push(
+                        <span key="ellipsis2" className="payments-ellipsis">...</span>
+                      );
+                    }
+                    
+                    pages.push(
+                      <button
+                        key={totalPages}
+                        className="payments-btn-pagination payments-btn-page"
+                        onClick={() => handlePageChange(totalPages)}
+                      >
+                        {totalPages}
+                      </button>
+                    );
+                  }
+                }
+                
+                return pages;
+              })()}
             </div>
             
             <button
@@ -463,14 +531,7 @@ const Payments = () => {
               Next
             </button>
             
-            <button
-              className="payments-btn-pagination payments-btn-last payments-btn-secondary"
-              onClick={() => handlePageChange(totalPages)}
-              disabled={currentPage === totalPages}
-              title="Go to last page"
-            >
-              Last
-            </button>
+
           </div>
         )}
 

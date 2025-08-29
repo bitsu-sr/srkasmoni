@@ -1,4 +1,4 @@
-import { Search, Filter, X } from 'lucide-react'
+import { Search, Filter, Trash2 } from 'lucide-react'
 import type { PaymentFilters as PaymentFiltersType } from '../types/payment'
 import type { Group } from '../types/member'
 import { groupService } from '../services/groupService'
@@ -15,10 +15,21 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
   const [groups, setGroups] = useState<Group[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
   const [searchValue, setSearchValue] = useState(filters.search || '')
+  // Store the timeout ID to be able to cancel it
+  const [searchTimeoutId, setSearchTimeoutId] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     loadGroups()
   }, [])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutId) {
+        clearTimeout(searchTimeoutId)
+      }
+    }
+  }, [searchTimeoutId])
 
   // Update local search value when filters change
   useEffect(() => {
@@ -34,8 +45,6 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
     }
   }
 
-
-
   // Debounced search to avoid too many API calls
   const debouncedSearch = useCallback(
     (() => {
@@ -45,6 +54,7 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
         timeoutId = setTimeout(() => {
           onFiltersChange({ ...filters, search: value })
         }, 300) // 300ms delay
+        setSearchTimeoutId(timeoutId)
       }
     })(),
     [filters, onFiltersChange]
@@ -62,6 +72,12 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
 
   const handleClearFilters = () => {
     setSearchValue('') // Clear local search value
+    // Cancel any pending debounced search
+    if (searchTimeoutId) {
+      clearTimeout(searchTimeoutId)
+      setSearchTimeoutId(null)
+    }
+    // Clear all filters including search
     onClearFilters()
     setIsExpanded(false)
   }
@@ -83,6 +99,16 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
+        {searchValue && (
+          <button
+            className="payment-filters-search-clear"
+            onClick={() => handleSearchChange('')}
+            type="button"
+            title="Clear search"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
         
         <button
           className={`payment-filters-toggle ${isExpanded ? 'payment-filters-toggle-active' : ''}`}
@@ -165,7 +191,7 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
           {/* Filter Actions */}
           <div className="payment-filters-actions">
             <button className="payment-filters-btn payment-filters-btn-secondary" onClick={handleClearFilters}>
-              <X size={16} />
+              <Trash2 size={16} />
               Clear All Filters
             </button>
           </div>

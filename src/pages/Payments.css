@@ -524,6 +524,14 @@
   transform: translateY(-1px);
 }
 
+.payments-ellipsis {
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: 0 8px;
+  user-select: none;
+  cursor: default;
+}
+
 /* Unique styles for First and Last pagination buttons */
 .payments-btn-first {
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);

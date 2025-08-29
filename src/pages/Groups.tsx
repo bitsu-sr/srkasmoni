@@ -147,6 +147,9 @@ const Groups = () => {
       const newGroupWithDetails = convertGroupToGroupWithDetails(newGroup)
       setGroups(prev => [...prev, newGroupWithDetails])
       setShowCreateModal(false)
+      
+      // Refresh groups from database to ensure data consistency
+      await loadGroups()
     } catch (err) {
       setError('Failed to create group')
       console.error('Error creating group:', err)
@@ -464,10 +467,10 @@ const Groups = () => {
 
   return (
     <div className="groups">
-      <div className="page-header">
-        <div className="container">
-          <h1 className="page-title">Groups</h1>
-          <p className="page-subtitle">
+      <div className="groups-page-header">
+        <div className="groups-container">
+          <h1 className="groups-page-title">Groups</h1>
+          <p className="groups-page-subtitle">
             {isAdmin 
               ? "Manage your savings groups" 
               : "View your savings groups"
@@ -476,24 +479,24 @@ const Groups = () => {
         </div>
       </div>
 
-      <div className="container">
+      <div className="groups-container">
         {/* Header Actions - Only show for admins */}
         {isAdmin && (
-          <div className="page-actions">
-            <div className="csv-import-section">
-              <button className="btn btn-secondary" onClick={downloadSampleCSV}>
+          <div className="groups-page-actions">
+            <div className="groups-csv-import-section">
+              <button className="groups-btn groups-btn-secondary" onClick={downloadSampleCSV}>
                 <Download size={20} />
                 Download Sample CSV
               </button>
               <button 
-                className="btn btn-secondary" 
+                className="groups-btn groups-btn-secondary" 
                 onClick={exportGroupsToCSV}
                 disabled={isExporting || groups.length === 0}
               >
                 <Download size={20} />
                 {isExporting ? 'Exporting...' : 'Export Groups'}
               </button>
-              <div className="file-upload-wrapper">
+              <div className="groups-file-upload-wrapper">
                 <input
                   type="file"
                   id="csv-upload"
@@ -502,24 +505,26 @@ const Groups = () => {
                   disabled={isImporting}
                   style={{ display: 'none' }}
                 />
-                <label htmlFor="csv-upload" className="btn btn-secondary">
+                <label htmlFor="csv-upload" className="groups-btn groups-btn-secondary">
                   <Upload size={20} />
                   {isImporting ? 'Importing...' : 'Import CSV'}
                 </label>
               </div> 
             </div>
-            <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-              <Plus size={20} />
-              Create New Group
-            </button>
+            <div className="groups-create-group-section">
+              <button className="groups-btn groups-btn-primary" onClick={() => setShowCreateModal(true)}>
+                <Plus size={20} />
+                Create New Group
+              </button>
+            </div>
           </div>
         )}
 
         {/* Error Display */}
         {error && (
-          <div className="error-banner">
+          <div className="groups-error-banner">
             {error}
-            <button className="error-close" onClick={() => setError('')}>×</button>
+            <button className="groups-error-close" onClick={() => setError('')}>×</button>
           </div>
         )}
 
@@ -557,51 +562,55 @@ const Groups = () => {
 
         {/* Sorting Controls - Only show for admins */}
         {isAdmin && (
-          <div className="sorting-controls">
-            <div className="sort-label">Sort by:</div>
-            <button 
-              className={`sort-btn ${sortField === 'name' ? 'active' : ''}`}
-              onClick={() => handleSortFieldChange('name')}
-            >
-              Group Name {getSortIcon('name')}
-            </button>
-            <button 
-              className={`sort-btn ${sortField === 'monthlyAmount' ? 'active' : ''}`}
-              onClick={() => handleSortFieldChange('monthlyAmount')}
-            >
-              Monthly Amount {getSortIcon('monthlyAmount')}
-            </button>
-            <button 
-              className={`sort-btn ${sortField === 'members' ? 'active' : ''}`}
-              onClick={() => handleSortFieldChange('members')}
-            >
-              Members {getSortIcon('members')}
-            </button>
+          <div className="groups-sorting-controls">
+            <div className="groups-sorting-controls-left">
+              <div className="groups-sort-label">Sort by:</div>
+              <button 
+                className={`groups-sort-btn ${sortField === 'name' ? 'active' : ''}`}
+                onClick={() => handleSortFieldChange('name')}
+              >
+                Group Name {getSortIcon('name')}
+              </button>
+              <button 
+                className={`groups-sort-btn ${sortField === 'monthlyAmount' ? 'active' : ''}`}
+                onClick={() => handleSortFieldChange('monthlyAmount')}
+              >
+                Monthly Amount {getSortIcon('monthlyAmount')}
+              </button>
+              <button 
+                className={`groups-sort-btn ${sortField === 'members' ? 'active' : ''}`}
+                onClick={() => handleSortFieldChange('members')}
+              >
+                Members {getSortIcon('members')}
+              </button>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="view-mode-toggle">
+              <div className="groups-toggle-label">View Mode:</div>
+              <div className="groups-toggle-switch">
+                <button 
+                  className={`groups-toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
+                  onClick={() => setViewMode('card')}
+                  title="Card View"
+                >
+                  <Grid size={18} />
+                  <span>Cards</span>
+                </button>
+                <button 
+                  className={`groups-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
+                  onClick={() => setViewMode('table')}
+                  title="Table View"
+                >
+                  <List size={18} />
+                  <span>Table</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* View Mode Toggle */}
-        <div className="view-mode-toggle">
-          <div className="toggle-label">View Mode:</div>
-          <div className="toggle-switch">
-            <button 
-              className={`toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
-              onClick={() => setViewMode('card')}
-              title="Card View"
-            >
-              <Grid size={18} />
-              <span>Cards</span>
-            </button>
-            <button 
-              className={`toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
-              onClick={() => setViewMode('table')}
-              title="Table View"
-            >
-              <List size={18} />
-              <span>Table</span>
-            </button>
-          </div>
-        </div>
+        
 
         {/* Groups Display */}
         {viewMode === 'card' ? (
@@ -623,21 +632,21 @@ const Groups = () => {
                       {isAdmin && (
                         <>
                           <button 
-                            className="action-btn view-btn"
+                            className="groups-card-action-btn groups-card-view-btn"
                             onClick={() => navigateToGroupDetails(group.id)}
                             title="View Details"
                           >
                             <Eye size={16} />
                           </button>
                           <button 
-                            className="action-btn edit-btn"
+                            className="groups-card-action-btn groups-card-edit-btn"
                             onClick={() => openEditModal(group)}
                             title="Edit Group"
                           >
                             <Edit size={16} />
                           </button>
                           <button 
-                            className="action-btn delete-btn"
+                            className="groups-card-action-btn groups-card-delete-btn"
                             onClick={() => openDeleteModal(group)}
                             title="Delete Group"
                           >
@@ -747,7 +756,6 @@ const Groups = () => {
               <thead>
                 <tr>
                   <th>Group Name</th>
-                  <th>Description</th>
                   <th>Members</th>
                   <th>Monthly Amount</th>
                   <th>Duration</th>
@@ -770,9 +778,6 @@ const Groups = () => {
                         <div className="group-name-info">
                           <h4 className="group-name">{group.name}</h4>
                         </div>
-                      </td>
-                      <td className="group-description-cell">
-                        {group.description || 'No description'}
                       </td>
                       <td className="group-members-cell">
                         <div className="members-info">
@@ -815,24 +820,24 @@ const Groups = () => {
                         </div>
                       </td>
                       {isAdmin && (
-                        <td className="group-actions-cell">
-                          <div className="table-actions">
+                        <td className="groups-table-actions-cell">
+                          <div className="groups-table-actions">
                             <button 
-                              className="action-btn view-btn"
+                              className="groups-action-btn groups-view-btn"
                               onClick={() => navigateToGroupDetails(group.id)}
                               title="View Details"
                             >
                               <Eye size={16} />
                             </button>
                             <button 
-                              className="action-btn edit-btn"
+                              className="groups-action-btn groups-edit-btn"
                               onClick={() => openEditModal(group)}
                               title="Edit Group"
                             >
                               <Edit size={16} />
                             </button>
                             <button 
-                              className="action-btn delete-btn"
+                              className="groups-action-btn groups-delete-btn"
                               onClick={() => openDeleteModal(group)}
                               title="Delete Group"
                             >
@@ -861,7 +866,7 @@ const Groups = () => {
               }
             </p>
             {isAdmin && (
-              <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+              <button className="groups-btn groups-btn-primary" onClick={() => setShowCreateModal(true)}>
                 Create Group
               </button>
             )}

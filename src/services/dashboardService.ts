@@ -271,7 +271,7 @@ export const dashboardService = {
           status,
           amount
         `)
-        .eq('status', 'received')
+        .in('status', ['received', 'settled'])
         .limit(1000) // Reasonable limit for dashboard
 
       if (error) {

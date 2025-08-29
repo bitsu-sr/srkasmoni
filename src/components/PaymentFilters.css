@@ -45,6 +45,27 @@
   box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.1);
 }
 
+.payment-filters-search-clear {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #6b7280;
+  background: transparent;
+  margin-left: 8px;
+}
+
+.payment-filters-search-clear:hover {
+  transform: translateY(-1px);
+  background: #fee2e2;
+  color: #ef4444;
+}
+
 .payment-filters-toggle {
   display: flex;
   align-items: center;

@@ -43,28 +43,172 @@
   font-size: 1rem;
 }
 
-.header-controls {
+/* Header Performance Status */
+.payments-due-header-performance-status {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 0.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.payments-due-header-status-indicator {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.primary-controls {
-  display: flex;
-  gap: 1.5rem;
   align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.payments-due-header-status-phase {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.payments-due-header-status-info {
+  font-size: 0.75rem;
+  color: #3b82f6;
+  font-style: italic;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+
+
+/* Controls Section */
+.payments-due-controls-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.payments-due-controls-row {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-end;
   flex-wrap: wrap;
 }
 
-.secondary-controls {
+.payments-due-controls-row:not(:last-child) {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Search Section */
+.payments-due-search-section {
   display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
+  align-items: flex-end;
+  padding: 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.payments-due-search-field-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 160px;
+}
+
+.payments-due-search-field-selector label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.payments-due-search-field-dropdown {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.payments-due-search-field-dropdown:hover {
+  border-color: #9ca3af;
+}
+
+.payments-due-search-field-dropdown:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.payments-due-search-input-container {
+  display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  padding-top: 0.5rem;
-  border-top: 1px solid #e5e7eb;
+  flex: 1;
+  position: relative;
+}
+
+.payments-due-search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  padding-right: 2.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+  font-size: 0.875rem;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.payments-due-search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.payments-due-search-input::placeholder {
+  color: #9ca3af;
+}
+
+.payments-due-search-clear-btn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.payments-due-search-clear-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.payments-due-search-clear-btn:active {
+  transform: translateY(-50%) scale(0.95);
 }
 
 /* PDF Export Section */
@@ -818,19 +962,24 @@
     align-items: stretch;
   }
 
-  .header-controls {
-    gap: 1rem;
+  .payments-due-controls-section {
+    padding: 1rem;
   }
 
-  .primary-controls {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .secondary-controls {
+  .payments-due-controls-row {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
+  }
+
+  .payments-due-search-section {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .payments-due-search-field-selector {
+    min-width: auto;
   }
 
   .pdf-export-section {

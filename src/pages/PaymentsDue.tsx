@@ -4,7 +4,7 @@ import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
 import { useAuth } from '../contexts/AuthContext'
 import { paymentSlotService } from '../services/paymentSlotService'
 import { paymentService } from '../services/paymentService'
-import { optimizedQueryService } from '../services/optimizedQueryService'
+
 import { pdfService } from '../services/pdfService'
 import { PaymentSlot } from '../types/paymentSlot'
 import { PaymentStats } from '../types/payment'
@@ -41,6 +41,10 @@ const PaymentsDue: React.FC = () => {
   
   // Filter state
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid' | 'unpaid'>('all')
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchField, setSearchField] = useState<'all' | 'name' | 'group' | 'amount'>('all')
   
   // Payment modal state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
@@ -81,6 +85,8 @@ const PaymentsDue: React.FC = () => {
   // Clear all filters
   const clearFilters = () => {
     setPaymentStatusFilter('all')
+    setSearchQuery('')
+    setSearchField('all')
     setCurrentPage(1)
   }
 
@@ -95,54 +101,22 @@ const PaymentsDue: React.FC = () => {
       let stats: PaymentStats | null = null
 
       if (settings.enableOptimizedQueries) {
-        // Phase 2: Single Optimized Queries
-        const phase2Start = performance.now()
+        // Phase 2: Single Optimized Queries - Temporarily disabled due to schema issues
+        console.log('Phase 2 disabled - using Phase 1 fallback due to database schema constraints');
         
-        try {
-          const optimizedSlots = await optimizedQueryService.getAllSlotsOptimized()
-          
-          // Transform optimized slots to our format
-          slots = optimizedSlots.map(slot => ({
-            id: slot.id,
-            groupId: slot.groupId,
-            memberId: slot.memberId,
-            monthDate: slot.monthDate,
-            amount: slot.amount,
-            dueDate: slot.monthDate, // Use monthDate as dueDate for now
-            createdAt: new Date().toISOString(),
-            member: {
-              id: slot.memberId,
-              first_name: slot.member_first_name,
-              last_name: slot.member_last_name
-            },
-            group: {
-              id: slot.groupId,
-              name: slot.group_name,
-              monthly_amount: slot.group_monthly_amount
-            }
-          }))
-          
-          // Get payment stats separately
-          stats = await paymentService.getPaymentStats()
-          
-          const phase2Time = performance.now() - phase2Start
-          setPerformanceMetrics(prev => ({ ...prev, phase2Time }))
-        } catch (phase2Error) {
-          console.warn('Phase 2 failed, falling back to Phase 1:', phase2Error)
-          // Fallback to Phase 1
-          const phase1Start = performance.now()
-          
-          const [slotsResult, statsResult] = await Promise.all([
-            paymentSlotService.getAllSlots(),
-            paymentService.getPaymentStats()
-          ])
-          
-          slots = slotsResult
-          stats = statsResult
-          
-          const phase1Time = performance.now() - phase1Start
-          setPerformanceMetrics(prev => ({ ...prev, phase1Time }))
-        }
+        // Fallback to Phase 1: Parallel Database Calls
+        const phase1Start = performance.now();
+        
+        const [slotsResult, statsResult] = await Promise.all([
+          paymentSlotService.getAllSlots(),
+          paymentService.getPaymentStats()
+        ]);
+        
+        slots = slotsResult
+        stats = statsResult
+        
+        const phase1Time = performance.now() - phase1Start
+        setPerformanceMetrics(prev => ({ ...prev, phase1Time }))
       } else if (settings.enableParallelCalls) {
         // Phase 1: Parallel Database Calls
         const phase1Start = performance.now()
@@ -236,18 +210,40 @@ const PaymentsDue: React.FC = () => {
 
   // Get filtered slots
   const getFilteredSlots = () => {
-    if (paymentStatusFilter === 'all') {
-      return unpaidSlots
+    let filtered = unpaidSlots;
+    
+    // Apply payment status filter
+    if (paymentStatusFilter === 'paid') {
+      filtered = filtered.filter(slot => slot.hasPayment);
+    } else if (paymentStatusFilter === 'unpaid') {
+      filtered = filtered.filter(slot => !slot.hasPayment);
     }
     
-    return unpaidSlots.filter(slot => {
-      if (paymentStatusFilter === 'paid') {
-        return slot.hasPayment
-      } else if (paymentStatusFilter === 'unpaid') {
-        return !slot.hasPayment
-      }
-      return true
-    })
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(slot => {
+        const memberName = `${slot.member?.first_name || ''} ${slot.member?.last_name || ''}`.toLowerCase();
+        const groupName = slot.group?.name?.toLowerCase() || '';
+        const amount = slot.amount.toString();
+        
+        switch (searchField) {
+          case 'name':
+            return memberName.includes(query);
+          case 'group':
+            return groupName.includes(query);
+          case 'amount':
+            return amount.includes(query);
+          case 'all':
+          default:
+            return memberName.includes(query) || 
+                   groupName.includes(query) || 
+                   amount.includes(query);
+        }
+      });
+    }
+    
+    return filtered;
   }
 
   // Get sorted slots
@@ -489,115 +485,43 @@ const PaymentsDue: React.FC = () => {
             }
           </h2>
           <p>
-            {canViewAllRecords 
-              ? 'Data from group_members table' 
-              : `Showing only ${user?.username?.split('.')[0] || 'your'} records`
-            }
+            {!canViewAllRecords && `Showing only ${user?.username?.split('.')[0] || 'your'} records`}
           </p>
+
+          
         </div>
         
-        <div className="header-controls">
-          {/* Primary Controls Row */}
-          <div className="primary-controls">
-            {/* PDF Export Section */}
-            <div className="pdf-export-section">
-              <span className="export-label">Export to PDF:</span>
-              <div className="export-buttons">
-                <button
-                  onClick={() => handleExportPDF('all')}
-                  className="export-btn export-all-btn"
-                  disabled={isExporting || unpaidSlots.length === 0}
-                  title="Export all rows to PDF"
-                >
-                  <Download className="export-btn-icon" />
-                  All Rows
-                </button>
-                <button
-                  onClick={() => handleExportPDF('paid')}
-                  className="export-btn export-paid-btn"
-                  disabled={isExporting || unpaidSlots.filter(slot => slot.hasPayment).length === 0}
-                  title="Export only paid rows to PDF"
-                >
-                  <Download className="export-btn-icon" />
-                  Paid Only
-                </button>
-                <button
-                  onClick={() => handleExportPDF('unpaid')}
-                  className="export-btn export-unpaid-btn"
-                  disabled={isExporting || unpaidSlots.filter(slot => !slot.hasPayment).length === 0}
-                  title="Export only unpaid rows to PDF"
-                >
-                  <Download className="export-btn-icon" />
-                  Unpaid Only
-                </button>
+        <div className="header-actions">
+
+          {/* Performance Status Display */}
+          {Object.keys(performanceMetrics).length > 0 && (
+            <div className="payments-due-header-performance-status">
+              <div className="payments-due-header-status-indicator">
+                <span className="payments-due-header-status-phase">
+                  {settings.enableOptimizedQueries ? '🚀 Phase 2' : 
+                   settings.enableParallelCalls ? '⚡ Phase 1' : '🐌 Default'}
+                </span>
+                <span className="payments-due-header-status-info">
+                  {settings.enableOptimizedQueries ? 'Single Optimized Queries' :
+                   settings.enableParallelCalls ? 'Parallel Database Calls' : 'Sequential Loading'}
+                </span>
               </div>
             </div>
-
-            {/* Payment Status Filter */}
-            <div className="filter-section">
-              <div className="payment-status-filter">
-                <label htmlFor="payment-status">Payment Status:</label>
-                <select
-                  id="payment-status"
-                  value={paymentStatusFilter}
-                  onChange={(e) => handlePaymentStatusFilterChange(e.target.value as 'all' | 'paid' | 'unpaid')}
-                  className="payment-status-dropdown"
-                >
-                  <option value="all">All Slots</option>
-                  <option value="unpaid">Unpaid Only</option>
-                  <option value="paid">Paid Only</option>
-                </select>
-              </div>
-              
-              {/* Clear Filters Button */}
-              {paymentStatusFilter !== 'all' && (
-                <button
-                  onClick={clearFilters}
-                  className="clear-filters-btn"
-                  title="Clear all filters"
-                >
-                  🗑️ Clear Filters
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Secondary Controls Row */}
-          <div className="secondary-controls">
-            {/* Page Size Selector */}
-            <div className="page-size-selector">
-              <label htmlFor="page-size">Rows per page:</label>
-              <select
-                id="page-size"
-                value={settings.pageSize}
-                onChange={(e) => handlePageSizeChange(parseInt(e.target.value) as 10 | 25 | 50 | 100)}
-                className="page-size-dropdown"
-              >
-                <option value={10}>10 rows</option>
-                <option value={25}>25 rows</option>
-                <option value={50}>50 rows</option>
-                <option value={100}>100 rows</option>
-              </select>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="action-buttons">
-              <button 
-                onClick={loadUnpaidSlots} 
-                className="refresh-btn"
-                title="Refresh"
-              >
-                🔄 Refresh
-              </button>
-              <button 
-                onClick={comparePerformance}
-                className="performance-btn"
-                title="Show Performance Comparison"
-              >
-                📊 Performance
-              </button>
-            </div>
-          </div>
+          )}
+          <button 
+            onClick={loadUnpaidSlots} 
+            className="refresh-btn"
+            title="Refresh"
+          >
+            🔄 Refresh
+          </button>
+          <button 
+            onClick={comparePerformance}
+            className="performance-btn"
+            title="Show Performance Comparison"
+          >
+            📊 Performance
+          </button>
         </div>
       </div>
 
@@ -675,21 +599,129 @@ const PaymentsDue: React.FC = () => {
         </div>
       </div>
 
-      {/* Performance Status Display */}
-      {Object.keys(performanceMetrics).length > 0 && (
-        <div className="performance-status-display">
-          <div className="status-indicator">
-            <span className="status-phase">
-              {settings.enableOptimizedQueries ? '🚀 Phase 2' : 
-               settings.enableParallelCalls ? '⚡ Phase 1' : '🐌 Default'}
-            </span>
-            <span className="status-info">
-              {settings.enableOptimizedQueries ? 'Single Optimized Queries' :
-               settings.enableParallelCalls ? 'Parallel Database Calls' : 'Sequential Loading'}
-            </span>
+      {/* Secondary Controls Row */}
+      <div className="secondary-controls">
+        
+        
+        {/* Action Buttons */}
+        <div className="action-buttons">
+          {/* PDF Export Section */}
+          <div className="pdf-export-section">
+            <span className="export-label">Export to PDF:</span>
+            <div className="export-buttons">
+              <button
+                onClick={() => handleExportPDF('all')}
+                className="export-btn export-all-btn"
+                disabled={isExporting || unpaidSlots.length === 0}
+                title="Export all rows to PDF"
+              >
+                <Download className="export-btn-icon" />
+                All Rows
+              </button>
+              <button
+                onClick={() => handleExportPDF('paid')}
+                className="export-btn export-paid-btn"
+                disabled={isExporting || unpaidSlots.filter(slot => slot.hasPayment).length === 0}
+                title="Export only paid rows to PDF"
+              >
+                <Download className="export-btn-icon" />
+                Paid Only
+              </button>
+              <button
+                onClick={() => handleExportPDF('unpaid')}
+                className="export-btn export-unpaid-btn"
+                disabled={isExporting || unpaidSlots.filter(slot => !slot.hasPayment).length === 0}
+                title="Export only unpaid rows to PDF"
+              >
+                <Download className="export-btn-icon" />
+                Unpaid Only
+              </button>
+            </div>
+          </div>
+
+          {/* Payment Status Filter */}
+          <div className="filter-section">
+            <div className="payment-status-filter">
+              <label htmlFor="payment-status">Payment Status:</label>
+              <select
+                id="payment-status"
+                value={paymentStatusFilter}
+                onChange={(e) => handlePaymentStatusFilterChange(e.target.value as 'all' | 'paid' | 'unpaid')}
+                className="payment-status-dropdown"
+              >
+                <option value="all">All Slots</option>
+                <option value="unpaid">Unpaid Only</option>
+                <option value="paid">Paid Only</option>
+              </select>
+            </div>
+            
+            {/* Clear Filters Button */}
+            {paymentStatusFilter !== 'all' && (
+              <button
+                onClick={clearFilters}
+                className="clear-filters-btn"
+                title="Clear all filters"
+              >
+                🗑️ Clear Filters
+              </button>
+            )}
+          </div>
+
+        {/* Page Size Selector */}
+        <div className="page-size-selector">
+          <label htmlFor="page-size">Rows per page:</label>
+          <select
+            id="page-size"
+            value={settings.pageSize}
+            onChange={(e) => handlePageSizeChange(parseInt(e.target.value) as 10 | 25 | 50 | 100)}
+            className="page-size-dropdown"
+          >
+            <option value={10}>10 rows</option>
+            <option value={25}>25 rows</option>
+            <option value={50}>50 rows</option>
+            <option value={100}>100 rows</option>
+          </select>
+        </div>
+
+        </div>
+
+        {/* Search Section */}
+        <div className="payments-due-search-section">
+          <div className="payments-due-search-field-selector">
+            <label htmlFor="search-field">Search in:</label>
+            <select
+              id="search-field"
+              value={searchField}
+              onChange={(e) => setSearchField(e.target.value as 'all' | 'name' | 'group' | 'amount')}
+              className="payments-due-search-field-dropdown"
+            >
+              <option value="all">All Fields</option>
+              <option value="name">Member Name</option>
+              <option value="group">Group Name</option>
+              <option value="amount">Amount</option>
+            </select>
+          </div>
+          
+          <div className="payments-due-search-input-container">
+            <input
+              type="text"
+              placeholder="Search payments due..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="payments-due-search-input"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="payments-due-search-clear-btn"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       {unpaidSlots.length === 0 ? (
         <div className="no-data">
