@@ -124,7 +124,8 @@ export const dashboardService = {
           if (!basicError && basicPayments && basicPayments.length > 0) {
             // Calculate basic stats from payments
             const totalAmount = basicPayments.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0)
-            const receivedAmount = basicPayments.filter((p: any) => p.status === 'received').reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0)
+            // Include both 'received' and 'settled' statuses as paid amounts
+            const receivedAmount = basicPayments.filter((p: any) => ['received', 'settled'].includes(p.status)).reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0)
             const pendingAmount = basicPayments.filter((p: any) => p.status === 'pending').reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0)
             
             // Get unique groups and members from payments

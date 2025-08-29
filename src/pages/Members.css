@@ -436,6 +436,7 @@
 
 .members-btn-secondary:hover {
   background-color: #0b5224;
+  color: #fef2f2;
   transform: translateY(-1px);
 }
 
@@ -447,7 +448,7 @@
 
 .members-btn-danger:hover {
   background-color: #c20808;
-  color: #ff0000;
+  color: #fef2f2;
   transform: translateY(-1px);
 }
 

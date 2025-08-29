@@ -718,7 +718,7 @@ export const paymentService = {
         .select('id')
         .eq('member_id', memberId)
         .eq('group_id', groupId)
-        .eq('status', 'received')
+        .in('status', ['received', 'settled'])
 
       // If there's an error, log it but return 0 instead of throwing
       if (error) {
@@ -749,12 +749,12 @@ export const paymentService = {
 
       const total = totalSlots?.length || 0
 
-      // Get paid slots count (from payments table with status 'received')
+      // Get paid slots count (from payments table with status 'received' or 'settled')
       const { data: paidSlots, error: paidError } = await supabase
         .from('payments')
         .select('id')
         .eq('group_id', groupId)
-        .eq('status', 'received')
+        .in('status', ['received', 'settled'])
 
       if (paidError) {
         console.warn(`Warning: Could not fetch paid slots for group ${groupId}: ${paidError.message}`)
@@ -771,23 +771,62 @@ export const paymentService = {
   },
 
   // Check if a specific slot is paid
-  async isSlotPaid(groupId: number, memberId: number): Promise<boolean> {
+  async isSlotPaid(groupId: number, memberId: number, monthDate?: string): Promise<boolean> {
     try {
-      // For now, we'll check if there's any payment for this member in this group
-      // In the future, this could be enhanced to check specific month dates
-      const { data, error } = await supabase
+      // Use the same approach that works in groupsOptimizedService
+      // Fetch all payments for this group with received/settled status
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
-        .select('id')
+        .select(`
+          group_id,
+          member_id,
+          slot_id,
+          status
+        `)
         .eq('group_id', groupId)
-        .eq('member_id', memberId)
-        .eq('status', 'received')
-        .single()
+        .in('status', ['received', 'settled'])
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        throw new Error(`Failed to check slot payment status: ${error.message}`)
+      if (paymentsError) {
+        console.error('Error fetching payments:', paymentsError)
+        return false
       }
 
-      return !!data
+      if (!paymentsData || paymentsData.length === 0) {
+        return false
+      }
+
+      // Check if there's a payment for this specific member
+      const memberPayments = paymentsData.filter((payment: any) => payment.member_id === memberId)
+      
+      if (memberPayments.length === 0) {
+        return false
+      }
+
+      // If monthDate is provided, try to match by slot_id or payment_month
+      if (monthDate) {
+        // First try to find a payment with matching month_date
+        const monthPayment = memberPayments.find((payment: any) => 
+          payment.payment_month === monthDate
+        )
+        
+        if (monthPayment) {
+          return true
+        }
+
+        // If no direct month match, check if any payment has a slot_id
+        // This handles cases where payments are linked to specific slots
+        const hasSlotPayment = memberPayments.some((payment: any) => payment.slot_id)
+        
+        if (hasSlotPayment) {
+          // For now, if there's any slot payment for this member, consider it paid
+          // This is a simplified approach - in the future we could enhance this
+          return true
+        }
+      }
+
+      // If no monthDate specified or no month-specific match found,
+      // return true if there are any payments for this member in this group
+      return memberPayments.length > 0
     } catch (error) {
       console.error('Error checking slot payment status:', error)
       return false

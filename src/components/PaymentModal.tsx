@@ -360,18 +360,18 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content payment-modal">
-        <div className="modal-header">
+    <div className="payment-modal-overlay">
+      <div className="payment-modal-content payment-modal-container">
+        <div className="payment-modal-header">
           <h2>{isEditing ? 'Edit Payment' : 'Record New Payment'}</h2>
-          <button className="modal-close" onClick={onClose}>
+          <button className="payment-modal-close" onClick={onClose}>
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="payment-form">
+        <form onSubmit={handleSubmit} className="payment-modal-form">
           {/* Group Selection */}
-          <div className="form-group">
+          <div className="payment-modal-form-group">
             <label htmlFor="groupId">
               <Building2 size={16} />
               Group *
@@ -389,11 +389,11 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                 </option>
               ))}
             </select>
-            {errors.groupId && <span className="error-message">{errors.groupId}</span>}
+            {errors.groupId && <span className="payment-modal-error-message">{errors.groupId}</span>}
           </div>
 
                      {/* Member Selection */}
-           <div className="form-group">
+           <div className="payment-modal-form-group">
              <label htmlFor="memberId">
                <User size={16} />
                Group Member *
@@ -412,8 +412,8 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                  </option>
                ))}
              </select>
-             {errors.memberId && <span className="error-message">{errors.memberId}</span>}
-             <small className="form-help">
+             {errors.memberId && <span className="payment-modal-error-message">{errors.memberId}</span>}
+             <small className="payment-modal-form-help">
                Debug: formData.memberId = {formData.memberId}, 
                groupMembers count = {groupMembers.length}, 
                first member id = {groupMembers[0]?.member?.id}
@@ -421,7 +421,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
            </div>
 
                      {/* Slot Selection */}
-           <div className="form-group">
+           <div className="payment-modal-form-group">
              <label htmlFor="slotId">
                <Calendar size={16} />
                Slot (Month-Year) *
@@ -440,12 +440,12 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                  </option>
                ))}
              </select>
-             {errors.slotId && <span className="error-message">{errors.slotId}</span>}
-             <small className="form-help">Available slots: {memberSlots.length}</small>
+             {errors.slotId && <span className="payment-modal-error-message">{errors.slotId}</span>}
+             <small className="payment-modal-form-help">Available slots: {memberSlots.length}</small>
            </div>
 
           {/* Amount (Read-only) */}
-          <div className="form-group">
+          <div className="payment-modal-form-group">
             <label htmlFor="amount">
               <DollarSign size={16} />
               Amount *
@@ -455,13 +455,13 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               id="amount"
               value={`SRD ${formData.amount.toLocaleString()}`}
               readOnly
-              className="readonly"
+              className="payment-modal-readonly"
             />
-            <small className="form-help">Amount is locked to group's monthly amount</small>
+            <small className="payment-modal-form-help">Amount is locked to group's monthly amount</small>
           </div>
 
           {/* Payment Date */}
-          <div className="form-group">
+          <div className="payment-modal-form-group">
             <label htmlFor="paymentDate">
               <Calendar size={16} />
               Payment Date *
@@ -474,16 +474,16 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               max={new Date().toISOString().split('T')[0]}
               className={errors.paymentDate ? 'error' : ''}
             />
-            {errors.paymentDate && <span className="error-message">{errors.paymentDate}</span>}
+            {errors.paymentDate && <span className="payment-modal-error-message">{errors.paymentDate}</span>}
           </div>
 
           {/* Payment Method Toggle */}
-          <div className="form-group">
+          <div className="payment-modal-form-group full-width">
             <label>Payment Method *</label>
-            <div className="payment-method-toggle">
+            <div className="payment-modal-method-toggle">
               <button
                 type="button"
-                className={`toggle-option ${formData.paymentMethod === 'bank_transfer' ? 'active' : ''}`}
+                className={`payment-modal-toggle-option ${formData.paymentMethod === 'bank_transfer' ? 'active' : ''}`}
                 onClick={() => handleInputChange('paymentMethod', 'bank_transfer')}
               >
                 <CreditCard size={16} />
@@ -491,7 +491,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               </button>
               <button
                 type="button"
-                className={`toggle-option ${formData.paymentMethod === 'cash' ? 'active' : ''}`}
+                className={`payment-modal-toggle-option ${formData.paymentMethod === 'cash' ? 'active' : ''}`}
                 onClick={() => handleInputChange('paymentMethod', 'cash')}
               >
                 <Banknote size={16} />
@@ -503,7 +503,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
           {/* Bank Selection Fields (only visible for bank transfer) */}
           {formData.paymentMethod === 'bank_transfer' && (
             <>
-              <div className="form-group">
+              <div className="payment-modal-form-group">
                 <label htmlFor="senderBankId">
                   <CreditCard size={16} />
                   Sender's Bank *
@@ -521,10 +521,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                     </option>
                   ))}
                 </select>
-                {errors.senderBankId && <span className="error-message">{errors.senderBankId}</span>}
+                {errors.senderBankId && <span className="payment-modal-error-message">{errors.senderBankId}</span>}
               </div>
 
-              <div className="form-group">
+              <div className="payment-modal-form-group">
                 <label htmlFor="receiverBankId">
                   <CreditCard size={16} />
                   Receiver's Bank *
@@ -542,13 +542,13 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                     </option>
                   ))}
                 </select>
-                {errors.receiverBankId && <span className="error-message">{errors.receiverBankId}</span>}
+                {errors.receiverBankId && <span className="payment-modal-error-message">{errors.receiverBankId}</span>}
               </div>
             </>
           )}
 
           {/* Status Selection */}
-          <div className="form-group">
+          <div className="payment-modal-form-group">
             <label htmlFor="status">Status *</label>
             <select
               id="status"
@@ -563,7 +563,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
           </div>
 
           {/* Notes */}
-          <div className="form-group">
+          <div className="payment-modal-form-group">
             <label htmlFor="notes">Notes</label>
             <textarea
               id="notes"
@@ -576,29 +576,29 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
 
                      {/* Duplicate Payment Warning */}
            {duplicateWarning && (
-             <div className="duplicate-warning">
+             <div className="payment-modal-duplicate-warning full-width">
                <p>{duplicateWarning}</p>
              </div>
            )}
 
            {/* Permission Warning */}
            {!canManagePayments && (
-             <div className="permission-warning">
+             <div className="payment-modal-permission-warning full-width">
                <p>⚠️ Only administrators can create or edit payments. You have view-only access.</p>
              </div>
            )}
 
            {/* Form Actions */}
-           <div className="form-actions">
-             <button type="button" className="btn btn-secondary" onClick={onClose}>
+           <div className="payment-modal-form-actions">
+             <button type="button" className="payment-modal-btn payment-modal-btn-secondary" onClick={onClose}>
                Cancel
              </button>
              <button 
                type="submit" 
-               className="btn" 
+               className="payment-modal-btn" 
                disabled={isLoading || !!duplicateWarning || !canManagePayments}
              >
-               {isLoading ? 'Saving...' : (isEditing ? 'Update Payment' : 'Record Payment')}
+                              {isLoading ? 'Saving...' : (isEditing ? 'Update Payment' : 'Record Payment')}
              </button>
            </div>
         </form>

@@ -100,7 +100,7 @@ const GroupDetails = () => {
           ? member.assignedMonthDate 
           : `2024-${String(member.assignedMonthDate).padStart(2, '0')}`
         
-        const isPaid = await paymentService.isSlotPaid(groupId, member.memberId)
+        const isPaid = await paymentService.isSlotPaid(groupId, member.memberId, monthDate)
         const slotKey = `${member.memberId}-${monthDate}`
         slotStatus.set(slotKey, isPaid)
       }
