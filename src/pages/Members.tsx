@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Grid, List } from 'lucide-react'
 import { Member, MemberFormData, MemberFilters } from '../types/member'
 import { memberService } from '../services/memberService'
 import { getAllMembersWithStatus, getMemberWithStatus, MemberWithStatus } from '../services/memberStatusService'
@@ -46,6 +46,7 @@ const Members = () => {
   })
   const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
   const [isImporting, setIsImporting] = useState(false)
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
 
   // Load members on component mount
   useEffect(() => {
@@ -394,20 +395,20 @@ const Members = () => {
 
   if (isLoadingMembers) {
     return (
-      <div className="members">
-        <div className="container">
-          <div className="loading">Loading members...</div>
+      <div className="members-page">
+        <div className="members-container">
+          <div className="members-loading">Loading members...</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="members">
-      <div className="page-header">
-        <div className="container">
-          <h1 className="page-title">Members</h1>
-          <p className="page-subtitle">
+    <div className="members-page">
+      <div className="members-page-header">
+        <div className="members-container">
+          <h1 className="members-page-title">Members</h1>
+          <p className="members-page-subtitle">
             {isAdmin 
               ? "Manage your organization's members" 
               : "View your member information"
@@ -416,16 +417,16 @@ const Members = () => {
         </div>
       </div>
 
-      <div className="container">
+      <div className="members-container">
         {/* Header Actions - Only show for admins */}
         {isAdmin && (
-          <div className="page-actions">
-            <div className="csv-import-section">
-              <button className="btn btn-secondary" onClick={downloadSampleCSV}>
+          <div className="members-page-actions">
+            <div className="members-csv-import-section">
+              <button className="members-btn members-btn-secondary" onClick={downloadSampleCSV}>
                 <Download size={20} />
                 Download Sample CSV
               </button>
-              <div className="file-upload-wrapper">
+              <div className="members-file-upload-wrapper">
                 <input
                   type="file"
                   id="csv-upload"
@@ -434,32 +435,34 @@ const Members = () => {
                   disabled={isImporting}
                   style={{ display: 'none' }}
                 />
-                <label htmlFor="csv-upload" className="btn btn-secondary">
+                <label htmlFor="csv-upload" className="members-btn members-btn-secondary">
                   <Upload size={20} />
                   {isImporting ? 'Importing...' : 'Import CSV'}
                 </label>
               </div>
             </div>
-            <button className="btn btn-primary" onClick={openAddModal}>
-              <Plus size={20} />
-              Add Member
-            </button>
+            <div className="members-create-member-section">
+              <button className="members-btn members-btn-primary" onClick={openAddModal}>
+                <Plus size={20} />
+                Add Member
+              </button>
+            </div>
           </div>
         )}
 
         {/* CSV Import Results - Only show for admins */}
         {isAdmin && csvImportResult && (
-          <div className={`csv-import-result ${csvImportResult.success > 0 ? 'success' : 'error'}`}>
-            <div className="result-header">
+          <div className={`members-csv-import-result ${csvImportResult.success > 0 ? 'success' : 'error'}`}>
+            <div className="members-result-header">
               <h3>CSV Import Results</h3>
               <button 
-                className="close-result" 
+                className="members-close-result" 
                 onClick={() => setCsvImportResult(null)}
               >
                 ×
               </button>
             </div>
-            <div className="result-summary">
+            <div className="members-result-summary">
               <p>
                 <strong>Total:</strong> {csvImportResult.total} | 
                 <strong>Success:</strong> {csvImportResult.success} | 
@@ -467,7 +470,7 @@ const Members = () => {
               </p>
             </div>
             {csvImportResult.errors.length > 0 && (
-              <div className="result-errors">
+              <div className="members-result-errors">
                 <h4>Import Errors:</h4>
                 <ul>
                   {csvImportResult.errors.map((error, index) => (
@@ -481,21 +484,21 @@ const Members = () => {
 
         {/* Search and Filters - Only show for admins */}
         {isAdmin && (
-          <div className="filters-section">
-            <div className="search-box">
+          <div className="members-filters-section">
+            <div className="members-search-box">
               <Search size={20} />
               <input
                 type="text"
-                className="search-input"
+                className="members-search-input"
                 placeholder="Search members by name, national ID, phone, bank, or account number..."
                 value={filters.search}
                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
               />
             </div>
 
-            <div className="filters-row">
+            <div className="members-filters-row">
               <select
-                className="filter-select"
+                className="members-filter-select"
                 value={filters.location}
                 onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
               >
@@ -506,9 +509,9 @@ const Members = () => {
               </select>
 
               {/* Sorting Controls */}
-              <div className="sorting-controls">
+              <div className="members-sorting-controls">
                 <button
-                  className={`sort-btn ${sortConfig.field === 'name' ? 'active' : ''}`}
+                  className={`members-sort-btn ${sortConfig.field === 'name' ? 'active' : ''}`}
                   onClick={() => {
                     if (sortConfig.field === 'name') {
                       setSortConfig(prev => ({
@@ -530,7 +533,7 @@ const Members = () => {
                 </button>
 
                 <button
-                  className={`sort-btn ${sortConfig.field === 'status' ? 'active' : ''}`}
+                  className={`members-sort-btn ${sortConfig.field === 'status' ? 'active' : ''}`}
                   onClick={() => {
                     if (sortConfig.field === 'status') {
                       setSortConfig(prev => ({
@@ -553,7 +556,7 @@ const Members = () => {
 
                 {(sortConfig.field !== 'name' || sortConfig.direction !== 'asc') && (
                   <button
-                    className="sort-btn clear-sort"
+                    className="members-sort-btn clear-sort"
                     onClick={() => setSortConfig({ field: 'name', direction: 'asc' })}
                     title="Reset to default sorting (Name A-Z)"
                   >
@@ -565,86 +568,219 @@ const Members = () => {
           </div>
         )}
 
+        {/* View Mode Toggle */}
+        {isAdmin && (
+          <div className="members-view-mode-toggle">
+            <div className="members-toggle-label">View Mode:</div>
+            <div className="members-toggle-switch">
+              <button 
+                className={`members-toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
+                onClick={() => {
+                  setViewMode('card')
+                  // Assuming updateSetting is a function that saves the setting to localStorage or a context
+                  // For now, we'll just log it to the console
+                  console.log('Switching to Card View')
+                }}
+                title="Card View"
+              >
+                <Grid size={18} />
+                <span>Cards</span>
+              </button>
+              <button 
+                className={`members-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => {
+                  setViewMode('table')
+                  // Assuming updateSetting is a function that saves the setting to localStorage or a context
+                  // For now, we'll just log it to the console
+                  console.log('Switching to Table View')
+                }}
+                title="Table View"
+              >
+                <List size={18} />
+                <span>Table</span>
+              </button>
+            </div>
+          </div>
+          
+        )}
+
         {/* Member Count - Only show for admins */}
         {isAdmin && (
-          <div className="member-count">
-            {filteredAndSortedMembers.length} member{filteredAndSortedMembers.length !== 1 ? 's' : ''} found
-            {filteredAndSortedMembers.length > 0 && (
-              <span className="sort-info">
-                • Sorted by {sortConfig.field === 'name' ? 'Name' : 'Status'} 
-                ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
-              </span>
-            )}
+          <div>
+            <div className="members-view-mode-toggle">
+            <div className="members-toggle-label">View Mode:</div>
+            <div className="members-toggle-switch">
+              <button 
+                className={`members-toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
+                onClick={() => {
+                  setViewMode('card')
+                  // Assuming updateSetting is a function that saves the setting to localStorage or a context
+                  // For now, we'll just log it to the console
+                  console.log('Switching to Card View')
+                }}
+                title="Card View"
+              >
+                <Grid size={18} />
+                <span>Cards</span>
+              </button>
+              <button 
+                className={`members-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
+                onClick={() => {
+                  setViewMode('table')
+                  // Assuming updateSetting is a function that saves the setting to localStorage or a context
+                  // For now, we'll just log it to the console
+                  console.log('Switching to Table View')
+                }}
+                title="Table View"
+              >
+                <List size={18} />
+                <span>Table</span>
+              </button>
+            </div>
+          </div>
+            <div className="members-member-count">
+              {filteredAndSortedMembers.length} member{filteredAndSortedMembers.length !== 1 ? 's' : ''} found
+              {filteredAndSortedMembers.length > 0 && (
+                <span className="members-sort-info">
+                  • Sorted by {sortConfig.field === 'name' ? 'Name' : 'Status'} 
+                  ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
+                </span>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Members Grid */}
-        <div className="members-grid">
-          {filteredAndSortedMembers.map((member) => (
-            <div key={member.id} className="member-card">
-              <div className="member-header">
-                <div className="member-info">
-                  <h3 className="member-name">{member.firstName} {member.lastName}</h3>
-                  <div className="status-tags">
-                    <span className={`status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
-                      {member.statusInfo.isActive ? 'ACTIVE' : 'INACTIVE'}
+        {/* Members Display */}
+        {viewMode === 'card' ? (
+          /* Members Grid */
+          <div className="members-grid">
+            {filteredAndSortedMembers.map((member) => (
+              <div key={member.id} className="members-member-card">
+                <div className="members-member-header">
+                  <div className="members-member-info">
+                    <h3 className="members-member-name">{member.firstName} {member.lastName}</h3>
+                    <div className="members-status-tags">
+                      <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
+                        {member.statusInfo.isActive ? 'ACTIVE' : 'INACTIVE'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="members-member-menu">
+                    <button className="members-menu-btn">
+                      <MoreVertical size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="members-member-details">
+                  <div className="members-detail-item">
+                    <span className="members-detail-label">Slots: {member.statusInfo.totalSlots}</span>
+                  </div>
+                  <div className="members-detail-item">
+                    <span className="members-detail-label">National ID: {member.nationalId}</span>
+                  </div>
+                </div>
+
+                <div className="members-financial-box">
+                  <div className="members-financial-row">
+                    <span className="members-financial-label">Total Monthly Amount:</span>
+                    <span className="members-financial-value">
+                      SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="members-financial-row">
+                    <span className="members-financial-label">Next Receive Month:</span>
+                    <span className="members-financial-value">
+                      {formatMonthDisplay(member.statusInfo.nextReceiveMonth)}
                     </span>
                   </div>
                 </div>
-                <div className="member-menu">
-                  <button className="menu-btn">
-                    <MoreVertical size={16} />
+
+                <div className="members-member-actions">
+                  <button className="members-btn members-btn-secondary members-view-btn" onClick={() => handleViewDetails(member.id)}>
+                    <Eye size={16} />
+                    View Details
                   </button>
+                  {isAdmin && (
+                    <button 
+                      className="members-btn members-btn-danger"
+                      onClick={() => handleDeleteMember(member)}
+                    >
+                      <Trash2 size={16} />
+                      Delete Member
+                    </button>
+                  )}
                 </div>
               </div>
-
-              <div className="member-details">
-                <div className="detail-item">
-                  <span className="detail-label">Slots: {member.statusInfo.totalSlots}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="detail-label">National ID: {member.nationalId}</span>
-                </div>
-              </div>
-
-              <div className="financial-box">
-                <div className="financial-row">
-                  <span className="financial-label">Total Monthly Amount:</span>
-                  <span className="financial-value">
-                    SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
-                  </span>
-                </div>
-                <div className="financial-row">
-                  <span className="financial-label">Next Receive Month:</span>
-                  <span className="financial-value">
-                    {formatMonthDisplay(member.statusInfo.nextReceiveMonth)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="member-actions">
-                <button className="btn btn-secondary view-btn" onClick={() => handleViewDetails(member.id)}>
-                  <Eye size={16} />
-                  View Details
-                </button>
-                {isAdmin && (
-                  <button 
-                    className="btn btn-danger"
-                    onClick={() => handleDeleteMember(member)}
-                  >
-                    <Trash2 size={16} />
-                    Delete Member
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          /* Members Table */
+          <div className="members-table-container">
+            <table className="members-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>National ID</th>
+                  <th>Phone</th>
+                  <th>City</th>
+                  <th>Slots</th>
+                  <th>Monthly Amount</th>
+                  <th>Next Receive</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAndSortedMembers.map((member) => (
+                  <tr key={member.id}>
+                    <td className="members-member-name-cell">
+                      <div className="members-member-name-info">
+                        <span className="members-member-full-name">{member.firstName} {member.lastName}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
+                        {member.statusInfo.isActive ? 'ACTIVE' : 'INACTIVE'}
+                      </span>
+                    </td>
+                    <td>{member.nationalId}</td>
+                    <td>{member.phone}</td>
+                    <td>{member.city}</td>
+                    <td>{member.statusInfo.totalSlots}</td>
+                    <td>SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}</td>
+                    <td>{formatMonthDisplay(member.statusInfo.nextReceiveMonth)}</td>
+                    <td className="members-member-actions-cell">
+                      <div className="members-table-actions">
+                        <button 
+                          className="members-table-action-btn members-table-action-view"
+                          onClick={() => handleViewDetails(member.id)}
+                          title="View Details"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        {isAdmin && (
+                          <button 
+                            className="members-table-action-btn members-table-action-delete"
+                            onClick={() => handleDeleteMember(member)}
+                            title="Delete Member"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Empty State */}
         {filteredAndSortedMembers.length === 0 && (
-          <div className="empty-state">
-            <User size={64} className="empty-icon" />
+          <div className="members-empty-state">
+            <User size={64} className="members-empty-icon" />
             <h3>No Members Found</h3>
             <p>No members match your current search criteria</p>
           </div>

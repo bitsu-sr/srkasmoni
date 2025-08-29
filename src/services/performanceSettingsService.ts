@@ -21,7 +21,9 @@ export const getPerformanceSettings = (): PerformanceSettings => {
         enableOptimizedQueries: Boolean(parsed.enableOptimizedQueries),
         enableCaching: Boolean(parsed.enableCaching),
         paginationType: parsed.paginationType || 'simple',
-        pageSize: parsed.pageSize || 25
+        pageSize: parsed.pageSize || 25,
+        groupsViewMode: parsed.groupsViewMode || 'card',
+        membersViewMode: parsed.membersViewMode || 'card'
       }
     }
   } catch (error) {

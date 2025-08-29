@@ -4,6 +4,8 @@ export interface PerformanceSettings {
   enableCaching: boolean
   paginationType: 'simple' | 'infinite' | 'true'
   pageSize: 10 | 25 | 50 | 100
+  groupsViewMode: 'card' | 'table'
+  membersViewMode: 'card' | 'table'
 }
 
 export const DEFAULT_PERFORMANCE_SETTINGS: PerformanceSettings = {
@@ -11,7 +13,9 @@ export const DEFAULT_PERFORMANCE_SETTINGS: PerformanceSettings = {
   enableOptimizedQueries: false,
   enableCaching: false,
   paginationType: 'simple',
-  pageSize: 25
+  pageSize: 25,
+  groupsViewMode: 'card',
+  membersViewMode: 'card'
 }
 
 export const PERFORMANCE_OPTIONS = [

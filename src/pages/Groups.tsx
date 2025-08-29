@@ -9,6 +9,7 @@ import GroupModal from '../components/GroupModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { formatDateRange, calculateDuration } from '../utils/dateUtils'
 import './Groups.css'
+import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
 
 interface CSVImportResult {
   success: number
@@ -19,6 +20,7 @@ interface CSVImportResult {
 const Groups = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { settings, updateSetting } = usePerformanceSettings()
   const isAdmin = user?.role === 'admin'
   const [groups, setGroups] = useState<GroupWithDetails[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,12 +39,17 @@ const Groups = () => {
   const [sortField, setSortField] = useState<'name' | 'monthlyAmount' | 'members'>('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  // View mode state
-  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+  // View mode state - use stored preference from performance settings
+  const [viewMode, setViewMode] = useState<'card' | 'table'>(settings.groupsViewMode)
 
   useEffect(() => {
     loadGroups()
   }, [])
+
+  // Sync viewMode with performance settings
+  useEffect(() => {
+    setViewMode(settings.groupsViewMode)
+  }, [settings.groupsViewMode])
 
   const loadGroups = async () => {
     try {
@@ -591,7 +598,10 @@ const Groups = () => {
               <div className="groups-toggle-switch">
                 <button 
                   className={`groups-toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
-                  onClick={() => setViewMode('card')}
+                  onClick={() => {
+                    setViewMode('card')
+                    updateSetting('groupsViewMode', 'card')
+                  }}
                   title="Card View"
                 >
                   <Grid size={18} />
@@ -599,7 +609,10 @@ const Groups = () => {
                 </button>
                 <button 
                   className={`groups-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
-                  onClick={() => setViewMode('table')}
+                  onClick={() => {
+                    setViewMode('table')
+                    updateSetting('groupsViewMode', 'table')
+                  }}
                   title="Table View"
                 >
                   <List size={18} />
