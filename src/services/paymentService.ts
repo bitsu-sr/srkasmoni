@@ -90,6 +90,7 @@ export const paymentService = {
       fineAmount: payment.fine_amount || 0,
       isLatePayment: payment.is_late_payment || false,
       paymentDeadline: payment.payment_deadline || '',
+      transferred: payment.transferred || false,
       createdAt: payment.created_at,
       updatedAt: payment.updated_at,
       // Transform joined data
@@ -199,6 +200,7 @@ export const paymentService = {
       fineAmount: data.fine_amount || 0,
       isLatePayment: data.is_late_payment || false,
       paymentDeadline: data.payment_deadline || '',
+      transferred: data.transferred || false,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
       // Transform joined data
@@ -288,7 +290,8 @@ export const paymentService = {
       notes: paymentData.notes,
       fine_amount: paymentData.fineAmount || 0,
       is_late_payment: paymentData.isLatePayment || false,
-      payment_deadline: paymentData.paymentDeadline || null
+      payment_deadline: paymentData.paymentDeadline || null,
+      transferred: paymentData.transferred || false
     }
 
     const { data, error } = await supabase
@@ -323,6 +326,7 @@ export const paymentService = {
     if (paymentData.fineAmount !== undefined) dbPaymentData.fine_amount = paymentData.fineAmount
     if (paymentData.isLatePayment !== undefined) dbPaymentData.is_late_payment = paymentData.isLatePayment
     if (paymentData.paymentDeadline !== undefined) dbPaymentData.payment_deadline = paymentData.paymentDeadline
+    if (paymentData.transferred !== undefined) dbPaymentData.transferred = paymentData.transferred
 
     // Debug logging
     console.log('🔍 Updating payment:', { id, paymentData, dbPaymentData })
@@ -669,6 +673,7 @@ export const paymentService = {
       fineAmount: payment.fine_amount || 0,
       isLatePayment: payment.is_late_payment || false,
       paymentDeadline: payment.payment_deadline || '',
+      transferred: payment.transferred || false,
       createdAt: payment.created_at,
       updatedAt: payment.updated_at,
       // Transform joined data
@@ -868,6 +873,7 @@ export const paymentService = {
         fineAmount: payment.fine_amount || 0,
         isLatePayment: payment.is_late_payment || false,
         paymentDeadline: payment.payment_deadline || '',
+        transferred: payment.transferred || false,
         createdAt: payment.created_at,
         updatedAt: payment.updated_at,
         member: payment.member ? {

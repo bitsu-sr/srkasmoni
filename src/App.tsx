@@ -6,6 +6,7 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import RootRedirect from './components/RootRedirect'
+import PWAInstallPrompt from './components/PWAInstallPrompt'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import MyDashboard from './pages/MyDashboard'
@@ -122,6 +123,7 @@ function App() {
                 </Routes>
               </main>
               <Footer />
+              <PWAInstallPrompt />
             </div>
           </Router>
         </AuthProvider>

@@ -12,11 +12,13 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
-  Loader2
+  Loader2,
+  Save
 } from 'lucide-react'
 import './Payouts.css'
-import { Payout, FilterType, StatusFilter, SortField, SortDirection } from '../types/payout'
+import { Payout, PayoutDetails, FilterType, StatusFilter, SortField, SortDirection } from '../types/payout'
 import { payoutService } from '../services/payoutService'
+import { payoutDetailsService } from '../services/payoutDetailsService'
 import { pdfService } from '../services/pdfService'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -56,6 +58,11 @@ const Payouts: React.FC = () => {
   const [showPdfSuccess, setShowPdfSuccess] = useState(false)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
+  
+  // Payout details state
+  const [payoutDetails, setPayoutDetails] = useState<PayoutDetails | null>(null)
+  const [isSavingPayoutDetails, setIsSavingPayoutDetails] = useState(false)
+  const [payoutDetailsExist, setPayoutDetailsExist] = useState(false)
 
   // Calculate summary statistics
   const totalPayouts = filteredPayouts.length
@@ -282,13 +289,56 @@ const Payouts: React.FC = () => {
   }
 
   // Handle view details
-  const handleViewDetails = (payout: Payout) => {
+  const handleViewDetails = async (payout: Payout) => {
     setSelectedPayout(payout)
     setIsDetailsModalOpen(true)
-    // Reset toggle states for new payout
-    setLastSlotPaid(false)
-    setAdminFeePaid(false)
-    setSettledDeductionAmount(0)
+    
+    try {
+      // Load existing payout details if they exist
+      const existingDetails = await payoutDetailsService.getPayoutDetails(payout.groupId, payout.memberId)
+      
+      if (existingDetails) {
+        setPayoutDetails(existingDetails)
+        setLastSlotPaid(existingDetails.lastSlot)
+        setAdminFeePaid(existingDetails.administrationFee)
+        setPayoutDetailsExist(true)
+      } else {
+        // Create new payout details object
+        const newPayoutDetails: PayoutDetails = {
+          groupId: payout.groupId,
+          memberId: payout.memberId,
+          monthlyAmount: payout.monthlyAmount,
+          duration: payout.duration,
+          lastSlot: false,
+          administrationFee: false,
+          payout: false,
+          baseAmount: payout.totalAmount,
+          settledDeduction: 0
+        }
+        setPayoutDetails(newPayoutDetails)
+        setLastSlotPaid(false)
+        setAdminFeePaid(false)
+        setPayoutDetailsExist(false)
+      }
+    } catch (error) {
+      console.error('Error loading payout details:', error)
+      // Set default values on error
+      setPayoutDetails({
+        groupId: payout.groupId,
+        memberId: payout.memberId,
+        monthlyAmount: payout.monthlyAmount,
+        duration: payout.duration,
+        lastSlot: false,
+        administrationFee: false,
+        payout: false,
+        baseAmount: payout.totalAmount,
+        settledDeduction: 0
+      })
+      setLastSlotPaid(false)
+      setAdminFeePaid(false)
+      setPayoutDetailsExist(false)
+    }
+    
     // Fetch settled payments for the selected member
     fetchSettledPayments(payout.memberId)
   }
@@ -296,6 +346,38 @@ const Payouts: React.FC = () => {
   // Handle download
   const handleDownload = (_payout: Payout) => {
     // Implement PDF generation logic here
+  }
+
+  // Handle save/update payout details
+  const handleSavePayoutDetails = async () => {
+    if (!payoutDetails || !selectedPayout) return
+    
+    setIsSavingPayoutDetails(true)
+    
+    try {
+      // Update payout details with current toggle states
+      const updatedPayoutDetails: PayoutDetails = {
+        ...payoutDetails,
+        lastSlot: lastSlotPaid,
+        administrationFee: adminFeePaid
+      }
+      
+      // Save to database
+      const savedDetails = await payoutDetailsService.savePayoutDetails(updatedPayoutDetails)
+      
+      // Update local state
+      setPayoutDetails(savedDetails)
+      setPayoutDetailsExist(true)
+      
+      // Show success message (you can implement a toast notification here)
+      console.log('Payout details saved successfully')
+      
+    } catch (error) {
+      console.error('Error saving payout details:', error)
+      // Show error message (you can implement a toast notification here)
+    } finally {
+      setIsSavingPayoutDetails(false)
+    }
   }
 
   // Handle payout - generate PDF
@@ -824,6 +906,23 @@ const Payouts: React.FC = () => {
                   className="payouts-modal-cancel-btn"
                 >
                   Cancel
+                </button>
+                <button 
+                  onClick={handleSavePayoutDetails}
+                  className="payouts-modal-save-btn"
+                  disabled={isSavingPayoutDetails}
+                >
+                  {isSavingPayoutDetails ? (
+                    <>
+                      <Loader2 className="payouts-loading-icon" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="payouts-btn-icon" />
+                      {payoutDetailsExist ? 'Update' : 'Save'}
+                    </>
+                  )}
                 </button>
                 <button 
                   onClick={() => handlePayout(selectedPayout)}

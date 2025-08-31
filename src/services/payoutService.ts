@@ -47,7 +47,11 @@ export const payoutService = {
               receiveMonth: currentMonth,
               status: 'pending', // Default status
               bankName: member.bank_name,
-              accountNumber: member.account_number
+              accountNumber: member.account_number,
+              // Initialize new fields with default values
+              lastSlot: false,
+              administrationFee: false,
+              payout: false
             }
             payouts.push(payout)
           }

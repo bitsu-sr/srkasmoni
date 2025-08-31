@@ -14,6 +14,7 @@ export interface Payment {
   fineAmount: number
   isLatePayment: boolean
   paymentDeadline: string
+  transferred: boolean
   createdAt: string
   updatedAt: string
   // Joined data
@@ -39,6 +40,7 @@ export interface PaymentFormData {
   fineAmount?: number
   isLatePayment?: boolean
   paymentDeadline?: string
+  transferred?: boolean
 }
 
 export interface PaymentFilters {

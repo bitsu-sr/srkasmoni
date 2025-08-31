@@ -1,0 +1,111 @@
+.pwa-install-prompt {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e1e5e9;
+  animation: slideUp 0.3s ease-out;
+}
+
+.pwa-install-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pwa-install-icon {
+  font-size: 32px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.pwa-install-text h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: center;
+}
+
+.pwa-install-text p {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.pwa-install-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.pwa-install-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.pwa-install-primary {
+  background-color: #217346;
+  color: white;
+}
+
+.pwa-install-primary:hover {
+  background-color: #1a5c38;
+  transform: translateY(-1px);
+}
+
+.pwa-install-secondary {
+  background-color: #f8f9fa;
+  color: #666;
+  border: 1px solid #e1e5e9;
+}
+
+.pwa-install-secondary:hover {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .pwa-install-prompt {
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+  }
+  
+  .pwa-install-content {
+    padding: 16px;
+  }
+  
+  .pwa-install-actions {
+    flex-direction: column;
+  }
+  
+  .pwa-install-btn {
+    width: 100%;
+  }
+}

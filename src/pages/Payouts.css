@@ -955,6 +955,33 @@
   background-color: #4b5563;
 }
 
+.payouts-modal-save-btn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.payouts-modal-save-btn:hover {
+  background-color: #2563eb;
+}
+
+.payouts-modal-save-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.payouts-modal-save-btn:disabled:hover {
+  background-color: #9ca3af;
+}
+
 .payouts-modal-payout-btn {
   background-color: #10b981;
   color: white;
