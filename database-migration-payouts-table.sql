@@ -11,11 +11,13 @@ CREATE TABLE IF NOT EXISTS payouts (
   last_slot BOOLEAN DEFAULT FALSE,
   administration_fee BOOLEAN DEFAULT FALSE,
   payout BOOLEAN DEFAULT FALSE,
+  additional_cost DECIMAL(12,2) DEFAULT 0,
+  payout_date DATE DEFAULT CURRENT_DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
-  -- Ensure one record per group-member-month combination
-  UNIQUE(group_id, member_id, EXTRACT(YEAR FROM created_at), EXTRACT(MONTH FROM created_at))
+  -- Ensure one record per group-member combination
+  UNIQUE(group_id, member_id)
 );
 
 -- Create indexes for better performance
@@ -41,10 +43,9 @@ CREATE POLICY "Allow authenticated users to insert payouts" ON payouts
 CREATE POLICY "Allow authenticated users to update payouts" ON payouts
   FOR UPDATE USING (auth.role() = 'authenticated');
 
--- Add some sample data for testing (optional - can be removed in production)
-INSERT INTO payouts (group_id, member_id, monthly_amount, duration, last_slot, administration_fee, payout)
-VALUES 
-  (1, 1, 1000.00, 12, false, false, false),
-  (1, 2, 1000.00, 12, true, false, false),
-  (2, 3, 1500.00, 24, false, true, false)
-ON CONFLICT DO NOTHING;
+-- Sample data removed - add your own test data after creating groups and members
+-- Example:
+-- INSERT INTO payouts (group_id, member_id, monthly_amount, duration, last_slot, administration_fee, payout, additional_cost, payout_date)
+-- VALUES 
+--   (your_group_id, your_member_id, 1000.00, 12, false, false, false, 0.00, CURRENT_DATE)
+-- ON CONFLICT DO NOTHING;

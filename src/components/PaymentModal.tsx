@@ -275,22 +275,26 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
     }
   }
 
-     const validateForm = (): boolean => {
-     const newErrors: Record<string, string> = {}
+       const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {}
 
-     if (!formData.groupId) newErrors.groupId = 'Group is required'
-     if (!formData.memberId) newErrors.memberId = 'Member is required'
-     if (!formData.slotId) newErrors.slotId = 'Slot is required'
-     if (!formData.paymentDate) newErrors.paymentDate = 'Payment date is required'
-     if (formData.amount <= 0) newErrors.amount = 'Amount must be greater than 0'
-     if (formData.paymentMethod === 'bank_transfer') {
-       if (!formData.senderBankId) newErrors.senderBankId = 'Sender bank is required for bank transfer'
-       if (!formData.receiverBankId) newErrors.receiverBankId = 'Receiver bank is required for bank transfer'
-     }
+    if (!formData.groupId) newErrors.groupId = 'Group is required'
+    if (!formData.memberId) newErrors.memberId = 'Member is required'
+    if (!formData.slotId) newErrors.slotId = 'Slot is required'
+    if (!formData.paymentDate) newErrors.paymentDate = 'Payment date is required'
+    if (formData.amount <= 0) newErrors.amount = 'Amount must be greater than 0'
+    
+    // Only validate payment method fields if status is not 'settled'
+    if (formData.status !== 'settled') {
+      if (formData.paymentMethod === 'bank_transfer') {
+        if (!formData.senderBankId) newErrors.senderBankId = 'Sender bank is required for bank transfer'
+        if (!formData.receiverBankId) newErrors.receiverBankId = 'Receiver bank is required for bank transfer'
+      }
+    }
 
-     setErrors(newErrors)
-     return Object.keys(newErrors).length === 0
-   }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
        const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -479,7 +483,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
 
           {/* Payment Method Toggle */}
           <div className="payment-modal-form-group full-width">
-            <label>Payment Method *</label>
+            <label>
+              Payment Method 
+              {formData.status !== 'settled' && <span className="required-asterisk">*</span>}
+            </label>
             <div className="payment-modal-method-toggle">
               <button
                 type="button"
@@ -498,6 +505,16 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                 Cash
               </button>
             </div>
+            {formData.status === 'settled' && (
+              <small className="payment-modal-form-help">
+                Payment Method is optional when status is set to "Settled"
+              </small>
+            )}
+            {formData.status === 'settled' && formData.paymentMethod === 'bank_transfer' && (
+              <small className="payment-modal-form-help">
+                Bank details are optional when status is "Settled"
+              </small>
+            )}
           </div>
 
           {/* Bank Selection Fields (only visible for bank transfer) */}
@@ -506,7 +523,8 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               <div className="payment-modal-form-group">
                 <label htmlFor="senderBankId">
                   <CreditCard size={16} />
-                  Sender's Bank *
+                  Sender's Bank 
+                  {formData.status !== 'settled' && <span className="required-asterisk">*</span>}
                 </label>
                 <select
                   id="senderBankId"
@@ -527,7 +545,8 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               <div className="payment-modal-form-group">
                 <label htmlFor="receiverBankId">
                   <CreditCard size={16} />
-                  Receiver's Bank *
+                  Receiver's Bank 
+                  {formData.status !== 'settled' && <span className="required-asterisk">*</span>}
                 </label>
                 <select
                   id="receiverBankId"

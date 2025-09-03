@@ -234,14 +234,51 @@
   font-size: 0.875rem;
 }
 
+/* Filters Toggle Button */
+.payouts-filters-toggle {
+  margin-bottom: 1rem;
+}
+
+.payouts-filters-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.payouts-filters-btn:hover {
+  background-color: #2563eb;
+}
+
 /* Filters */
 .payouts-filters {
   background: white;
-  padding: 1.5rem;
   border-radius: 0.75rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
   margin-bottom: 2rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.payouts-filters-open {
+  padding: 1.5rem;
+  max-height: 500px;
+  opacity: 1;
+}
+
+.payouts-filters-closed {
+  padding: 0;
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
 }
 
 .payouts-filters-row {
@@ -389,6 +426,15 @@
 
 .payouts-table-row:hover {
   background-color: #f8fafc;
+}
+
+.payouts-table-row-paid {
+  background-color: #dcfce7 !important;
+  border-left: 4px solid #22c55e;
+}
+
+.payouts-table-row-paid:hover {
+  background-color: #bbf7d0 !important;
 }
 
 .payouts-table-cell {
@@ -684,6 +730,12 @@
   align-items: flex-start;
   padding: 1.5rem;
   border-bottom: 1px solid #e2e8f0;
+  transition: background-color 0.3s ease;
+}
+
+.payouts-modal-header-paid {
+  background-color: #dcfce7;
+  border-bottom-color: #22c55e;
 }
 
 .payouts-modal-header-content {
@@ -776,6 +828,9 @@
   display: flex;
   flex-direction: row;
   gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-evenly;
+
 }
 
 .payouts-status-toggle {
@@ -839,6 +894,43 @@
   transform: translateX(24px);
 }
 
+/* Additional Cost Input */
+.payouts-additional-cost {
+  display: flex;
+  /* flex-direction: column; */
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 200px;
+  padding: 1rem;
+  align-items: center;
+  background-color: #f8fafc;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+}
+
+.payouts-additional-cost-label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.payouts-additional-cost-input {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  width: 7rem;
+  font-size: 0.875rem;
+  background-color: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.payouts-additional-cost-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
 .payouts-status-help {
   margin-top: 1rem;
   padding: 0.75rem;
@@ -873,6 +965,12 @@
   border-bottom: none;
 }
 
+.payouts-calculation-row.subtotal {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+}
+
 .payouts-calculation-row.total {
   border-top: 2px solid #e2e8f0;
   padding-top: 1rem;
@@ -895,6 +993,11 @@
 
 .payouts-calculation-value.no-deduction {
   color: #059669;
+}
+
+.payouts-calculation-value.subtotal-amount {
+  color: #1e293b;
+  font-weight: 600;
 }
 
 .payouts-calculation-value.total-amount {
@@ -932,6 +1035,40 @@
   color: #991b1b;
   font-weight: 500;
   font-size: 0.875rem;
+}
+
+.payouts-modal-footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.payouts-payout-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.payouts-payout-date-label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.payouts-payout-date-input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  background-color: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.payouts-payout-date-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .payouts-modal-footer-buttons {
@@ -1003,6 +1140,46 @@
 }
 
 .payouts-modal-payout-btn:disabled:hover {
+  background-color: #9ca3af;
+}
+
+/* Payout Status Button */
+.payouts-modal-payout-status-btn {
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.payouts-modal-payout-status-btn.payouts-unpaid {
+  background-color: #10b981;
+  color: white;
+}
+
+.payouts-modal-payout-status-btn.payouts-unpaid:hover {
+  background-color: #059669;
+}
+
+.payouts-modal-payout-status-btn.payouts-paid {
+  background-color: #dc2626;
+  color: white;
+}
+
+.payouts-modal-payout-status-btn.payouts-paid:hover {
+  background-color: #b91c1c;
+}
+
+.payouts-modal-payout-status-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.payouts-modal-payout-status-btn:disabled:hover {
   background-color: #9ca3af;
 }
 

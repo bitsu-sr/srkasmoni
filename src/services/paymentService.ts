@@ -560,15 +560,16 @@ export const paymentService = {
     return stats
   },
 
-  // Get payment statistics by receiver bank
+  // Get payment statistics by receiver bank (including cash transfers and settled payments)
   async getPaymentStatsByReceiverBank(): Promise<Array<{ bankName: string; totalAmount: number; paymentCount: number }>> {
     const { data, error } = await supabase
       .from('payments')
       .select(`
         amount,
+        payment_method,
+        status,
         receiverBank:banks!payments_receiver_bank_id_fkey(name, short_name)
       `)
-      .not('receiver_bank_id', 'is', null)
 
     if (error) {
       throw new Error(`Failed to fetch payment stats by receiver bank: ${error.message}`)
@@ -577,7 +578,20 @@ export const paymentService = {
     const bankStats = new Map<string, { totalAmount: number; paymentCount: number }>()
 
     data?.forEach((payment: any) => {
-      const bankName = payment.receiverBank?.short_name || payment.receiverBank?.name || 'Unknown Bank'
+      let bankName: string
+      
+      // Check if payment is settled first
+      if (payment.status === 'settled') {
+        bankName = 'Settled'
+      } else if (payment.payment_method === 'cash') {
+        bankName = 'Cash'
+      } else if (payment.receiverBank) {
+        bankName = payment.receiverBank?.short_name || payment.receiverBank?.name || 'Unknown Bank'
+      } else {
+        // Skip payments without receiver bank info (shouldn't happen for valid data)
+        return
+      }
+      
       const amount = payment.amount || 0
 
       if (bankStats.has(bankName)) {
@@ -636,6 +650,46 @@ export const paymentService = {
         paymentCount: stats.paymentCount
       }))
       .sort((a, b) => b.totalAmount - a.totalAmount)
+  },
+
+  // Get daily payment statistics
+  async getDailyPaymentStats(): Promise<Array<{ date: string; totalAmount: number; paymentCount: number }>> {
+    const { data, error } = await supabase
+      .from('payments')
+      .select(`
+        amount,
+        payment_date
+      `)
+      .not('payment_date', 'is', null)
+
+    if (error) {
+      throw new Error(`Failed to fetch daily payment stats: ${error.message}`)
+    }
+
+    const dailyStats = new Map<string, { totalAmount: number; paymentCount: number }>()
+
+    data?.forEach((payment: any) => {
+      const date = payment.payment_date
+      const amount = payment.amount || 0
+
+      if (dailyStats.has(date)) {
+        const current = dailyStats.get(date)!
+        current.totalAmount += amount
+        current.paymentCount++
+      } else {
+        dailyStats.set(date, { totalAmount: amount, paymentCount: 1 })
+      }
+    })
+
+    // Convert to array, sort by date (newest first), and limit to last 30 days
+    return Array.from(dailyStats.entries())
+      .map(([date, stats]) => ({
+        date,
+        totalAmount: stats.totalAmount,
+        paymentCount: stats.paymentCount
+      }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 30) // Show last 30 days
   },
 
   // Get payment history for a specific member

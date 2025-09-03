@@ -2,12 +2,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { TrendingUp, DollarSign, Users, Calendar, Building2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { paymentService } from '../services/paymentService'
+import { groupService } from '../services/groupService'
 import './Analytics.css'
 
 const Analytics = () => {
   const [receiverBankData, setReceiverBankData] = useState<Array<{ bankName: string; totalAmount: number; paymentCount: number }>>([])
   const [senderBankData, setSenderBankData] = useState<Array<{ bankName: string; totalAmount: number; paymentCount: number }>>([])
+  const [groupProgressData, setGroupProgressData] = useState<Array<{ groupName: string; progressPercentage: number; slotsPaid: number; slotsTotal: number }>>([])
+  const [dailyPaymentData, setDailyPaymentData] = useState<Array<{ date: string; totalAmount: number; paymentCount: number }>>([])
   const [isLoadingBankData, setIsLoadingBankData] = useState(true)
+  const [isLoadingGroupData, setIsLoadingGroupData] = useState(true)
+  const [isLoadingDailyData, setIsLoadingDailyData] = useState(true)
 
   // Fetch bank data on component mount
   useEffect(() => {
@@ -30,6 +35,53 @@ const Analytics = () => {
     }
 
     fetchBankData()
+  }, [])
+
+  // Fetch group progress data on component mount
+  useEffect(() => {
+    const fetchGroupProgressData = async () => {
+      try {
+        setIsLoadingGroupData(true)
+        const dashboardGroups = await groupService.getDashboardGroups()
+        
+        const progressData = dashboardGroups.map(group => ({
+          groupName: group.name,
+          progressPercentage: group.slotsTotal > 0 ? Math.round((group.slotsPaid / group.slotsTotal) * 100) : 0,
+          slotsPaid: group.slotsPaid,
+          slotsTotal: group.slotsTotal
+        }))
+        
+        // Sort groups by name in ascending order (A to Z)
+        const sortedProgressData = progressData.sort((a, b) => a.groupName.localeCompare(b.groupName))
+        
+        setGroupProgressData(sortedProgressData)
+      } catch (error) {
+        console.error('Error fetching group progress data:', error)
+        setGroupProgressData([])
+      } finally {
+        setIsLoadingGroupData(false)
+      }
+    }
+
+    fetchGroupProgressData()
+  }, [])
+
+  // Fetch daily payment data on component mount
+  useEffect(() => {
+    const fetchDailyPaymentData = async () => {
+      try {
+        setIsLoadingDailyData(true)
+        const dailyData = await paymentService.getDailyPaymentStats()
+        setDailyPaymentData(dailyData)
+      } catch (error) {
+        console.error('Error fetching daily payment data:', error)
+        setDailyPaymentData([])
+      } finally {
+        setIsLoadingDailyData(false)
+      }
+    }
+
+    fetchDailyPaymentData()
   }, [])
 
   // Mock data for charts - will be replaced with real data later
@@ -142,7 +194,7 @@ const Analytics = () => {
                 <Building2 size={24} className="analytics-chart-icon" />
                 <h2 className="analytics-chart-title">Transfers by Receiver Bank</h2>
               </div>
-              <p className="analytics-chart-subtitle">Total amount transferred to each receiver bank</p>
+              <p className="analytics-chart-subtitle">Total amount transferred to each receiver bank (including cash transfers and settled payments)</p>
             </div>
             
             {isLoadingBankData ? (
@@ -193,6 +245,142 @@ const Analytics = () => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Group Progress Chart */}
+        <div className="analytics-group-progress-section">
+          <div className="analytics-chart-header">
+            <div className="analytics-chart-title-section">
+              <Users size={24} className="analytics-chart-icon" />
+              <h2 className="analytics-chart-title">Group Progress</h2>
+            </div>
+            <p className="analytics-chart-subtitle">Payment completion percentage for each group</p>
+          </div>
+          
+          {isLoadingGroupData ? (
+            <div className="analytics-chart-loading">
+              <div className="analytics-chart-spinner"></div>
+              <p>Loading group progress data...</p>
+            </div>
+          ) : groupProgressData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={groupProgressData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="groupName" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 12 }}
+                  interval={0}
+                />
+                <YAxis 
+                  domain={[0, 100]}
+                  tickFormatter={(value) => `${value}%`}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip 
+                  formatter={(value: any) => [
+                    `${value}%`, 
+                    'Progress'
+                  ]}
+                  labelFormatter={(label) => `Group: ${label}`}
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Legend />
+                <Bar 
+                  dataKey="progressPercentage" 
+                  fill="#217346" 
+                  name="Progress %"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="analytics-chart-empty">
+              <Users size={48} className="analytics-chart-empty-icon" />
+              <h3>No Group Progress Data</h3>
+              <p>No groups found to display progress statistics.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Daily Payment Chart */}
+        <div className="analytics-daily-payment-section">
+          <div className="analytics-chart-header">
+            <div className="analytics-chart-title-section">
+              <Calendar size={24} className="analytics-chart-icon" />
+              <h2 className="analytics-chart-title">Daily Payments</h2>
+            </div>
+            <p className="analytics-chart-subtitle">Total payment amounts per day (last 30 days)</p>
+          </div>
+          
+          {isLoadingDailyData ? (
+            <div className="analytics-chart-loading">
+              <div className="analytics-chart-spinner"></div>
+              <p>Loading daily payment data...</p>
+            </div>
+          ) : dailyPaymentData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart data={dailyPaymentData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="date" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 12 }}
+                  interval={0}
+                  tickFormatter={(value) => {
+                    const date = new Date(value)
+                    return `${date.getDate()}/${date.getMonth() + 1}`
+                  }}
+                />
+                <YAxis 
+                  tickFormatter={(value) => `SRD ${(value / 1000).toFixed(0)}K`}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip 
+                  formatter={(value: any) => [`SRD ${value.toLocaleString()}`, 'Total Amount']}
+                  labelFormatter={(label) => {
+                    const date = new Date(label)
+                    return date.toLocaleDateString('en-US', { 
+                      weekday: 'short', 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })
+                  }}
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Legend />
+                <Area 
+                  type="monotone" 
+                  dataKey="totalAmount" 
+                  stroke="#217346" 
+                  fill="#217346" 
+                  fillOpacity={0.6}
+                  name="Total Amount"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="analytics-chart-empty">
+              <Calendar size={48} className="analytics-chart-empty-icon" />
+              <h3>No Daily Payment Data</h3>
+              <p>No payment data found to display daily statistics.</p>
+            </div>
+          )}
         </div>
 
         {/* Key Metrics */}

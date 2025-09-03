@@ -4,14 +4,13 @@ import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, Menu, X, FileT
 import { useAuth } from '../contexts/AuthContext'
 import LoginModal from './LoginModal'
 import UserProfileDropdown from './UserProfileDropdown'
+import MobileBottomSheet from './MobileBottomSheet'
 import './Navbar.css'
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
-  // Remove old password reset state and functions
-  // const [pendingResetRequests, setPendingResetRequests] = useState(0);
-  // const checkPendingRequests = () => { ... };
+  const [isMobile, setIsMobile] = useState(false)
   const location = useLocation()
   const menuRef = useRef<HTMLDivElement>(null)
   const { isAuthenticated, isAdmin, isSuperUser } = useAuth()
@@ -35,6 +34,18 @@ const Navbar = () => {
       return () => clearInterval(interval);
     }
   }, [isAdmin, isSuperUser]);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+
+    checkIsMobile()
+    window.addEventListener('resize', checkIsMobile)
+    
+    return () => window.removeEventListener('resize', checkIsMobile)
+  }, [])
 
   const navItems = [
     { path: isAdmin() || isSuperUser() ? '/dashboard' : '/my-dashboard', label: 'Dashboard', icon: Home },
@@ -76,15 +87,7 @@ const Navbar = () => {
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Don't close if clicking on the hamburger button or dropdown
-      const target = event.target as Node
-      const hamburgerMenu = document.querySelector('.hamburger-menu-desktop')
-      
-      if (hamburgerMenu && hamburgerMenu.contains(target)) {
-        return
-      }
-      
-      if (menuRef.current && !menuRef.current.contains(target)) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         closeMenu()
       }
     }
@@ -108,8 +111,8 @@ const Navbar = () => {
           </Link>
         </div>
 
-        {/* Desktop Navigation - Only show when authenticated */}
-        {isAuthenticated && (
+        {/* Desktop Navigation - Only show when authenticated and on desktop */}
+        {isAuthenticated && !isMobile && (
           <div className="navbar-nav desktop-nav">
             {navItems.map((item) => {
               const Icon = item.icon
@@ -126,7 +129,7 @@ const Navbar = () => {
             })}
             
             {/* Hamburger Menu for Desktop */}
-            <div className="hamburger-menu-desktop">
+            <div className="hamburger-menu-desktop" ref={menuRef}>
               <button className="hamburger-btn" onClick={toggleMenu}>
                 <Menu size={20} />
               </button>
@@ -156,90 +159,52 @@ const Navbar = () => {
           </div>
         )}
 
-        {/* Authentication Section */}
-        <div className="auth-section">
-          {isAuthenticated ? (
-            <UserProfileDropdown />
-          ) : (
-            <button 
-              className="login-btn"
-              onClick={() => setIsLoginModalOpen(true)}
-            >
-              Login
-            </button>
-          )}
-        </div>
+        {/* Authentication Section - Only show on desktop */}
+        {!isMobile && (
+          <div className="auth-section">
+            {isAuthenticated ? (
+              <UserProfileDropdown />
+            ) : (
+              <button 
+                className="login-btn"
+                onClick={() => setIsLoginModalOpen(true)}
+              >
+                Login
+              </button>
+            )}
+          </div>
+        )}
 
-        {/* Mobile Menu Button - Only show when authenticated */}
-        {isAuthenticated && (
+        {/* Mobile Menu Button - Only show when authenticated and on mobile */}
+        {isAuthenticated && isMobile && (
           <button className="mobile-menu-btn" onClick={toggleMenu}>
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         )}
 
-        {/* Mobile Authentication */}
-        <div className="mobile-auth">
-          {isAuthenticated ? (
-            <UserProfileDropdown />
-          ) : (
-            <button 
-              className="mobile-login-btn"
-              onClick={() => setIsLoginModalOpen(true)}
-            >
-              Login
-            </button>
-          )}
-        </div>
+        {/* Mobile Authentication - Only show on mobile */}
+        {isMobile && (
+          <div className="mobile-auth">
+            {isAuthenticated ? (
+              <UserProfileDropdown />
+            ) : (
+              <button 
+                className="mobile-login-btn"
+                onClick={() => setIsLoginModalOpen(true)}
+              >
+                Login
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Mobile Navigation - Only show when authenticated */}
-      {isAuthenticated && (
-        <div ref={menuRef} className={`mobile-nav ${isMenuOpen ? 'open' : ''}`}>
-          {navItems.map((item) => {
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`mobile-nav-link ${location.pathname === item.path ? 'active' : ''}`}
-                onClick={() => {
-                  closeMenu()
-                  // Force close after a small delay to ensure navigation happens
-                  setTimeout(() => setIsMenuOpen(false), 100)
-                }}
-              >
-                <Icon className="nav-icon" />
-                <span>{item.label}</span>
-              </Link>
-            )
-          })}
-          
-          {/* Divider */}
-          <div className="mobile-nav-divider"></div>
-          
-          {/* Hamburger Items */}
-          {hamburgerItems.map((item) => {
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`mobile-nav-link hamburger-item ${location.pathname === item.path ? 'active' : ''}`}
-                onClick={() => {
-                  closeMenu()
-                  // Force close after a small delay to ensure navigation happens
-                  setTimeout(() => setIsMenuOpen(false), 100)
-                }}
-              >
-                <Icon className="nav-icon" />
-                <span>{item.label}</span>
-                {/* {item.badge && ( // This line is removed
-                  <span className="nav-badge">{item.badge}</span>
-                )} */}
-              </Link>
-            )
-          })}
-        </div>
+      {/* Mobile Bottom Sheet Navigation - Only show on mobile */}
+      {isAuthenticated && isMobile && (
+        <MobileBottomSheet 
+          isOpen={isMenuOpen} 
+          onClose={closeMenu} 
+        />
       )}
 
       {/* Login Modal */}

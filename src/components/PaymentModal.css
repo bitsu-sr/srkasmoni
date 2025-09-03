@@ -95,6 +95,11 @@
   color: var(--primary);
 }
 
+.required-asterisk {
+  color: #ef4444;
+  font-weight: 600;
+}
+
 .payment-modal-form-group select,
 .payment-modal-form-group input,
 .payment-modal-form-group textarea {

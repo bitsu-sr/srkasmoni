@@ -2,10 +2,10 @@ import { supabase } from '../lib/supabase'
 import { Payout } from '../types/payout'
 
 export const payoutService = {
-  // Get all payouts for the current month's slots
-  async getAllPayouts(): Promise<Payout[]> {
+  // Get all payouts for a specific month's slots
+  async getAllPayouts(month?: string): Promise<Payout[]> {
     try {
-      const currentMonth = new Date().toISOString().split('T')[0].substring(0, 7)
+      const targetMonth = month || new Date().toISOString().split('T')[0].substring(0, 7)
       
       // Get all groups with members whose assigned month is current month
       const { data: groupsData, error: groupsError } = await supabase
@@ -24,7 +24,7 @@ export const payoutService = {
             )
           )
         `)
-        .eq('group_members.assigned_month_date', currentMonth)
+        .eq('group_members.assigned_month_date', targetMonth)
 
       if (groupsError) throw groupsError
 
@@ -33,7 +33,7 @@ export const payoutService = {
       
       groupsData?.forEach((group: any) => {
         group.group_members?.forEach((memberSlot: any) => {
-          if (memberSlot.assigned_month_date === currentMonth && memberSlot.members) {
+          if (memberSlot.assigned_month_date === targetMonth && memberSlot.members) {
             const member = memberSlot.members
             const payout: Payout = {
               id: memberSlot.id || Math.random(), // Use slot ID or generate random
@@ -44,7 +44,7 @@ export const payoutService = {
               monthlyAmount: parseFloat(group.monthly_amount),
               totalAmount: parseFloat(group.monthly_amount) * group.duration,
               duration: group.duration,
-              receiveMonth: currentMonth,
+              receiveMonth: targetMonth,
               status: 'pending', // Default status
               bankName: member.bank_name,
               accountNumber: member.account_number,
@@ -66,26 +66,26 @@ export const payoutService = {
   },
 
   // Get payouts by status
-  async getPayoutsByStatus(status: string): Promise<Payout[]> {
-    const allPayouts = await this.getAllPayouts()
+  async getPayoutsByStatus(status: string, month?: string): Promise<Payout[]> {
+    const allPayouts = await this.getAllPayouts(month)
     return allPayouts.filter(payout => payout.status === status)
   },
 
   // Get payouts by group
-  async getPayoutsByGroup(groupId: number): Promise<Payout[]> {
-    const allPayouts = await this.getAllPayouts()
+  async getPayoutsByGroup(groupId: number, month?: string): Promise<Payout[]> {
+    const allPayouts = await this.getAllPayouts(month)
     return allPayouts.filter(payout => payout.groupId === groupId)
   },
 
   // Get payouts by member
-  async getPayoutsByMember(memberId: number): Promise<Payout[]> {
-    const allPayouts = await this.getAllPayouts()
+  async getPayoutsByMember(memberId: number, month?: string): Promise<Payout[]> {
+    const allPayouts = await this.getAllPayouts(month)
     return allPayouts.filter(payout => payout.memberId === memberId)
   },
 
   // Get payout by ID
-  async getPayoutById(id: number): Promise<Payout | null> {
-    const allPayouts = await this.getAllPayouts()
+  async getPayoutById(id: number, month?: string): Promise<Payout | null> {
+    const allPayouts = await this.getAllPayouts(month)
     return allPayouts.find(payout => payout.id === id) || null
   },
 
@@ -103,8 +103,8 @@ export const payoutService = {
   },
 
   // Search payouts
-  async searchPayouts(query: string): Promise<Payout[]> {
-    const allPayouts = await this.getAllPayouts()
+  async searchPayouts(query: string, month?: string): Promise<Payout[]> {
+    const allPayouts = await this.getAllPayouts(month)
     const searchTerm = query.toLowerCase()
     
     return allPayouts.filter(payout => 
@@ -115,13 +115,13 @@ export const payoutService = {
   },
 
   // Get payout statistics
-  async getPayoutStats(): Promise<{
+  async getPayoutStats(month?: string): Promise<{
     totalPayouts: number
     totalAmount: number
     completedPayouts: number
     pendingPayouts: number
   }> {
-    const allPayouts = await this.getAllPayouts()
+    const allPayouts = await this.getAllPayouts(month)
     
     return {
       totalPayouts: allPayouts.length,

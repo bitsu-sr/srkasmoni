@@ -28,6 +28,8 @@ export interface PayoutDetails {
   lastSlot: boolean
   administrationFee: boolean
   payout: boolean
+  additionalCost: number
+  payoutDate: string
   baseAmount: number
   settledDeduction: number
 }

@@ -22,7 +22,7 @@ export interface PaymentRow {
 pdfMake.vfs = pdfFonts.vfs;
 
 export const pdfService = {
-  async generatePayoutPDF(payout: Payout, lastSlotPaid: boolean, adminFeePaid: boolean, settledDeductionAmount: number = 0): Promise<void> {
+  async generatePayoutPDF(payout: Payout, lastSlotPaid: boolean, adminFeePaid: boolean, settledDeductionAmount: number = 0, additionalCost: number = 0, payoutDate: string = ''): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
         // Fetch logo and convert to base64
@@ -65,7 +65,11 @@ export const pdfService = {
             margin: [0, 0, 0, 15]
           },
           {
-            text: `Payout Date: ${new Date().toLocaleDateString('en-GB', {
+            text: `Payout Date: ${payoutDate ? new Date(payoutDate).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric'
+            }) : new Date().toLocaleDateString('en-GB', {
               day: '2-digit',
               month: 'short',
               year: 'numeric'
@@ -165,14 +169,17 @@ export const pdfService = {
         const baseAmount = payout.monthlyAmount * payout.duration;
         const lastSlotDeduction = lastSlotPaid ? 0 : payout.monthlyAmount;
         const adminFeeDeduction = adminFeePaid ? 0 : 200;
-        const totalAmount = baseAmount - lastSlotDeduction - adminFeeDeduction - settledDeductionAmount;
+        const subTotal = baseAmount - settledDeductionAmount - lastSlotDeduction - adminFeeDeduction;
+        const totalAmount = subTotal - additionalCost;
 
         const calculationData = [
-          ['Base Amount:', `SRD ${baseAmount.toLocaleString()}.00`],
-          ['Settled Deduction:', `-SRD ${settledDeductionAmount.toLocaleString()}.00`],
-          ['Last Slot Deduction:', lastSlotPaid ? 'SRD 0.00' : `-SRD ${payout.monthlyAmount.toLocaleString()}.00`],
-          ['Administration Fee Deduction:', adminFeePaid ? 'SRD 0.00' : '-SRD 200.00'],
-          ['Total Amount:', `SRD ${totalAmount.toLocaleString()}.00`]
+          [{ text: 'Base Amount:', bold: true }, { text: `SRD ${baseAmount.toLocaleString()}.00`, bold: true, alignment: 'right' }],
+          ['Settled Deduction:', { text: `-SRD ${settledDeductionAmount.toLocaleString()}.00`, alignment: 'right' }],
+          ['Last Slot Deduction:', { text: lastSlotPaid ? 'SRD 0.00' : `-SRD ${payout.monthlyAmount.toLocaleString()}.00`, alignment: 'right' }],
+          ['Administration Fee Deduction:', { text: adminFeePaid ? 'SRD 0.00' : '-SRD 200.00', alignment: 'right' }],
+          [{ text: 'Sub-total Amount:', bold: true }, { text: `SRD ${subTotal.toLocaleString()}.00`, bold: true, alignment: 'right' }],
+          ['Additional Cost:', { text: additionalCost > 0 ? `-SRD ${additionalCost.toLocaleString()}.00` : 'SRD 0.00', alignment: 'right' }],
+          [{ text: 'Total Amount:', bold: true }, { text: `SRD ${totalAmount.toLocaleString()}.00`, bold: true, alignment: 'right' }]
         ];
 
         content.push({

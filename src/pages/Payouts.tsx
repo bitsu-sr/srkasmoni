@@ -13,7 +13,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Save
+  Save,
+  Filter,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 import './Payouts.css'
 import { Payout, PayoutDetails, FilterType, StatusFilter, SortField, SortDirection } from '../types/payout'
@@ -39,6 +42,15 @@ const Payouts: React.FC = () => {
   const [filterType, setFilterType] = useState<FilterType>('all')
   const [filterValue, setFilterValue] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  
+  // Month selection state
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    // Default to current month in YYYY-MM format (avoid timezone issues)
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1
+    return `${year}-${month.toString().padStart(2, '0')}`
+  })
 
   
   // Sorting state
@@ -63,6 +75,14 @@ const Payouts: React.FC = () => {
   const [payoutDetails, setPayoutDetails] = useState<PayoutDetails | null>(null)
   const [isSavingPayoutDetails, setIsSavingPayoutDetails] = useState(false)
   const [payoutDetailsExist, setPayoutDetailsExist] = useState(false)
+  const [additionalCost, setAdditionalCost] = useState(0)
+  const [payoutDate, setPayoutDate] = useState(() => {
+    // Default to today's date in YYYY-MM-DD format
+    return new Date().toISOString().split('T')[0]
+  })
+  const [isPayoutPaid, setIsPayoutPaid] = useState(false)
+  const [isProcessingPayout, setIsProcessingPayout] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
 
   // Calculate summary statistics
   const totalPayouts = filteredPayouts.length
@@ -70,11 +90,25 @@ const Payouts: React.FC = () => {
   const completedPayouts = filteredPayouts.filter(p => p.status === 'completed').length
   const pendingPayouts = filteredPayouts.filter(p => p.status === 'pending').length
   
-  // Get current month for display
-  const currentMonth = new Date().toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long' 
-  })
+  // Get selected month for display (avoid timezone issues)
+  const selectedMonthDisplay = (() => {
+    const [year, month] = selectedMonth.split('-')
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    return `${monthNames[parseInt(month) - 1]} ${year}`
+  })()
+  
+  // Get current month for comparison (avoid timezone issues)
+  const currentMonth = (() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1 // getMonth() returns 0-11
+    return `${year}-${month.toString().padStart(2, '0')}`
+  })()
+  
+
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredPayouts.length / pageSize)
@@ -107,10 +141,11 @@ const Payouts: React.FC = () => {
   }
 
   // Fetch payouts data
-  const fetchPayouts = async () => {
+  const fetchPayouts = async (month?: string) => {
     try {
       setLoading(true)
-      let payoutsData = await payoutService.getAllPayouts()
+      const targetMonth = month || selectedMonth
+      let payoutsData = await payoutService.getAllPayouts(targetMonth)
       
       // Filter payouts based on user role
       if (!isAdminUser && currentUserMemberId !== null) {
@@ -208,6 +243,13 @@ const Payouts: React.FC = () => {
     }
   }, [currentUserMemberId, isAdminUser])
 
+  // Refetch payouts when selected month changes
+  useEffect(() => {
+    if (currentUserMemberId !== null || isAdminUser) {
+      fetchPayouts(selectedMonth)
+    }
+  }, [selectedMonth])
+
   // Handle sorting
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -262,7 +304,22 @@ const Payouts: React.FC = () => {
     const lastSlotDeduction = lastSlotPaid ? 0 : selectedPayout.monthlyAmount
     const adminFeeDeduction = adminFeePaid ? 0 : 200
     
-    return baseAmount - lastSlotDeduction - adminFeeDeduction - settledDeductionAmount
+    // Calculate sub-total after main deductions
+    const subTotal = baseAmount - settledDeductionAmount - lastSlotDeduction - adminFeeDeduction
+    
+    // Subtract additional cost from sub-total
+    return subTotal - additionalCost
+  }
+
+  // Calculate sub-total amount (before additional cost)
+  const calculateSubTotalAmount = () => {
+    if (!selectedPayout) return 0
+    
+    const baseAmount = selectedPayout.monthlyAmount * selectedPayout.duration
+    const lastSlotDeduction = lastSlotPaid ? 0 : selectedPayout.monthlyAmount
+    const adminFeeDeduction = adminFeePaid ? 0 : 200
+    
+    return baseAmount - settledDeductionAmount - lastSlotDeduction - adminFeeDeduction
   }
 
   // Fetch settled payments for the selected member
@@ -301,6 +358,9 @@ const Payouts: React.FC = () => {
         setPayoutDetails(existingDetails)
         setLastSlotPaid(existingDetails.lastSlot)
         setAdminFeePaid(existingDetails.administrationFee)
+        setAdditionalCost(existingDetails.additionalCost)
+        setPayoutDate(existingDetails.payoutDate)
+        setIsPayoutPaid(existingDetails.payout)
         setPayoutDetailsExist(true)
       } else {
         // Create new payout details object
@@ -312,12 +372,17 @@ const Payouts: React.FC = () => {
           lastSlot: false,
           administrationFee: false,
           payout: false,
+          additionalCost: 0,
+          payoutDate: new Date().toISOString().split('T')[0],
           baseAmount: payout.totalAmount,
           settledDeduction: 0
         }
         setPayoutDetails(newPayoutDetails)
         setLastSlotPaid(false)
         setAdminFeePaid(false)
+        setAdditionalCost(0)
+        setPayoutDate(new Date().toISOString().split('T')[0])
+        setIsPayoutPaid(false)
         setPayoutDetailsExist(false)
       }
     } catch (error) {
@@ -331,11 +396,16 @@ const Payouts: React.FC = () => {
         lastSlot: false,
         administrationFee: false,
         payout: false,
+        additionalCost: 0,
+        payoutDate: new Date().toISOString().split('T')[0],
         baseAmount: payout.totalAmount,
         settledDeduction: 0
       })
       setLastSlotPaid(false)
       setAdminFeePaid(false)
+      setAdditionalCost(0)
+      setPayoutDate(new Date().toISOString().split('T')[0])
+      setIsPayoutPaid(false)
       setPayoutDetailsExist(false)
     }
     
@@ -355,11 +425,13 @@ const Payouts: React.FC = () => {
     setIsSavingPayoutDetails(true)
     
     try {
-      // Update payout details with current toggle states
+      // Update payout details with current toggle states and new fields
       const updatedPayoutDetails: PayoutDetails = {
         ...payoutDetails,
         lastSlot: lastSlotPaid,
-        administrationFee: adminFeePaid
+        administrationFee: adminFeePaid,
+        additionalCost: additionalCost,
+        payoutDate: payoutDate
       }
       
       // Save to database
@@ -387,7 +459,7 @@ const Payouts: React.FC = () => {
     setShowPdfSuccess(false)
     
     try {
-      await pdfService.generatePayoutPDF(payout, lastSlotPaid, adminFeePaid, settledDeductionAmount)
+      await pdfService.generatePayoutPDF(payout, lastSlotPaid, adminFeePaid, settledDeductionAmount, additionalCost, payoutDate)
       setShowPdfSuccess(true)
       setTimeout(() => setShowPdfSuccess(false), 3000) // Hide after 3 seconds
     } catch (error) {
@@ -396,6 +468,46 @@ const Payouts: React.FC = () => {
       setTimeout(() => setPdfError(null), 5000) // Hide after 5 seconds
     } finally {
       setIsGeneratingPdf(false)
+    }
+  }
+
+  // Handle payout status change
+  const handlePayoutStatusChange = async () => {
+    if (!payoutDetails || !selectedPayout) return
+    
+    setIsProcessingPayout(true)
+    
+    try {
+      const newPayoutStatus = !isPayoutPaid
+      
+      // Update payout details with new payout status
+      const updatedPayoutDetails: PayoutDetails = {
+        ...payoutDetails,
+        payout: newPayoutStatus
+      }
+      
+      // Save to database
+      const savedDetails = await payoutDetailsService.savePayoutDetails(updatedPayoutDetails)
+      
+      // Update local state
+      setPayoutDetails(savedDetails)
+      setIsPayoutPaid(newPayoutStatus)
+      
+      // Update the payouts list to reflect the change
+      setPayouts(prevPayouts => 
+        prevPayouts.map(p => 
+          p.id === selectedPayout.id 
+            ? { ...p, payout: newPayoutStatus }
+            : p
+        )
+      )
+      
+      console.log(`Payout status ${newPayoutStatus ? 'marked as paid' : 'undone'} successfully`)
+      
+    } catch (error) {
+      console.error('Error updating payout status:', error)
+    } finally {
+      setIsProcessingPayout(false)
     }
   }
 
@@ -409,6 +521,11 @@ const Payouts: React.FC = () => {
     setFilterType('all')
     setFilterValue('')
     setStatusFilter('all')
+    // Reset to current month using the same logic as the state initialization
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1
+    setSelectedMonth(`${year}-${month.toString().padStart(2, '0')}`)
   }
 
   if (loading) {
@@ -429,7 +546,7 @@ const Payouts: React.FC = () => {
           <AlertCircle className="payouts-error-icon" />
           <h2>Error Loading Payouts</h2>
           <p>{error}</p>
-          <button onClick={fetchPayouts} className="payouts-retry-btn">
+          <button onClick={() => fetchPayouts()} className="payouts-retry-btn">
             Try Again
           </button>
         </div>
@@ -444,7 +561,10 @@ const Payouts: React.FC = () => {
         <div className="payouts-header-content">
           <h1 className="payouts-title">Payouts</h1>
           <p className="payouts-subtitle">
-            Current month ({currentMonth}) - Members receiving payouts this month
+            {selectedMonth === currentMonth 
+              ? `Current month (${selectedMonthDisplay}) - Members receiving payouts this month`
+              : `${selectedMonthDisplay} - Members receiving payouts for this month`
+            }
           </p>
         </div>
         <div className="payouts-header-actions">
@@ -476,7 +596,12 @@ const Payouts: React.FC = () => {
           </div>
           <div className="payouts-summary-content">
             <h3 className="payouts-summary-value">{totalPayouts}</h3>
-            <p className="payouts-summary-label">Current Month Payouts</p>
+            <p className="payouts-summary-label">
+              {selectedMonth === currentMonth 
+                ? 'Current Month Payouts' 
+                : `${selectedMonthDisplay} Payouts`
+              }
+            </p>
           </div>
         </div>
         
@@ -486,7 +611,12 @@ const Payouts: React.FC = () => {
           </div>
           <div className="payouts-summary-content">
             <h3 className="payouts-summary-value">SRD {totalAmount.toLocaleString()}</h3>
-            <p className="payouts-summary-label">Current Month Amount</p>
+            <p className="payouts-summary-label">
+              {selectedMonth === currentMonth 
+                ? 'Current Month Amount' 
+                : `${selectedMonthDisplay} Amount`
+              }
+            </p>
           </div>
         </div>
         
@@ -511,13 +641,25 @@ const Payouts: React.FC = () => {
         </div>
       </div>
 
-      {/* Current Month Note */}
+      {/* Selected Month Note */}
       <div className="payouts-current-month-note">
-        <p>Showing payouts for <strong>{currentMonth}</strong> - Members whose assigned month is {currentMonth}</p>
+        <p>Showing payouts for <strong>{selectedMonthDisplay}</strong> - Members whose assigned month is {selectedMonthDisplay}</p>
+      </div>
+
+      {/* Filters Button */}
+      <div className="payouts-filters-toggle">
+        <button 
+          onClick={() => setShowFilters(!showFilters)}
+          className="payouts-filters-btn"
+        >
+          <Filter className="payouts-btn-icon" />
+          Filters
+          {showFilters ? <ChevronUp className="payouts-btn-icon" /> : <ChevronDown className="payouts-btn-icon" />}
+        </button>
       </div>
 
       {/* Filters */}
-      <div className="payouts-filters">
+      <div className={`payouts-filters ${showFilters ? 'payouts-filters-open' : 'payouts-filters-closed'}`}>
         <div className="payouts-filters-row">
           <div className="payouts-filter-group">
             <label className="payouts-filter-label">Filter Type:</label>
@@ -560,6 +702,16 @@ const Payouts: React.FC = () => {
               <option value="processing">Processing</option>
               <option value="failed">Failed</option>
             </select>
+          </div>
+          
+          <div className="payouts-filter-group">
+            <label className="payouts-filter-label">Month:</label>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="payouts-date-input"
+            />
           </div>
           
 
@@ -631,8 +783,8 @@ const Payouts: React.FC = () => {
               <tr className="payouts-table-empty-row">
                 <td colSpan={6} className="payouts-table-empty-cell">
                   <div className="payouts-empty-state">
-                    <p>No payouts found for {currentMonth}</p>
-                    <p>This means no members are assigned to receive payouts this month</p>
+                    <p>No payouts found for {selectedMonthDisplay}</p>
+                    <p>This means no members are assigned to receive payouts for this month</p>
                     <button onClick={clearFilters} className="payouts-clear-filters-btn">
                       Clear Filters
                     </button>
@@ -641,7 +793,7 @@ const Payouts: React.FC = () => {
               </tr>
             ) : (
               currentPayouts.map((payout) => (
-                <tr key={payout.id} className="payouts-table-row">
+                <tr key={payout.id} className={`payouts-table-row ${payout.payout ? 'payouts-table-row-paid' : ''}`}>
                   <td className="payouts-table-cell">
                     <div className="payouts-member-info">
                       <span className="payouts-member-name">{payout.memberName}</span>
@@ -757,11 +909,14 @@ const Payouts: React.FC = () => {
       {isDetailsModalOpen && selectedPayout && (
         <div className="payouts-modal-overlay">
           <div className="payouts-modal">
-            <div className="payouts-modal-header">
+            <div className={`payouts-modal-header ${isPayoutPaid ? 'payouts-modal-header-paid' : ''}`}>
               <div className="payouts-modal-header-content">
                 <h2 className="payouts-modal-title">Payout Details</h2>
                 <p className="payouts-modal-subtitle">
-                  Calculate the payout amount for {selectedPayout.memberName} from {selectedPayout.groupName}
+                  {isPayoutPaid 
+                    ? `${selectedPayout.memberName} from ${selectedPayout.groupName} is fully paid.`
+                    : `Calculate the payout amount for ${selectedPayout.memberName} from ${selectedPayout.groupName}`
+                  }
                 </p>
               </div>
               <button 
@@ -819,9 +974,9 @@ const Payouts: React.FC = () => {
                 </div>
               </div>
               
-              {/* Payment Status Section */}
+              {/* Deductions Section */}
               <div className="payouts-details-section">
-                <h3 className="payouts-details-section-title">Payment Status</h3>
+                <h3 className="payouts-details-section-title">Deductions</h3>
                 <div className="payouts-payment-status">
                   <div className="payouts-status-toggle">
                     <span className="payouts-status-label">Last Slot</span>
@@ -848,6 +1003,19 @@ const Payouts: React.FC = () => {
                       />
                       <label htmlFor="adminFeeToggle" className="payouts-toggle-label"></label>
                     </div>
+                  </div>
+                  <div className="payouts-additional-cost">
+                    <label htmlFor="additionalCost" className="payouts-additional-cost-label">Additional Cost (SRD)</label>
+                    <input
+                      type="number"
+                      id="additionalCost"
+                      className="payouts-additional-cost-input"
+                      value={additionalCost}
+                      onChange={(e) => setAdditionalCost(parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
                   </div>
                 </div>
 
@@ -879,6 +1047,18 @@ const Payouts: React.FC = () => {
                       {adminFeePaid ? 'SRD 0.00' : '-SRD 200.00'}
                     </span>
                   </div>
+                  <div className="payouts-calculation-row subtotal">
+                    <span className="payouts-calculation-label">Sub-total Amount</span>
+                    <span className="payouts-calculation-value subtotal-amount">
+                      SRD {calculateSubTotalAmount().toLocaleString()}.00
+                    </span>
+                  </div>
+                  <div className="payouts-calculation-row">
+                    <span className="payouts-calculation-label">Additional Cost</span>
+                    <span className={`payouts-calculation-value ${additionalCost > 0 ? 'deduction' : 'no-deduction'}`}>
+                      {additionalCost > 0 ? `-SRD ${additionalCost.toLocaleString()}.00` : 'SRD 0.00'}
+                    </span>
+                  </div>
                   <div className="payouts-calculation-row total">
                     <span className="payouts-calculation-label">Total Amount</span>
                     <span className="payouts-calculation-value total-amount">
@@ -900,7 +1080,18 @@ const Payouts: React.FC = () => {
                   <span>✗ {pdfError}</span>
                 </div>
               )}
-              <div className="payouts-modal-footer-buttons">
+              <div className="payouts-modal-footer-content">
+                <div className="payouts-payout-date">
+                  <label htmlFor="payoutDate" className="payouts-payout-date-label">Payout Date:</label>
+                  <input
+                    type="date"
+                    id="payoutDate"
+                    className="payouts-payout-date-input"
+                    value={payoutDate}
+                    onChange={(e) => setPayoutDate(e.target.value)}
+                  />
+                </div>
+                <div className="payouts-modal-footer-buttons">
                 <button 
                   onClick={() => setIsDetailsModalOpen(false)}
                   className="payouts-modal-cancel-btn"
@@ -925,6 +1116,20 @@ const Payouts: React.FC = () => {
                   )}
                 </button>
                 <button 
+                  onClick={handlePayoutStatusChange}
+                  className={`payouts-modal-payout-status-btn ${isPayoutPaid ? 'payouts-paid' : 'payouts-unpaid'}`}
+                  disabled={isProcessingPayout}
+                >
+                  {isProcessingPayout ? (
+                    <>
+                      <Loader2 className="payouts-loading-icon" />
+                      Processing...
+                    </>
+                  ) : (
+                    isPayoutPaid ? 'Undo Payout' : 'Payout'
+                  )}
+                </button>
+                <button 
                   onClick={() => handlePayout(selectedPayout)}
                   className="payouts-modal-payout-btn"
                   disabled={isGeneratingPdf}
@@ -935,9 +1140,10 @@ const Payouts: React.FC = () => {
                       Generating PDF...
                     </>
                   ) : (
-                    'Payout'
+                    'Save PDF'
                   )}
                 </button>
+                </div>
               </div>
             </div>
           </div>
