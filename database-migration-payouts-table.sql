@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS payouts (
   payout BOOLEAN DEFAULT FALSE,
   additional_cost DECIMAL(12,2) DEFAULT 0,
   payout_date DATE DEFAULT CURRENT_DATE,
+  payout_month VARCHAR(7) DEFAULT '2025-08',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS payouts (
 CREATE INDEX idx_payouts_group_id ON payouts(group_id);
 CREATE INDEX idx_payouts_member_id ON payouts(member_id);
 CREATE INDEX idx_payouts_created_at ON payouts(created_at);
+CREATE INDEX idx_payouts_payout_month ON payouts(payout_month);
 
 -- Create trigger to automatically update updated_at
 CREATE TRIGGER update_payouts_updated_at 
@@ -45,7 +47,10 @@ CREATE POLICY "Allow authenticated users to update payouts" ON payouts
 
 -- Sample data removed - add your own test data after creating groups and members
 -- Example:
--- INSERT INTO payouts (group_id, member_id, monthly_amount, duration, last_slot, administration_fee, payout, additional_cost, payout_date)
+-- INSERT INTO payouts (group_id, member_id, monthly_amount, duration, last_slot, administration_fee, payout, additional_cost, payout_date, payout_month)
 -- VALUES 
---   (your_group_id, your_member_id, 1000.00, 12, false, false, false, 0.00, CURRENT_DATE)
+--   (your_group_id, your_member_id, 1000.00, 12, false, false, false, 0.00, CURRENT_DATE, '2025-08')
 -- ON CONFLICT DO NOTHING;
+
+-- Update existing rows to set payout_month to 2025-08
+UPDATE payouts SET payout_month = '2025-08' WHERE payout_month IS NULL;

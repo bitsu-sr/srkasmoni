@@ -34,6 +34,7 @@ export const payoutDetailsService = {
         payout: data.payout,
         additionalCost: parseFloat(data.additional_cost || 0),
         payoutDate: data.payout_date || new Date().toISOString().split('T')[0],
+        payoutMonth: data.payout_month || '2025-08',
         baseAmount: parseFloat(data.monthly_amount) * data.duration,
         settledDeduction: 0 // This will be calculated separately
       }
@@ -56,6 +57,7 @@ export const payoutDetailsService = {
             payout: payoutDetails.payout,
             additional_cost: payoutDetails.additionalCost,
             payout_date: payoutDetails.payoutDate,
+            payout_month: payoutDetails.payoutMonth,
             updated_at: new Date().toISOString()
           })
           .eq('id', payoutDetails.id)
@@ -81,7 +83,8 @@ export const payoutDetailsService = {
             administration_fee: payoutDetails.administrationFee,
             payout: payoutDetails.payout,
             additional_cost: payoutDetails.additionalCost,
-            payout_date: payoutDetails.payoutDate
+            payout_date: payoutDetails.payoutDate,
+            payout_month: payoutDetails.payoutMonth
           })
           .select()
           .single()

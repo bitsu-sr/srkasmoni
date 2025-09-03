@@ -740,6 +740,36 @@
 
 .payouts-modal-header-content {
   flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.payouts-modal-header-left {
+  flex: 1;
+}
+
+.payouts-modal-header-right {
+  display: flex;
+  align-items: center;
+  margin-left: 2rem;
+}
+
+.payouts-modal-month-field {
+  display: flex;
+  align-items: center;
+}
+
+.payouts-modal-month-value {
+  font-size: 1rem;
+  color: #1f2937;
+  font-weight: 600;
+  background-color: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  min-width: 120px;
+  text-align: center;
 }
 
 .payouts-modal-subtitle {

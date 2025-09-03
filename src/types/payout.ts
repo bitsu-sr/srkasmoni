@@ -2,6 +2,7 @@ export interface Payout {
   id: number
   memberName: string
   memberId: number
+  nationalId: string
   groupName: string
   groupId: number
   monthlyAmount: number
@@ -30,6 +31,7 @@ export interface PayoutDetails {
   payout: boolean
   additionalCost: number
   payoutDate: string
+  payoutMonth: string
   baseAmount: number
   settledDeduction: number
 }

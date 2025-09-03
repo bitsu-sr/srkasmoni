@@ -59,7 +59,11 @@ const Payouts: React.FC = () => {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(() => {
+    // Get saved page size from localStorage, default to 10
+    const savedPageSize = localStorage.getItem('payouts-page-size')
+    return savedPageSize ? parseInt(savedPageSize, 10) : 10
+  })
   
   // Modal state
   const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null)
@@ -83,6 +87,7 @@ const Payouts: React.FC = () => {
   const [isPayoutPaid, setIsPayoutPaid] = useState(false)
   const [isProcessingPayout, setIsProcessingPayout] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [selectedPayoutMonth, setSelectedPayoutMonth] = useState('')
 
   // Calculate summary statistics
   const totalPayouts = filteredPayouts.length
@@ -269,6 +274,8 @@ const Payouts: React.FC = () => {
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize)
     setCurrentPage(1)
+    // Save page size to localStorage
+    localStorage.setItem('payouts-page-size', newPageSize.toString())
   }
 
 
@@ -346,9 +353,45 @@ const Payouts: React.FC = () => {
   }
 
   // Handle view details
+  // Format month to MMMM YYYY format
+  const formatMonth = (monthString: string) => {
+    try {
+      // If the month string is in YYYY-MM format, convert it
+      if (monthString.includes('-')) {
+        const [year, month] = monthString.split('-')
+        const date = new Date(parseInt(year), parseInt(month) - 1)
+        return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      }
+      // If it's already in a readable format, return as is
+      return monthString
+    } catch (error) {
+      return monthString
+    }
+  }
+
+  // Convert formatted month back to YYYY-MM format
+  const convertMonthToYYYYMM = (formattedMonth: string) => {
+    try {
+      // If it's already in YYYY-MM format, return as is
+      if (formattedMonth.includes('-') && formattedMonth.length === 7) {
+        return formattedMonth
+      }
+      // Convert from "August 2025" to "2025-08"
+      const date = new Date(formattedMonth)
+      const year = date.getFullYear()
+      const month = (date.getMonth() + 1).toString().padStart(2, '0')
+      return `${year}-${month}`
+    } catch (error) {
+      return '2025-08' // Default fallback
+    }
+  }
+
   const handleViewDetails = async (payout: Payout) => {
     setSelectedPayout(payout)
     setIsDetailsModalOpen(true)
+    
+    // Set the month for the selected payout in MMMM YYYY format
+    setSelectedPayoutMonth(formatMonth(payout.receiveMonth))
     
     try {
       // Load existing payout details if they exist
@@ -374,6 +417,7 @@ const Payouts: React.FC = () => {
           payout: false,
           additionalCost: 0,
           payoutDate: new Date().toISOString().split('T')[0],
+          payoutMonth: convertMonthToYYYYMM(selectedPayoutMonth),
           baseAmount: payout.totalAmount,
           settledDeduction: 0
         }
@@ -431,7 +475,8 @@ const Payouts: React.FC = () => {
         lastSlot: lastSlotPaid,
         administrationFee: adminFeePaid,
         additionalCost: additionalCost,
-        payoutDate: payoutDate
+        payoutDate: payoutDate,
+        payoutMonth: convertMonthToYYYYMM(selectedPayoutMonth)
       }
       
       // Save to database
@@ -911,13 +956,20 @@ const Payouts: React.FC = () => {
           <div className="payouts-modal">
             <div className={`payouts-modal-header ${isPayoutPaid ? 'payouts-modal-header-paid' : ''}`}>
               <div className="payouts-modal-header-content">
-                <h2 className="payouts-modal-title">Payout Details</h2>
-                <p className="payouts-modal-subtitle">
-                  {isPayoutPaid 
-                    ? `${selectedPayout.memberName} from ${selectedPayout.groupName} is fully paid.`
-                    : `Calculate the payout amount for ${selectedPayout.memberName} from ${selectedPayout.groupName}`
-                  }
-                </p>
+                <div className="payouts-modal-header-left">
+                  <h2 className="payouts-modal-title">Payout Details</h2>
+                  <p className="payouts-modal-subtitle">
+                    {isPayoutPaid 
+                      ? `${selectedPayout.memberName} from ${selectedPayout.groupName} is fully paid.`
+                      : `Calculate the payout amount for ${selectedPayout.memberName} from ${selectedPayout.groupName}`
+                    }
+                  </p>
+                </div>
+                <div className="payouts-modal-header-right">
+                  <div className="payouts-modal-month-field">
+                    <span className="payouts-modal-month-value">{selectedPayoutMonth}</span>
+                  </div>
+                </div>
               </div>
               <button 
                 onClick={() => setIsDetailsModalOpen(false)}
@@ -961,7 +1013,7 @@ const Payouts: React.FC = () => {
                   </div>
                   <div className="payouts-detail-item">
                     <span className="payouts-detail-label">National ID</span>
-                    <span className="payouts-detail-value">AB{selectedPayout.memberId.toString().padStart(6, '0')}</span>
+                    <span className="payouts-detail-value">{selectedPayout.nationalId}</span>
                   </div>
                   <div className="payouts-detail-item">
                     <span className="payouts-detail-label">Bank</span>

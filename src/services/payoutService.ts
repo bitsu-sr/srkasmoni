@@ -19,6 +19,7 @@ export const payoutService = {
               id,
               first_name,
               last_name,
+              national_id,
               bank_name,
               account_number
             )
@@ -28,6 +29,23 @@ export const payoutService = {
 
       if (groupsError) throw groupsError
 
+      // Get payout details from payouts table for this month
+      const { data: payoutDetails, error: payoutError } = await supabase
+        .from('payouts')
+        .select('*')
+        .eq('payout_month', targetMonth)
+
+      if (payoutError) {
+        console.warn('Error fetching payout details:', payoutError)
+      }
+
+      // Create a map of payout details for quick lookup
+      const payoutDetailsMap = new Map()
+      payoutDetails?.forEach((detail: any) => {
+        const key = `${detail.group_id}-${detail.member_id}`
+        payoutDetailsMap.set(key, detail)
+      })
+
       // Transform the data into Payout objects
       const payouts: Payout[] = []
       
@@ -35,10 +53,14 @@ export const payoutService = {
         group.group_members?.forEach((memberSlot: any) => {
           if (memberSlot.assigned_month_date === targetMonth && memberSlot.members) {
             const member = memberSlot.members
+            const payoutKey = `${group.id}-${member.id}`
+            const payoutDetail = payoutDetailsMap.get(payoutKey)
+            
             const payout: Payout = {
               id: memberSlot.id || Math.random(), // Use slot ID or generate random
               memberName: `${member.first_name} ${member.last_name}`,
               memberId: member.id,
+              nationalId: member.national_id,
               groupName: group.name,
               groupId: group.id,
               monthlyAmount: parseFloat(group.monthly_amount),
@@ -48,10 +70,10 @@ export const payoutService = {
               status: 'pending', // Default status
               bankName: member.bank_name,
               accountNumber: member.account_number,
-              // Initialize new fields with default values
-              lastSlot: false,
-              administrationFee: false,
-              payout: false
+              // Use actual payout data if available, otherwise defaults
+              lastSlot: payoutDetail?.last_slot || false,
+              administrationFee: payoutDetail?.administration_fee || false,
+              payout: payoutDetail?.payout || false
             }
             payouts.push(payout)
           }
