@@ -442,6 +442,7 @@ const Payouts: React.FC = () => {
         payout: false,
         additionalCost: 0,
         payoutDate: new Date().toISOString().split('T')[0],
+        payoutMonth: convertMonthToYYYYMM(selectedPayoutMonth),
         baseAmount: payout.totalAmount,
         settledDeduction: 0
       })
