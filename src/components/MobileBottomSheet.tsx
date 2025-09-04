@@ -48,19 +48,19 @@ const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({ isOpen, onClose }
   ]
 
   const secondaryItems = [
-    { path: '/messaging', label: 'Messages', icon: MessageSquare },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { path: '/payment-logs', label: 'Payment Logs', icon: FileText },
-    { path: '/payments-due', label: 'Payments Due', icon: CreditCard },
     { path: '/payouts', label: 'Payouts', icon: DollarSign },
+    { path: '/payments-due', label: 'Payments Due', icon: CreditCard },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/messaging', label: 'Messages', icon: MessageSquare },
+    { path: '/payment-logs', label: 'Payment Logs', icon: FileText },
   ]
 
   // Add admin-only items
   if (isAdmin()) {
     secondaryItems.push(
-      { path: '/settings', label: 'Settings', icon: Settings },
+      { path: '/user-management', label: 'User Management', icon: Shield },
       { path: '/login-logs', label: 'Login Logs', icon: Shield },
-      { path: '/user-management', label: 'User Management', icon: Shield }
+      { path: '/settings', label: 'Settings', icon: Settings }
     )
   }
 
