@@ -85,10 +85,10 @@ export const dashboardService = {
         this.getGroupsWithMembers(),
         // Get payment information for all groups
         this.getPaymentsForGroups(),
-        // Get payment statistics
-        paymentService.getPaymentStats(),
-        // Get overdue payments
-        paymentService.getOverduePayments(),
+        // Get payment statistics for current month
+        this.getCurrentMonthPaymentStats(),
+        // Get overdue payments for current month
+        this.getCurrentMonthOverduePayments(),
         // Get recent payments (limited to 5)
         this.getRecentPaymentsOptimized(5),
         // Get recent members (limited to 3)
@@ -203,6 +203,27 @@ export const dashboardService = {
         recentGroups: []
       }
     }
+  },
+
+  // Helper: Get payment stats for the current month using payments table payment_month
+  async getCurrentMonthPaymentStats() {
+    const currentMonth = new Date().toISOString().substring(0, 7)
+    // Reuse getPayments with month filter and compute client-side like Payments page
+    const payments = await paymentService.getPayments({ paymentMonth: currentMonth })
+    return {
+      totalPayments: payments.length,
+      totalAmount: payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0),
+      receivedAmount: payments.filter((p: any) => p.status === 'received').reduce((s: number, p: any) => s + (p.amount || 0), 0),
+      pendingAmount: payments.filter((p: any) => p.status === 'pending').reduce((s: number, p: any) => s + (p.amount || 0), 0),
+      notPaidAmount: payments.filter((p: any) => p.status === 'not_paid').reduce((s: number, p: any) => s + (p.amount || 0), 0),
+      settledAmount: payments.filter((p: any) => p.status === 'settled').reduce((s: number, p: any) => s + (p.amount || 0), 0)
+    }
+  },
+
+  // Helper: Get overdue payments only for the current month
+  async getCurrentMonthOverduePayments() {
+    const currentMonth = new Date().toISOString().substring(0, 7)
+    return paymentService.getOverduePaymentsForMonth(currentMonth)
   },
 
   // Optimized method to get groups with members

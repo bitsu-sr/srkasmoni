@@ -65,14 +65,20 @@ const Payments = () => {
       loadPayments(filters)
       loadStats()
     }
-  }, [currentUserMemberId, canViewAllRecords])
+  }, [currentUserMemberId, canViewAllRecords, filters.paymentMonth])
 
-  // Recalculate stats when payments change
+  // Recalculate stats when payments or selected month changes
   useEffect(() => {
+    // Always recompute when a month is selected (even if there are zero records)
+    if (filters.paymentMonth) {
+      loadStats()
+      return
+    }
+    // Otherwise, keep prior behavior for general stats
     if (payments.length > 0 || (!canViewAllRecords && currentUserMemberId !== null)) {
       loadStats()
     }
-  }, [payments, canViewAllRecords, currentUserMemberId])
+  }, [payments, filters.paymentMonth, canViewAllRecords, currentUserMemberId])
 
   const fetchCurrentUserMemberId = async () => {
     if (canViewAllRecords) {
@@ -118,6 +124,26 @@ const Payments = () => {
 
   const loadStats = async () => {
     try {
+      // If a payment month filter is selected, compute stats from the currently loaded (filtered) payments
+      if (filters.paymentMonth) {
+        const data = {
+          totalPayments: payments.length,
+          totalAmount: payments.reduce((sum, p) => sum + p.amount, 0),
+          receivedAmount: payments.filter(p => p.status === 'received').reduce((sum, p) => sum + p.amount, 0),
+          pendingAmount: payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0),
+          notPaidAmount: payments.filter(p => p.status === 'not_paid').reduce((sum, p) => sum + p.amount, 0),
+          settledAmount: payments.filter(p => p.status === 'settled').reduce((sum, p) => sum + p.amount, 0),
+          cashPayments: payments.filter(p => p.paymentMethod === 'cash').length,
+          bankTransferPayments: payments.filter(p => p.paymentMethod === 'bank_transfer').length,
+          receivedCount: payments.filter(p => p.status === 'received').length,
+          pendingCount: payments.filter(p => p.status === 'pending').length,
+          notPaidCount: payments.filter(p => p.status === 'not_paid').length,
+          settledCount: payments.filter(p => p.status === 'settled').length
+        }
+        setStats(data)
+        return
+      }
+
       let data = await paymentService.getPaymentStats()
       
       // Filter stats based on user permissions

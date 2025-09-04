@@ -1059,5 +1059,66 @@ export const paymentService = {
       console.error('❌ Error in getOverduePayments:', error)
       return { count: 0, amount: 0 }
     }
+  },
+
+  // Get overdue payments filtered by a specific payment_month (YYYY-MM)
+  async getOverduePaymentsForMonth(month: string): Promise<{ count: number; amount: number }> {
+    try {
+      const { data: payments, error } = await supabase
+        .from('payments')
+        .select(`
+          id,
+          amount,
+          payment_date,
+          payment_month,
+          group_id,
+          groups!inner(
+            payment_deadline_day
+          )
+        `)
+        .eq('payment_month', month)
+        .not('payment_date', 'is', null)
+        .not('payment_month', 'is', null)
+
+      if (error) {
+        console.error('❌ Error fetching payments for month:', error)
+        return { count: 0, amount: 0 }
+      }
+
+      let totalOverdueAmount = 0
+      let overdueCount = 0
+
+      if (payments && Array.isArray(payments)) {
+        for (const payment of payments) {
+          try {
+            const [year, monthNum] = payment.payment_month.split('-').map(Number)
+            const deadlineDay = payment.groups.payment_deadline_day || 29
+
+            let dueDate: Date
+            try {
+              dueDate = new Date(year, monthNum - 1, deadlineDay)
+              if (dueDate.getMonth() !== monthNum - 1) {
+                dueDate = new Date(year, monthNum, 0)
+              }
+            } catch (_dateError) {
+              dueDate = new Date(year, monthNum, 0)
+            }
+
+            const paymentDate = new Date(payment.payment_date)
+            if (paymentDate >= dueDate) {
+              totalOverdueAmount += payment.amount || 0
+              overdueCount++
+            }
+          } catch (_paymentError) {
+            continue
+          }
+        }
+      }
+
+      return { count: overdueCount, amount: totalOverdueAmount }
+    } catch (error) {
+      console.error('❌ Error in getOverduePaymentsForMonth:', error)
+      return { count: 0, amount: 0 }
+    }
   }
 }
