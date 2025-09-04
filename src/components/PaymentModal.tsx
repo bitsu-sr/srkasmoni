@@ -344,6 +344,39 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
            console.error('Failed to create payment slot:', error)
            throw new Error('Failed to create payment slot. Please try again.')
          }
+       } else if (isEditing && typeof formData.slotId === 'string') {
+         // For edits: if slotId is a string, handle safely to avoid DB bigint errors
+         const slotIdStr = formData.slotId.trim()
+         if (/^\d+$/.test(slotIdStr)) {
+           // Coerce numeric string to number
+           ;(finalFormData as any).slotId = Number(slotIdStr)
+         } else if (slotIdStr.includes('_')) {
+           // Handle composite format during edit as well (resolve/create real slot)
+           const [groupId, memberId, monthDate] = slotIdStr.split('_')
+           try {
+             const existingSlots = await paymentSlotService.getMemberSlots(parseInt(memberId), parseInt(groupId))
+             const existingSlot = existingSlots.find(slot => slot.monthDate === monthDate)
+             if (existingSlot) {
+               ;(finalFormData as any).slotId = existingSlot.id
+             } else {
+               const newSlot = await paymentSlotService.createPaymentSlot({
+                 groupId: parseInt(groupId),
+                 memberId: parseInt(memberId),
+                 monthDate: monthDate,
+                 amount: formData.amount,
+                 dueDate: new Date().toISOString().split('T')[0]
+               })
+               ;(finalFormData as any).slotId = newSlot.id
+             }
+           } catch (error) {
+             console.error('Failed to resolve slot during edit:', error)
+             // If resolution fails, do not send slotId to avoid 400
+             delete (finalFormData as any).slotId
+           }
+         } else {
+           // Unknown non-numeric format like "10-2025": do not send slotId in update
+           delete (finalFormData as any).slotId
+         }
        }
        
        await onSave(finalFormData)
@@ -479,6 +512,21 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               className={errors.paymentDate ? 'error' : ''}
             />
             {errors.paymentDate && <span className="payment-modal-error-message">{errors.paymentDate}</span>}
+          </div>
+
+          {/* Payment Month (YYYY-MM) */}
+          <div className="payment-modal-form-group">
+            <label htmlFor="paymentMonth">
+              <Calendar size={16} />
+              Payment Month
+            </label>
+            <input
+              type="month"
+              id="paymentMonth"
+              value={formData.paymentMonth}
+              onChange={(e) => handleInputChange('paymentMonth', e.target.value)}
+            />
+            <small className="payment-modal-form-help">Defaults to current month. Editable.</small>
           </div>
 
           {/* Payment Method Toggle */}

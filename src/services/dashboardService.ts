@@ -263,6 +263,7 @@ export const dashboardService = {
   // Optimized method to get payments for groups
   async getPaymentsForGroups() {
     try {
+      const currentMonth = new Date().toISOString().slice(0, 7)
       const { data, error } = await supabase
         .from('payments')
         .select(`
@@ -273,6 +274,7 @@ export const dashboardService = {
           amount
         `)
         .in('status', ['received', 'settled'])
+        .eq('payment_month', currentMonth)
         .limit(1000) // Reasonable limit for dashboard
 
       if (error) {

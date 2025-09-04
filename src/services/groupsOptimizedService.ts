@@ -64,7 +64,8 @@ export const groupsOptimizedService = {
 
       if (!groupsData || groupsData.length === 0) return []
 
-      // Get payment information to calculate slots correctly
+      // Get payment information to calculate slots correctly (current month only)
+      const currentMonth = new Date().toISOString().slice(0, 7)
       let { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select(`
@@ -74,6 +75,7 @@ export const groupsOptimizedService = {
           status
         `)
         .in('status', ['received', 'settled'])
+        .eq('payment_month', currentMonth)
 
       if (paymentsError) {
         console.warn(`Warning: Could not fetch payments with status 'received' or 'settled': ${paymentsError.message}`)

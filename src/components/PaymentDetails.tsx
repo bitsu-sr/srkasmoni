@@ -107,6 +107,11 @@ const PaymentDetails = ({ payment, onBack }: PaymentDetailsProps) => {
             </div>
             
             <div className="payment-details-field">
+              <label>Payment Month:</label>
+              <span>{payment.paymentMonth ? paymentSlotService.formatMonthDate(payment.paymentMonth) : 'N/A'}</span>
+            </div>
+            
+            <div className="payment-details-field">
               <label>Amount:</label>
               <span className="payment-details-amount">{formatAmount(payment.amount)}</span>
             </div>
