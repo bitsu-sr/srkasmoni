@@ -776,7 +776,7 @@ const Payouts: React.FC = () => {
           <thead className="payouts-table-header">
             <tr>
               <th 
-                className="payouts-table-header-cell sortable"
+                className="payouts-table-header-cell sortable col-member"
                 onClick={() => handleSort('memberName')}
               >
                 Member Name
@@ -787,10 +787,10 @@ const Payouts: React.FC = () => {
                 )}
               </th>
               <th 
-                className="payouts-table-header-cell sortable"
+                className="payouts-table-header-cell sortable col-group"
                 onClick={() => handleSort('groupName')}
               >
-                Group Name
+                Group
                 {sortField === 'groupName' && (
                   <span className="payouts-sort-indicator">
                     {sortDirection === 'asc' ? '↑' : '↓'}
@@ -798,7 +798,7 @@ const Payouts: React.FC = () => {
                 )}
               </th>
               <th 
-                className="payouts-table-header-cell sortable"
+                className="payouts-table-header-cell sortable col-total"
                 onClick={() => handleSort('totalAmount')}
               >
                 Total Amount
@@ -810,7 +810,7 @@ const Payouts: React.FC = () => {
               </th>
 
               <th 
-                className="payouts-table-header-cell sortable"
+                className="payouts-table-header-cell sortable col-status"
                 onClick={() => handleSort('status')}
               >
                 Status
@@ -820,8 +820,8 @@ const Payouts: React.FC = () => {
                   </span>
                 )}
               </th>
-              <th className="payouts-table-header-cell">Bank</th>
-              <th className="payouts-table-header-cell">Actions</th>
+              <th className="payouts-table-header-cell col-bank">Bank</th>
+              <th className="payouts-table-header-cell col-actions">Actions</th>
             </tr>
           </thead>
           <tbody className="payouts-table-body">
@@ -840,16 +840,16 @@ const Payouts: React.FC = () => {
             ) : (
               currentPayouts.map((payout) => (
                 <tr key={payout.id} className={`payouts-table-row ${payout.payout ? 'payouts-table-row-paid' : ''}`}>
-                  <td className="payouts-table-cell">
+                  <td className="payouts-table-cell col-member">
                     <div className="payouts-member-info">
                       <span className="payouts-member-name">{payout.memberName}</span>
                       <span className="payouts-member-id">ID: {payout.memberId}</span>
                     </div>
                   </td>
-                  <td className="payouts-table-cell">
+                  <td className="payouts-table-cell col-group">
                     <span className="payouts-group-name">{payout.groupName}</span>
                   </td>
-                  <td className="payouts-table-cell">
+                  <td className="payouts-table-cell col-total">
                     <div className="payouts-amount-info">
                       <span className="payouts-total-amount">SRD {payout.totalAmount.toLocaleString()}</span>
                       <span className="payouts-monthly-amount">
@@ -858,10 +858,10 @@ const Payouts: React.FC = () => {
                     </div>
                   </td>
 
-                  <td className="payouts-table-cell">
+                  <td className="payouts-table-cell col-status">
                     {getStatusBadge(payout.status)}
                   </td>
-                  <td className="payouts-table-cell">
+                  <td className="payouts-table-cell col-bank">
                     <div className="payouts-bank-info">
                       <span className="payouts-bank-name">{payout.bankName}</span>
                       <span className="payouts-account-number">
@@ -869,7 +869,7 @@ const Payouts: React.FC = () => {
                       </span>
                     </div>
                   </td>
-                  <td className="payouts-table-cell">
+                  <td className="payouts-table-cell col-actions">
                     <div className="payouts-actions">
                       <button 
                         onClick={() => handleViewDetails(payout)}
@@ -910,7 +910,7 @@ const Payouts: React.FC = () => {
               className="payouts-pagination-btn"
             >
               <ChevronLeft className="payouts-pagination-icon" />
-              Previous
+              <span className="payouts-pagination-label">Previous</span>
             </button>
             
             <div className="payouts-page-numbers">
@@ -930,7 +930,7 @@ const Payouts: React.FC = () => {
               disabled={currentPage === totalPages}
               className="payouts-pagination-btn"
             >
-              Next
+              <span className="payouts-pagination-label">Next</span>
               <ChevronRight className="payouts-pagination-icon" />
             </button>
           </div>
