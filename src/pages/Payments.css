@@ -357,17 +357,31 @@
     font-size: 1.5rem;
   }
   
+  /* Two smaller cards per row on very small screens */
+  .payments-summary {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
   .payments-summary-card {
-    padding: 16px;
+    padding: 12px;
   }
   
   .payments-summary-icon {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
   
+  .payments-summary-content h3 {
+    font-size: 0.75rem;
+  }
+
   .payments-summary-value {
-    font-size: 1.125rem;
+    font-size: 1rem;
+  }
+  
+  .payments-summary-count {
+    font-size: 0.75rem;
   }
   
   .payments-table-section {

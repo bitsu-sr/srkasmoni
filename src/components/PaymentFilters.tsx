@@ -67,6 +67,17 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
 
   const handleFilterChange = (key: keyof PaymentFiltersType, value: any) => {
     const newFilters = { ...filters, [key]: value }
+    if (key === 'paymentMonth') {
+      try {
+        if (value) {
+          localStorage.setItem('payments-selected-month', value)
+        } else {
+          localStorage.removeItem('payments-selected-month')
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
     onFiltersChange(newFilters)
   }
 
@@ -97,6 +108,18 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
             placeholder="Search by member name, group name..."
             value={searchValue}
             onChange={(e) => handleSearchChange(e.target.value)}
+          />
+        </div>
+        {/* Payment Month Selector (always visible) */}
+        <div className="payment-filters-month">
+          <input
+            type="month"
+            id="paymentMonth"
+            name="paymentMonth"
+            aria-label="Filter by Payment Month"
+            value={filters.paymentMonth || ''}
+            onChange={(e) => handleFilterChange('paymentMonth', e.target.value || undefined)}
+            title="Filter by Payment Month"
           />
         </div>
         {searchValue && (

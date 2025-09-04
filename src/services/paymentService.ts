@@ -48,6 +48,9 @@ export const paymentService = {
     if (filters?.endDate) {
       query = query.lte('payment_date', filters.endDate)
     }
+    if (filters?.paymentMonth) {
+      query = query.eq('payment_month', filters.paymentMonth)
+    }
 
     const { data, error } = await query
 

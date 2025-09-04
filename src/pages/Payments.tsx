@@ -37,7 +37,12 @@ const Payments = () => {
     notPaidCount: 0,
     settledCount: 0
   })
-  const [filters, setFilters] = useState<PaymentFiltersType>({})
+  const [filters, setFilters] = useState<PaymentFiltersType>(() => {
+    const savedMonth = typeof window !== 'undefined' ? localStorage.getItem('payments-selected-month') : null
+    return {
+      paymentMonth: savedMonth || new Date().toISOString().substring(0,7)
+    }
+  })
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
   const [deletingPayment, setDeletingPayment] = useState<Payment | null>(null)
@@ -57,7 +62,7 @@ const Payments = () => {
 
   useEffect(() => {
     if (currentUserMemberId !== null || canViewAllRecords) {
-      loadPayments()
+      loadPayments(filters)
       loadStats()
     }
   }, [currentUserMemberId, canViewAllRecords])
@@ -251,10 +256,10 @@ const Payments = () => {
   const currentPageData = payments.slice(startIndex, endIndex)
 
   const handleClearFilters = () => {
-    setFilters({})
+    setFilters({ paymentMonth: new Date().toISOString().substring(0,7) })
     setCurrentPage(1) // Reset to first page when clearing filters
     // Reload payments with no filters to show all records
-    loadPayments({})
+    loadPayments({ paymentMonth: new Date().toISOString().substring(0,7) })
     // Reload stats to reflect unfiltered data
     loadStats()
   }

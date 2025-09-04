@@ -51,6 +51,7 @@ export interface PaymentFilters {
   memberId?: number
   startDate?: string
   endDate?: string
+  paymentMonth?: string
 }
 
 export interface PaymentStats {
