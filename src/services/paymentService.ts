@@ -415,6 +415,59 @@ export const paymentService = {
     }
   },
 
+  // Check payment status for multiple slots constrained to a specific payment_month and allowed statuses
+  async checkMultipleSlotsPaymentStatusForMonth(slots: { groupId: number; memberId: number; monthDate: string }[], month: string): Promise<Set<string>> {
+    try {
+      if (slots.length === 0) return new Set()
+
+      // First, get all payment_slots that match the criteria
+      const { data: paymentSlots, error: slotError } = await supabase
+        .from('payment_slots')
+        .select('id, group_id, member_id, month_date')
+        .in('group_id', [...new Set(slots.map(s => s.groupId))])
+        .in('member_id', [...new Set(slots.map(s => s.memberId))])
+        .in('month_date', [...new Set(slots.map(s => s.monthDate))])
+
+      if (slotError) {
+        throw new Error(`Failed to check payment slots: ${slotError.message}`)
+      }
+
+      if (!paymentSlots || paymentSlots.length === 0) {
+        return new Set()
+      }
+
+      // Get the slot IDs that have payments for the selected month and allowed statuses
+      const slotIds = paymentSlots.map((slot: any) => slot.id)
+
+      const { data: payments, error: paymentError } = await supabase
+        .from('payments')
+        .select('slot_id, status, payment_month')
+        .in('slot_id', slotIds)
+        .eq('payment_month', month)
+        .in('status', ['received', 'pending', 'settled'])
+
+      if (paymentError) {
+        throw new Error(`Failed to check payments: ${paymentError.message}`)
+      }
+
+      // Create a set of slots that have payments for this month
+      const slotsWithPayments = new Set<string>()
+      const paidSlotIds = new Set(payments?.map((p: any) => p.slot_id) || [])
+
+      paymentSlots.forEach((slot: any) => {
+        if (paidSlotIds.has(slot.id)) {
+          const slotKey = `${slot.group_id}-${slot.member_id}-${slot.month_date}`
+          slotsWithPayments.add(slotKey)
+        }
+      })
+
+      return slotsWithPayments
+    } catch (error) {
+      console.error('Error checking multiple slots payment status for month:', error)
+      throw error
+    }
+  },
+
   // Check if a slot has an existing payment
   async checkSlotHasPayment(groupId: number, memberId: number, monthDate: string): Promise<boolean> {
     try {

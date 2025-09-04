@@ -46,7 +46,17 @@ const Members = () => {
   })
   const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
   const [isImporting, setIsImporting] = useState(false)
-  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+  const [viewMode, setViewMode] = useState<'card' | 'table'>(() => {
+    if (typeof window === 'undefined') return 'card'
+    const saved = localStorage.getItem('members-view-mode')
+    return saved === 'table' || saved === 'card' ? saved : 'card'
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('members-view-mode', viewMode)
+    } catch {}
+  }, [viewMode])
 
   // Load members on component mount
   useEffect(() => {
@@ -447,6 +457,27 @@ const Members = () => {
                 Add Member
               </button>
             </div>
+            <div className="members-view-mode-toggle" aria-label="View Mode">
+              <div className="members-toggle-label">View Mode:</div>
+              <div className="members-toggle-switch">
+                <button 
+                  className={`members-toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
+                  onClick={() => setViewMode('card')}
+                  title="Card View"
+                >
+                  <Grid size={18} />
+                  <span>Cards</span>
+                </button>
+                <button 
+                  className={`members-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
+                  onClick={() => setViewMode('table')}
+                  title="Table View"
+                >
+                  <List size={18} />
+                  <span>Table</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -568,76 +599,11 @@ const Members = () => {
           </div>
         )}
 
-        {/* View Mode Toggle */}
-        {isAdmin && (
-          <div className="members-view-mode-toggle">
-            <div className="members-toggle-label">View Mode:</div>
-            <div className="members-toggle-switch">
-              <button 
-                className={`members-toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
-                onClick={() => {
-                  setViewMode('card')
-                  // Assuming updateSetting is a function that saves the setting to localStorage or a context
-                  // For now, we'll just log it to the console
-                  console.log('Switching to Card View')
-                }}
-                title="Card View"
-              >
-                <Grid size={18} />
-                <span>Cards</span>
-              </button>
-              <button 
-                className={`members-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
-                onClick={() => {
-                  setViewMode('table')
-                  // Assuming updateSetting is a function that saves the setting to localStorage or a context
-                  // For now, we'll just log it to the console
-                  console.log('Switching to Table View')
-                }}
-                title="Table View"
-              >
-                <List size={18} />
-                <span>Table</span>
-              </button>
-            </div>
-          </div>
-          
-        )}
+        
 
         {/* Member Count - Only show for admins */}
         {isAdmin && (
           <div>
-            <div className="members-view-mode-toggle">
-            <div className="members-toggle-label">View Mode:</div>
-            <div className="members-toggle-switch">
-              <button 
-                className={`members-toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
-                onClick={() => {
-                  setViewMode('card')
-                  // Assuming updateSetting is a function that saves the setting to localStorage or a context
-                  // For now, we'll just log it to the console
-                  console.log('Switching to Card View')
-                }}
-                title="Card View"
-              >
-                <Grid size={18} />
-                <span>Cards</span>
-              </button>
-              <button 
-                className={`members-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
-                onClick={() => {
-                  setViewMode('table')
-                  // Assuming updateSetting is a function that saves the setting to localStorage or a context
-                  // For now, we'll just log it to the console
-                  console.log('Switching to Table View')
-                }}
-                title="Table View"
-              >
-                <List size={18} />
-                <span>Table</span>
-              </button>
-            </div>
-          </div>
             <div className="members-member-count">
               {filteredAndSortedMembers.length} member{filteredAndSortedMembers.length !== 1 ? 's' : ''} found
               {filteredAndSortedMembers.length > 0 && (

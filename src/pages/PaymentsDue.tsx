@@ -7,7 +7,7 @@ import { paymentService } from '../services/paymentService'
 
 import { pdfService } from '../services/pdfService'
 import { PaymentSlot } from '../types/paymentSlot'
-import { PaymentStats } from '../types/payment'
+ 
 import PaymentModal from '../components/PaymentModal'
 import type { PaymentFormData } from '../types/payment'
 import './PaymentsDue.css'
@@ -31,7 +31,6 @@ const PaymentsDue: React.FC = () => {
   
   // State for data
   const [unpaidSlots, setUnpaidSlots] = useState<UnpaidSlot[]>([])
-  const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -41,6 +40,14 @@ const PaymentsDue: React.FC = () => {
   
   // Filter state
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid' | 'unpaid'>('all')
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('payments-due-selected-month') : null
+    if (saved && /^\d{4}-\d{2}$/.test(saved)) return saved
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1
+    return `${year}-${month.toString().padStart(2, '0')}`
+  })
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -90,6 +97,13 @@ const PaymentsDue: React.FC = () => {
     setCurrentPage(1)
   }
 
+  // Persist selected month
+  useEffect(() => {
+    try {
+      localStorage.setItem('payments-due-selected-month', selectedMonth)
+    } catch {}
+  }, [selectedMonth])
+
   // Load data based on performance settings and user permissions
   const loadUnpaidSlots = useCallback(async () => {
     setLoading(true)
@@ -98,7 +112,6 @@ const PaymentsDue: React.FC = () => {
 
     try {
       let slots: PaymentSlot[] = []
-      let stats: PaymentStats | null = null
 
       if (settings.enableOptimizedQueries) {
         // Phase 2: Single Optimized Queries - Temporarily disabled due to schema issues
@@ -107,13 +120,11 @@ const PaymentsDue: React.FC = () => {
         // Fallback to Phase 1: Parallel Database Calls
         const phase1Start = performance.now();
         
-        const [slotsResult, statsResult] = await Promise.all([
-          paymentSlotService.getAllSlots(),
-          paymentService.getPaymentStats()
+        const [slotsResult] = await Promise.all([
+          paymentSlotService.getAllSlots()
         ]);
         
         slots = slotsResult
-        stats = statsResult
         
         const phase1Time = performance.now() - phase1Start
         setPerformanceMetrics(prev => ({ ...prev, phase1Time }))
@@ -121,20 +132,17 @@ const PaymentsDue: React.FC = () => {
         // Phase 1: Parallel Database Calls
         const phase1Start = performance.now()
         
-        const [slotsResult, statsResult] = await Promise.all([
-          paymentSlotService.getAllSlots(),
-          paymentService.getPaymentStats()
+        const [slotsResult] = await Promise.all([
+          paymentSlotService.getAllSlots()
         ])
         
         slots = slotsResult
-        stats = statsResult
         
         const phase1Time = performance.now() - phase1Start
         setPerformanceMetrics(prev => ({ ...prev, phase1Time }))
       } else {
         // Default: Sequential loading
         slots = await paymentSlotService.getAllSlots()
-        stats = await paymentService.getPaymentStats()
       }
 
       // Filter slots based on user permissions
@@ -150,37 +158,17 @@ const PaymentsDue: React.FC = () => {
                  memberLastName === userLastName?.toLowerCase()
         })
         
-        // Filter stats to only show user's data
-        if (stats) {
-          const userSlots = slots
-          const userTotalAmount = userSlots.reduce((sum, slot) => sum + slot.amount, 0)
-          const userTotalSlots = userSlots.length
-          
-          stats = {
-            ...stats,
-            totalPayments: userTotalSlots,
-            totalAmount: userTotalAmount,
-            receivedAmount: 0, // Will be calculated below
-            pendingAmount: 0,
-            notPaidAmount: userTotalAmount,
-            settledAmount: 0,
-            cashPayments: 0,
-            bankTransferPayments: 0,
-            receivedCount: 0,
-            pendingCount: 0,
-            notPaidCount: userTotalSlots,
-            settledCount: 0
-          }
-        }
+        // No payment stats usage here anymore
       }
 
-      // Check payment status for all slots
-      const slotsWithPayments = await paymentService.checkMultipleSlotsPaymentStatus(
+      // Check payment status for all slots against selectedMonth and allowed statuses
+      const slotsWithPayments = await paymentService.checkMultipleSlotsPaymentStatusForMonth(
         slots.map(slot => ({
           groupId: slot.groupId,
           memberId: slot.memberId,
           monthDate: slot.monthDate
-        }))
+        })),
+        selectedMonth
       )
 
       // Transform slots to include payment status
@@ -195,7 +183,6 @@ const PaymentsDue: React.FC = () => {
       })
       
       setUnpaidSlots(unpaidSlots)
-      setPaymentStats(stats)
       
       const totalTime = performance.now() - startTime
       setPerformanceMetrics(prev => ({ ...prev, totalTime }))
@@ -206,7 +193,7 @@ const PaymentsDue: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [settings.enableParallelCalls, settings.enableOptimizedQueries, canViewAllRecords, user?.username])
+  }, [settings.enableParallelCalls, settings.enableOptimizedQueries, canViewAllRecords, user?.username, selectedMonth])
 
   // Get filtered slots
   const getFilteredSlots = () => {
@@ -353,8 +340,8 @@ const PaymentsDue: React.FC = () => {
   }, [unpaidSlots.length, pageSize])
 
   // Calculate totals
-  const totalAmount = unpaidSlots.reduce((sum, slot) => sum + slot.amount, 0)
-  const totalAmountPaid = paymentStats?.totalAmount || 0
+  const totalAmountPaidAll = unpaidSlots.reduce((sum, slot) => sum + (slot.hasPayment ? slot.amount : 0), 0)
+  const totalAmountDue = unpaidSlots.reduce((sum, slot) => sum + (slot.hasPayment ? 0 : slot.amount), 0)
   
   // Calculate filtered totals
   const filteredAmount = getFilteredSlots().reduce((sum, slot) => sum + slot.amount, 0)
@@ -580,7 +567,7 @@ const PaymentsDue: React.FC = () => {
             ✅
           </div>
           <div className="payments-due-stat-content">
-            <div className="payments-due-stat-number">SRD {Number(totalAmountPaid.toFixed(2)).toLocaleString()}</div>
+            <div className="payments-due-stat-number">SRD {Number(totalAmountPaidAll.toFixed(2)).toLocaleString()}</div>
             <div className="payments-due-stat-label">
               {canViewAllRecords ? 'Total Amount Paid' : 'Amount Paid'}
             </div>
@@ -591,7 +578,7 @@ const PaymentsDue: React.FC = () => {
             ⚠️
           </div>
           <div className="payments-due-stat-content">
-            <div className="payments-due-stat-number">SRD {Number(Math.max(0, totalAmount - totalAmountPaid).toFixed(2)).toLocaleString()}</div>
+            <div className="payments-due-stat-number">SRD {Number(totalAmountDue.toFixed(2)).toLocaleString()}</div>
             <div className="payments-due-stat-label">
               {canViewAllRecords ? 'Total Amount Due' : 'Amount Due'}
             </div>
@@ -681,6 +668,18 @@ const PaymentsDue: React.FC = () => {
             <option value={50}>50 rows</option>
             <option value={100}>100 rows</option>
           </select>
+        </div>
+
+        {/* Month Selector */}
+        <div className="month-selector">
+          <label htmlFor="payments-due-month">Month:</label>
+          <input
+            type="month"
+            id="payments-due-month"
+            className="month-input"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          />
         </div>
 
         </div>

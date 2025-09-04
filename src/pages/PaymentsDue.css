@@ -470,6 +470,46 @@
   color: #374151;
 }
 
+/* Month Selector (match page size styling) */
+.month-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  min-width: 180px;
+}
+
+.month-selector label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.month-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.month-input:hover {
+  border-color: #9ca3af;
+}
+
+.month-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
 /* Action Buttons */
 .action-buttons {
   display: flex;

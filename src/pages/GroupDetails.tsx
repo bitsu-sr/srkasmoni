@@ -9,7 +9,9 @@ import {
   DollarSign, 
   Plus,
   Download,
-  Upload
+  Upload,
+  LayoutGrid,
+  Table as TableIcon
 } from 'lucide-react'
 import type { Group, GroupMember, GroupMemberFormData } from '../types/member'
 import { groupService } from '../services/groupService'
@@ -21,6 +23,7 @@ import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import GroupModal from '../components/GroupModal'
 import { formatDateRange, calculateDuration, formatMonthYear } from '../utils/dateUtils'
 import './GroupDetails.css'
+import '../components/PaymentTable.css'
 
 interface CSVImportResult {
   success: number
@@ -45,6 +48,17 @@ const GroupDetails = () => {
   const [csvImportResult, setCsvImportResult] = useState<CSVImportResult | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [slotPaymentStatus, setSlotPaymentStatus] = useState<Map<string, boolean>>(new Map())
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>(() => {
+    if (typeof window === 'undefined') return 'cards'
+    const saved = localStorage.getItem('group-details-view-mode')
+    return saved === 'table' || saved === 'cards' ? (saved as 'cards' | 'table') : 'cards'
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('group-details-view-mode', viewMode)
+    } catch {}
+  }, [viewMode])
   
   // Modal states
   const [showMemberModal, setShowMemberModal] = useState(false)
@@ -93,22 +107,29 @@ const GroupDetails = () => {
   const loadPaidSlotsCount = async (groupId: number, membersData: GroupMember[]) => {
     try {
       const slotStatus = new Map<string, boolean>()
+      const currentMonth = new Date().toISOString().slice(0, 7)
 
-      // Load payment status for each individual slot
+      // Fetch all payments for the current month in this group
+      const currentMonthPayments = await paymentService.getPayments({ paymentMonth: currentMonth, groupId })
+      // Consider only meaningful paid statuses if available
+      const paidMemberIds = new Set(
+        currentMonthPayments
+          .filter(p => (p.status === 'received' || p.status === 'settled'))
+          .map(p => p.memberId)
+      )
+
+      // Mark a slot as paid only if that member has a payment in the current month
       for (const member of membersData) {
         const monthDate = typeof member.assignedMonthDate === 'string' 
           ? member.assignedMonthDate 
           : `2024-${String(member.assignedMonthDate).padStart(2, '0')}`
-        
-        const isPaid = await paymentService.isSlotPaid(groupId, member.memberId, monthDate)
         const slotKey = `${member.memberId}-${monthDate}`
-        slotStatus.set(slotKey, isPaid)
+        slotStatus.set(slotKey, paidMemberIds.has(member.memberId))
       }
-      
+
       setSlotPaymentStatus(slotStatus)
     } catch (err) {
       console.error('Error loading slot payment status:', err)
-      // Don't fail the entire load, just log the error
     }
   }
 
@@ -493,20 +514,46 @@ const GroupDetails = () => {
         <div className="members-section">
           <div className="section-header">
             <h2>Group Slots</h2>
-            {(() => {
-              const totalSlots = members.length
-              const hasAvailableSlots = totalSlots < group.maxMembers
-              return hasAvailableSlots ? (
-                <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
-                  <Plus size={16} />
-                  Add Member
+            <div className="slots-controls">
+              <div className="slots-view-toggle" role="tablist" aria-label="Slots view mode">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === 'cards'}
+                  className={`toggle-option ${viewMode === 'cards' ? 'active' : ''}`}
+                  onClick={() => setViewMode('cards')}
+                  title="Card view"
+                >
+                  <LayoutGrid size={16} />
+                  Cards
                 </button>
-              ) : (
-                <div className="no-slots-available">
-                  <span>All slots filled</span>
-                </div>
-              )
-            })()}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={viewMode === 'table'}
+                  className={`toggle-option ${viewMode === 'table' ? 'active' : ''}`}
+                  onClick={() => setViewMode('table')}
+                  title="Table view"
+                >
+                  <TableIcon size={16} />
+                  Table
+                </button>
+              </div>
+              {(() => {
+                const totalSlots = members.length
+                const hasAvailableSlots = totalSlots < group.maxMembers
+                return hasAvailableSlots ? (
+                  <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
+                    <Plus size={16} />
+                    Add Member
+                  </button>
+                ) : (
+                  <div className="no-slots-available">
+                    <span>All slots filled</span>
+                  </div>
+                )
+              })()}
+            </div>
           </div>
 
           {/* CSV Import Section */}
@@ -591,64 +638,125 @@ const GroupDetails = () => {
               </button>
             </div>
           ) : (
-            <div className="slots-grid">
-              {members.map((slot) => {
-                const monthDate = typeof slot.assignedMonthDate === 'string' 
-                  ? slot.assignedMonthDate 
-                  : `2024-${String(slot.assignedMonthDate).padStart(2, '0')}`
-                
-                const slotKey = `${slot.memberId}-${monthDate}`
-                const isPaid = slotPaymentStatus.get(slotKey) || false
-                const groupDuration = group?.startDate && group?.endDate ? 
-                  calculateDuration(group.startDate, group.endDate) : 0
-                const slotAmount = (group?.monthlyAmount || 0) * groupDuration
+            viewMode === 'cards' ? (
+              <div className="slots-grid">
+                {members.map((slot) => {
+                  const monthDate = typeof slot.assignedMonthDate === 'string' 
+                    ? slot.assignedMonthDate 
+                    : `2024-${String(slot.assignedMonthDate).padStart(2, '0')}`
+                  
+                  const slotKey = `${slot.memberId}-${monthDate}`
+                  const isPaid = slotPaymentStatus.get(slotKey) || false
+                  const groupDuration = group?.startDate && group?.endDate ? 
+                    calculateDuration(group.startDate, group.endDate) : 0
+                  const slotAmount = (group?.monthlyAmount || 0) * groupDuration
 
-                return (
-                  <div key={slot.id} className="slot-card">
-                    <div className="slot-info">
-                      <div className="slot-header">
-                        <div className="slot-month">
-                          {formatMonthYear(monthDate)}
+                  return (
+                    <div key={slot.id} className="slot-card">
+                      <div className="slot-info">
+                        <div className="slot-header">
+                          <div className="slot-month">
+                            {formatMonthYear(monthDate)}
+                          </div>
+                          <div className="slot-payment-status">
+                            {isPaid ? (
+                              <span className="status-paid">Paid</span>
+                            ) : (
+                              <span className="status-unpaid">Unpaid</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="slot-payment-status">
-                          {isPaid ? (
-                            <span className="status-paid">Paid</span>
-                          ) : (
-                            <span className="status-unpaid">Unpaid</span>
-                          )}
+                        <div className="slot-member">
+                          <div className="member-name">
+                            {slot.member?.firstName} {slot.member?.lastName}
+                          </div>
+                          <div className="member-details">
+                            <span className="member-phone">{slot.member?.phone}</span>
+                            <span className="member-email">{slot.member?.email}</span>
+                          </div>
+                        </div>
+                        <div className="slot-details">
+                          <span className="slot-amount">
+                            Receives: SRD {slotAmount.toLocaleString()}
+                          </span>
+                          <span className="slot-duration">
+                            Duration: {groupDuration} month{groupDuration !== 1 ? 's' : ''}
+                          </span>
                         </div>
                       </div>
-                      <div className="slot-member">
-                        <div className="member-name">
-                          {slot.member?.firstName} {slot.member?.lastName}
-                        </div>
-                        <div className="member-details">
-                          <span className="member-phone">{slot.member?.phone}</span>
-                          <span className="member-email">{slot.member?.email}</span>
-                        </div>
-                      </div>
-                      <div className="slot-details">
-                        <span className="slot-amount">
-                          Receives: SRD {slotAmount.toLocaleString()}
-                        </span>
-                        <span className="slot-duration">
-                          Duration: {groupDuration} month{groupDuration !== 1 ? 's' : ''}
-                        </span>
+                      <div className="slot-actions">
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => confirmRemoveSlot(slot.memberId, monthDate, `${slot.member?.firstName} ${slot.member?.lastName}`)}
+                          title="Remove this slot"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
-                    <div className="slot-actions">
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => confirmRemoveSlot(slot.memberId, monthDate, `${slot.member?.firstName} ${slot.member?.lastName}`)}
-                        title="Remove this slot"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="slots-table-wrapper">
+                <table className="slots-table">
+                  <thead>
+                    <tr>
+                      <th>Month</th>
+                      <th>Member</th>
+                      <th>Contact</th>
+                      <th>Receives</th>
+                      <th>Duration</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {members.map((slot) => {
+                      const monthDate = typeof slot.assignedMonthDate === 'string' 
+                        ? slot.assignedMonthDate 
+                        : `2024-${String(slot.assignedMonthDate).padStart(2, '0')}`
+                      const slotKey = `${slot.memberId}-${monthDate}`
+                      const isPaid = slotPaymentStatus.get(slotKey) || false
+                      const groupDuration = group?.startDate && group?.endDate ? 
+                        calculateDuration(group.startDate, group.endDate) : 0
+                      const slotAmount = (group?.monthlyAmount || 0) * groupDuration
+
+                      return (
+                        <tr key={slot.id}>
+                          <td>{formatMonthYear(monthDate)}</td>
+                          <td>{slot.member?.firstName} {slot.member?.lastName}</td>
+                          <td>
+                            <div className="table-contact">
+                              <span className="member-phone">{slot.member?.phone}</span>
+                              <span className="member-email">{slot.member?.email}</span>
+                            </div>
+                          </td>
+                          <td>SRD {slotAmount.toLocaleString()}</td>
+                          <td>{groupDuration} month{groupDuration !== 1 ? 's' : ''}</td>
+                          <td>
+                            {isPaid ? (
+                              <span className="status-paid">Paid</span>
+                            ) : (
+                              <span className="status-unpaid">Unpaid</span>
+                            )}
+                          </td>
+                          <td className="payment-table-actions">
+                            <button
+                              className="payment-table-action-btn payment-table-action-delete"
+                              onClick={() => confirmRemoveSlot(slot.memberId, monthDate, `${slot.member?.firstName} ${slot.member?.lastName}`)}
+                              title="Remove this slot"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </div>
       </div>

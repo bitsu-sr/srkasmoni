@@ -141,6 +141,39 @@
   color: #111827;
 }
 
+.slots-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slots-view-toggle {
+  display: inline-flex;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.slots-view-toggle .toggle-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #374151;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.slots-view-toggle .toggle-option.active {
+  background: white;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
 .empty-members {
   text-align: center;
   padding: 48px 24px;
@@ -168,6 +201,46 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
+}
+
+.slots-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.slots-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.slots-table thead th {
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.slots-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #111827;
+  vertical-align: top;
+}
+
+.slots-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.table-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .slot-card {

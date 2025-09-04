@@ -19,6 +19,7 @@ import {
   ChevronUp
 } from 'lucide-react'
 import './Payouts.css'
+import '../components/PaymentTable.css'
 import { Payout, PayoutDetails, FilterType, StatusFilter, SortField, SortDirection } from '../types/payout'
 import { payoutService } from '../services/payoutService'
 import { payoutDetailsService } from '../services/payoutDetailsService'
@@ -869,21 +870,21 @@ const Payouts: React.FC = () => {
                       </span>
                     </div>
                   </td>
-                  <td className="payouts-table-cell col-actions">
-                    <div className="payouts-actions">
+                  <td className="payouts-table-cell col-actions payment-table-actions">
+                    <div className="payment-table-actions">
                       <button 
                         onClick={() => handleViewDetails(payout)}
-                        className="payouts-action-btn payout-view-btn"
+                        className="payment-table-action-btn payment-table-action-view"
                         title="View Details"
                       >
-                        <Eye className="payouts-action-icon" />
+                        <Eye size={16} />
                       </button>
                       <button 
                         onClick={() => handleDownload(payout)}
-                        className="payouts-action-btn payout-download-btn"
+                        className="payment-table-action-btn payment-table-action-edit"
                         title="Download"
                       >
-                        <Download className="payouts-action-icon" />
+                        <Download size={16} />
                       </button>
                     </div>
                   </td>
