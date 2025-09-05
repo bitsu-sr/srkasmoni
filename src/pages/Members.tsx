@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 import MemberModal from '../components/MemberModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import './Members.css'
+import { useLanguage } from '../contexts/LanguageContext'
 
 // Using the centralized MemberWithStatus interface from memberStatusService
 
@@ -29,6 +30,7 @@ const Members = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const { t } = useLanguage()
   const [members, setMembers] = useState<MemberWithStatus[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -407,7 +409,7 @@ const Members = () => {
     return (
       <div className="members-page">
         <div className="members-container">
-          <div className="members-loading">Loading members...</div>
+          <div className="members-loading">{t('members.loading')}</div>
         </div>
       </div>
     )
@@ -417,12 +419,9 @@ const Members = () => {
     <div className="members-page">
       <div className="members-page-header">
         <div className="members-container">
-          <h1 className="members-page-title">Members</h1>
+          <h1 className="members-page-title">{t('members.title')}</h1>
           <p className="members-page-subtitle">
-            {isAdmin 
-              ? "Manage your organization's members" 
-              : "View your member information"
-            }
+            {isAdmin ? t('members.subtitle.admin') : t('members.subtitle.user')}
           </p>
         </div>
       </div>
@@ -434,7 +433,7 @@ const Members = () => {
             <div className="members-csv-import-section">
               <button className="members-btn members-btn-secondary" onClick={downloadSampleCSV}>
                 <Download size={20} />
-                Download Sample CSV
+                {t('members.downloadSample')}
               </button>
               <div className="members-file-upload-wrapper">
                 <input
@@ -447,18 +446,18 @@ const Members = () => {
                 />
                 <label htmlFor="csv-upload" className="members-btn members-btn-secondary">
                   <Upload size={20} />
-                  {isImporting ? 'Importing...' : 'Import CSV'}
+                  {isImporting ? 'Importing...' : t('members.importCsv')}
                 </label>
               </div>
             </div>
             <div className="members-create-member-section">
               <button className="members-btn members-btn-primary" onClick={openAddModal}>
                 <Plus size={20} />
-                Add Member
+                {t('members.addMember')}
               </button>
             </div>
             <div className="members-view-mode-toggle" aria-label="View Mode">
-              <div className="members-toggle-label">View Mode:</div>
+              <div className="members-toggle-label">{t('members.viewMode')}</div>
               <div className="members-toggle-switch">
                 <button 
                   className={`members-toggle-btn ${viewMode === 'card' ? 'active' : ''}`}
@@ -466,7 +465,7 @@ const Members = () => {
                   title="Card View"
                 >
                   <Grid size={18} />
-                  <span>Cards</span>
+                  <span>{t('members.cards')}</span>
                 </button>
                 <button 
                   className={`members-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
@@ -474,7 +473,7 @@ const Members = () => {
                   title="Table View"
                 >
                   <List size={18} />
-                  <span>Table</span>
+                  <span>{t('members.table')}</span>
                 </button>
               </div>
             </div>
@@ -485,7 +484,7 @@ const Members = () => {
         {isAdmin && csvImportResult && (
           <div className={`members-csv-import-result ${csvImportResult.success > 0 ? 'success' : 'error'}`}>
             <div className="members-result-header">
-              <h3>CSV Import Results</h3>
+              <h3>{t('members.csvResults')}</h3>
               <button 
                 className="members-close-result" 
                 onClick={() => setCsvImportResult(null)}
@@ -502,7 +501,7 @@ const Members = () => {
             </div>
             {csvImportResult.errors.length > 0 && (
               <div className="members-result-errors">
-                <h4>Import Errors:</h4>
+                <h4>{t('members.importErrors')}</h4>
                 <ul>
                   {csvImportResult.errors.map((error, index) => (
                     <li key={index}>{error}</li>
@@ -521,7 +520,7 @@ const Members = () => {
               <input
                 type="text"
                 className="members-search-input"
-                placeholder="Search members by name, national ID, phone, bank, or account number..."
+                placeholder={t('members.searchPlaceholder')}
                 value={filters.search}
                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
               />
@@ -533,7 +532,7 @@ const Members = () => {
                 value={filters.location}
                 onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
               >
-                <option value="">All Cities</option>
+                <option value="">{t('members.filter.allCities')}</option>
                 {uniqueCities.map(city => (
                   <option key={city} value={city}>{city}</option>
                 ))}
@@ -555,7 +554,7 @@ const Members = () => {
                   }}
                   title="Sort by name (click to change direction)"
                 >
-                  Name
+                  {t('members.sort.name')}
                   {sortConfig.field === 'name' ? (
                     sortConfig.direction === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
                   ) : (
@@ -577,7 +576,7 @@ const Members = () => {
                   }}
                   title="Sort by status (click to change direction)"
                 >
-                  Status
+                  {t('members.sort.status')}
                   {sortConfig.field === 'status' ? (
                     sortConfig.direction === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
                   ) : (
@@ -589,9 +588,9 @@ const Members = () => {
                   <button
                     className="members-sort-btn clear-sort"
                     onClick={() => setSortConfig({ field: 'name', direction: 'asc' })}
-                    title="Reset to default sorting (Name A-Z)"
+                    title={t('members.sort.resetTitle')}
                   >
-                    Reset Sort
+                    {t('members.sort.reset')}
                   </button>
                 )}
               </div>
@@ -605,11 +604,14 @@ const Members = () => {
         {isAdmin && (
           <div>
             <div className="members-member-count">
-              {filteredAndSortedMembers.length} member{filteredAndSortedMembers.length !== 1 ? 's' : ''} found
+              {t('members.count.found')
+                .replace('{count}', String(filteredAndSortedMembers.length))
+                .replace('{plural}', filteredAndSortedMembers.length !== 1 ? 's' : '')}
               {filteredAndSortedMembers.length > 0 && (
                 <span className="members-sort-info">
-                  • Sorted by {sortConfig.field === 'name' ? 'Name' : 'Status'} 
-                  ({sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A'})
+                  {t('members.count.sortedBy')
+                    .replace('{field}', sortConfig.field === 'name' ? t('members.sort.name') : t('members.sort.status'))
+                    .replace('{dir}', sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A')}
                 </span>
               )}
             </div>
@@ -627,7 +629,7 @@ const Members = () => {
                     <h3 className="members-member-name">{member.firstName} {member.lastName}</h3>
                     <div className="members-status-tags">
                       <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
-                        {member.statusInfo.isActive ? 'ACTIVE' : 'INACTIVE'}
+                        {member.statusInfo.isActive ? t('members.status.active') : t('members.status.inactive')}
                       </span>
                     </div>
                   </div>
@@ -640,22 +642,22 @@ const Members = () => {
 
                 <div className="members-member-details">
                   <div className="members-detail-item">
-                    <span className="members-detail-label">Slots: {member.statusInfo.totalSlots}</span>
+                    <span className="members-detail-label">{t('members.detail.slots')}: {member.statusInfo.totalSlots}</span>
                   </div>
                   <div className="members-detail-item">
-                    <span className="members-detail-label">National ID: {member.nationalId}</span>
+                    <span className="members-detail-label">{t('members.detail.nationalId')}: {member.nationalId}</span>
                   </div>
                 </div>
 
                 <div className="members-financial-box">
                   <div className="members-financial-row">
-                    <span className="members-financial-label">Total Monthly Amount:</span>
+                    <span className="members-financial-label">{t('members.fin.totalMonthly')}</span>
                     <span className="members-financial-value">
                       SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
                     </span>
                   </div>
                   <div className="members-financial-row">
-                    <span className="members-financial-label">Next Receive Month:</span>
+                    <span className="members-financial-label">{t('members.fin.nextReceive')}</span>
                     <span className="members-financial-value">
                       {formatMonthDisplay(member.statusInfo.nextReceiveMonth)}
                     </span>
@@ -665,7 +667,7 @@ const Members = () => {
                 <div className="members-member-actions">
                   <button className="members-btn members-btn-secondary members-view-btn" onClick={() => handleViewDetails(member.id)}>
                     <Eye size={16} />
-                    View Details
+                    {t('members.btn.viewDetails')}
                   </button>
                   {isAdmin && (
                     <button 
@@ -673,7 +675,7 @@ const Members = () => {
                       onClick={() => handleDeleteMember(member)}
                     >
                       <Trash2 size={16} />
-                      Delete Member
+                      {t('members.btn.delete')}
                     </button>
                   )}
                 </div>
@@ -686,15 +688,15 @@ const Members = () => {
             <table className="members-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Status</th>
-                  <th>National ID</th>
-                  <th>Phone</th>
-                  <th>City</th>
-                  <th>Slots</th>
-                  <th>Monthly Amount</th>
-                  <th>Next Receive</th>
-                  <th>Actions</th>
+                  <th>{t('members.table.name')}</th>
+                  <th>{t('members.table.status')}</th>
+                  <th>{t('members.table.nationalId')}</th>
+                  <th>{t('members.table.phone')}</th>
+                  <th>{t('members.table.city')}</th>
+                  <th>{t('members.table.slots')}</th>
+                  <th>{t('members.table.monthlyAmount')}</th>
+                  <th>{t('members.table.nextReceive')}</th>
+                  <th>{t('members.table.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -747,8 +749,8 @@ const Members = () => {
         {filteredAndSortedMembers.length === 0 && (
           <div className="members-empty-state">
             <User size={64} className="members-empty-icon" />
-            <h3>No Members Found</h3>
-            <p>No members match your current search criteria</p>
+            <h3>{t('members.empty.title')}</h3>
+            <p>{t('members.empty.desc')}</p>
           </div>
         )}
       </div>

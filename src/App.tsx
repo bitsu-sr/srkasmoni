@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { PerformanceSettingsProvider } from './contexts/PerformanceSettingsContext'
+import { LanguageProvider } from './contexts/LanguageContext'
 import { ReactQueryProvider } from './contexts/ReactQueryProvider'
 import { AuthProvider } from './contexts/AuthContext'
 import Navbar from './components/Navbar'
@@ -31,11 +32,12 @@ function App() {
   return (
     <ReactQueryProvider>
       <PerformanceSettingsProvider>
-        <AuthProvider>
-          <Router>
-            <div className="app">
-              <Navbar />
-              <main className="main-content">
+        <LanguageProvider>
+          <AuthProvider>
+            <Router>
+              <div className="app">
+                <Navbar />
+                <main className="main-content">
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
                   <Route path="/landing" element={<Landing />} />
@@ -121,12 +123,13 @@ function App() {
                   } />
 
                 </Routes>
-              </main>
-              <Footer />
-              <PWAInstallPrompt />
-            </div>
-          </Router>
-        </AuthProvider>
+                </main>
+                <Footer />
+                <PWAInstallPrompt />
+              </div>
+            </Router>
+          </AuthProvider>
+        </LanguageProvider>
       </PerformanceSettingsProvider>
     </ReactQueryProvider>
   )

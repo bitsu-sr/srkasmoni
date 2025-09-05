@@ -11,6 +11,7 @@ import { PaymentSlot } from '../types/paymentSlot'
 import PaymentModal from '../components/PaymentModal'
 import type { PaymentFormData } from '../types/payment'
 import './PaymentsDue.css'
+import { useLanguage } from '../contexts/LanguageContext'
 
 // Type for unpaid slots with member and group info
 interface UnpaidSlot extends PaymentSlot {
@@ -22,6 +23,7 @@ type SortDirection = 'asc' | 'desc'
 
 const PaymentsDue: React.FC = () => {
   const { settings, updateSetting } = usePerformanceSettings()
+  const { t } = useLanguage()
   const { user } = useAuth()
   
   // Determine user permissions
@@ -446,7 +448,7 @@ const PaymentsDue: React.FC = () => {
   if (loading) {
     return (
       <div className="payments-due-container">
-        <div className="loading">Loading unpaid slots...</div>
+        <div className="loading">{t('paymentsDue.loading')}</div>
       </div>
     )
   }
@@ -455,7 +457,7 @@ const PaymentsDue: React.FC = () => {
     return (
       <div className="payments-due-container">
         <div className="error">{error}</div>
-        <button onClick={loadUnpaidSlots} className="retry-btn">Retry</button>
+        <button onClick={loadUnpaidSlots} className="retry-btn">{t('paymentsDue.error.retry')}</button>
       </div>
     )
   }
@@ -464,12 +466,9 @@ const PaymentsDue: React.FC = () => {
     <div className="payments-due-container">
       <div className="page-header">
         <div className="header-content">
-          <h1>Payments Due</h1>
+          <h1>{t('paymentsDue.title')}</h1>
           <h2>
-            {canViewAllRecords 
-              ? 'All slots from all groups' 
-              : 'Your payment slots'
-            }
+            {canViewAllRecords ? t('paymentsDue.subtitle.admin') : t('paymentsDue.subtitle.user')}
           </h2>
           <p>
             {!canViewAllRecords && `Showing only ${user?.username?.split('.')[0] || 'your'} records`}
@@ -500,14 +499,14 @@ const PaymentsDue: React.FC = () => {
             className="refresh-btn"
             title="Refresh"
           >
-            🔄 Refresh
+            🔄 {t('paymentsDue.refresh')}
           </button>
           <button 
             onClick={comparePerformance}
             className="performance-btn"
             title="Show Performance Comparison"
           >
-            📊 Performance
+            📊 {t('paymentsDue.performance')}
           </button>
         </div>
       </div>
@@ -530,13 +529,13 @@ const PaymentsDue: React.FC = () => {
       <div className="statistics-section">
         {!canViewAllRecords && (
           <div className="payments-due-filter-notice">
-            <span>🔒 Viewing only your records</span>
+            <span>🔒 {t('paymentsDue.notice.own')}</span>
           </div>
         )}
         {paymentStatusFilter !== 'all' && (
           <div className="payments-due-filter-notice">
             <span>
-              {paymentStatusFilter === 'paid' ? '✅ Showing paid slots only' : '⚠️ Showing unpaid slots only'}
+              {paymentStatusFilter === 'paid' ? t('paymentsDue.notice.filter.paid') : t('paymentsDue.notice.filter.unpaid')}
             </span>
           </div>
         )}
@@ -547,7 +546,7 @@ const PaymentsDue: React.FC = () => {
           <div className="payments-due-stat-content">
             <div className="payments-due-stat-number">{getFilteredSlots().length}</div>
             <div className="payments-due-stat-label">
-              {canViewAllRecords ? 'Filtered Slots' : 'Your Filtered Slots'}
+              {canViewAllRecords ? t('paymentsDue.stats.filteredSlots.admin') : t('paymentsDue.stats.filteredSlots.user')}
             </div>
           </div>
         </div>
@@ -558,7 +557,7 @@ const PaymentsDue: React.FC = () => {
           <div className="payments-due-stat-content">
             <div className="payments-due-stat-number">SRD {Number(filteredAmount.toFixed(2)).toLocaleString()}</div>
             <div className="payments-due-stat-label">
-              {canViewAllRecords ? 'Filtered Amount' : 'Your Filtered Amount'}
+              {canViewAllRecords ? t('paymentsDue.stats.filteredAmount.admin') : t('paymentsDue.stats.filteredAmount.user')}
             </div>
           </div>
         </div>
@@ -569,7 +568,7 @@ const PaymentsDue: React.FC = () => {
           <div className="payments-due-stat-content">
             <div className="payments-due-stat-number">SRD {Number(totalAmountPaidAll.toFixed(2)).toLocaleString()}</div>
             <div className="payments-due-stat-label">
-              {canViewAllRecords ? 'Total Amount Paid' : 'Amount Paid'}
+              {canViewAllRecords ? t('paymentsDue.stats.totalPaid.admin') : t('paymentsDue.stats.totalPaid.user')}
             </div>
           </div>
         </div>
@@ -580,7 +579,7 @@ const PaymentsDue: React.FC = () => {
           <div className="payments-due-stat-content">
             <div className="payments-due-stat-number">SRD {Number(totalAmountDue.toFixed(2)).toLocaleString()}</div>
             <div className="payments-due-stat-label">
-              {canViewAllRecords ? 'Total Amount Due' : 'Amount Due'}
+              {canViewAllRecords ? t('paymentsDue.stats.totalDue.admin') : t('paymentsDue.stats.totalDue.user')}
             </div>
           </div>
         </div>
@@ -594,7 +593,7 @@ const PaymentsDue: React.FC = () => {
         <div className="action-buttons">
           {/* PDF Export Section */}
           <div className="pdf-export-section">
-            <span className="export-label">Export to PDF:</span>
+            <span className="export-label">{t('paymentsDue.export.label')}</span>
             <div className="export-buttons">
               <button
                 onClick={() => handleExportPDF('all')}
@@ -603,7 +602,7 @@ const PaymentsDue: React.FC = () => {
                 title="Export all rows to PDF"
               >
                 <Download className="export-btn-icon" />
-                All Rows
+                {t('paymentsDue.export.all')}
               </button>
               <button
                 onClick={() => handleExportPDF('paid')}
@@ -612,7 +611,7 @@ const PaymentsDue: React.FC = () => {
                 title="Export only paid rows to PDF"
               >
                 <Download className="export-btn-icon" />
-                Paid Only
+                {t('paymentsDue.export.paid')}
               </button>
               <button
                 onClick={() => handleExportPDF('unpaid')}
@@ -621,7 +620,7 @@ const PaymentsDue: React.FC = () => {
                 title="Export only unpaid rows to PDF"
               >
                 <Download className="export-btn-icon" />
-                Unpaid Only
+                {t('paymentsDue.export.unpaid')}
               </button>
             </div>
           </div>
@@ -629,16 +628,16 @@ const PaymentsDue: React.FC = () => {
           {/* Payment Status Filter */}
           <div className="filter-section">
             <div className="payment-status-filter">
-              <label htmlFor="payment-status">Payment Status:</label>
+              <label htmlFor="payment-status">{t('paymentsDue.filter.paymentStatus')}</label>
               <select
                 id="payment-status"
                 value={paymentStatusFilter}
                 onChange={(e) => handlePaymentStatusFilterChange(e.target.value as 'all' | 'paid' | 'unpaid')}
                 className="payment-status-dropdown"
               >
-                <option value="all">All Slots</option>
-                <option value="unpaid">Unpaid Only</option>
-                <option value="paid">Paid Only</option>
+                <option value="all">{t('paymentsDue.filter.all')}</option>
+                <option value="unpaid">{t('paymentsDue.filter.unpaid')}</option>
+                <option value="paid">{t('paymentsDue.filter.paid')}</option>
               </select>
             </div>
             
@@ -649,14 +648,14 @@ const PaymentsDue: React.FC = () => {
                 className="clear-filters-btn"
                 title="Clear all filters"
               >
-                🗑️ Clear Filters
+                🗑️ {t('paymentsDue.filter.clear')}
               </button>
             )}
           </div>
 
         {/* Page Size Selector */}
         <div className="page-size-selector">
-          <label htmlFor="page-size">Rows per page:</label>
+          <label htmlFor="page-size">{t('paymentsDue.pageSize.label')}</label>
           <select
             id="page-size"
             value={settings.pageSize}
@@ -687,24 +686,24 @@ const PaymentsDue: React.FC = () => {
         {/* Search Section */}
         <div className="payments-due-search-section">
           <div className="payments-due-search-field-selector">
-            <label htmlFor="search-field">Search in:</label>
+            <label htmlFor="search-field">{t('paymentsDue.search.in')}</label>
             <select
               id="search-field"
               value={searchField}
               onChange={(e) => setSearchField(e.target.value as 'all' | 'name' | 'group' | 'amount')}
               className="payments-due-search-field-dropdown"
             >
-              <option value="all">All Fields</option>
-              <option value="name">Member Name</option>
-              <option value="group">Group Name</option>
-              <option value="amount">Amount</option>
+              <option value="all">{t('paymentsDue.search.field.all')}</option>
+              <option value="name">{t('paymentsDue.search.field.name')}</option>
+              <option value="group">{t('paymentsDue.search.field.group')}</option>
+              <option value="amount">{t('paymentsDue.search.field.amount')}</option>
             </select>
           </div>
           
           <div className="payments-due-search-input-container">
             <input
               type="text"
-              placeholder="Search payments due..."
+              placeholder={t('paymentsDue.search.placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="payments-due-search-input"
@@ -725,8 +724,8 @@ const PaymentsDue: React.FC = () => {
       {unpaidSlots.length === 0 ? (
         <div className="no-data">
           📅
-          <h3>No Payments Due</h3>
-          <p>All members have paid their current month's slots!</p>
+          <h3>{t('paymentsDue.none.title')}</h3>
+          <p>{t('paymentsDue.none.desc')}</p>
         </div>
       ) : (
         <>

@@ -1,9 +1,11 @@
 
 import { Link } from 'react-router-dom'
 import { ArrowRight, Users, Shield, TrendingUp, Clock, CheckCircle } from 'lucide-react'
+import { useLanguage } from '../contexts/LanguageContext'
 import './Landing.css'
 
 const Landing = () => {
+  const { t } = useLanguage()
   // Mock data - you can replace these with actual data from your backend
   const stats = {
     groups: 47,
@@ -22,21 +24,20 @@ const Landing = () => {
               <img src="/logokasmonigr.png" alt="Sranan Kasmoni Logo" className="hero-logo" />
             </div>
             <h1 className="hero-title">
-              <span className="highlight">Kasmoni</span>
+              <span className="highlight">{t('landing.hero.titleLine1')}</span>
               <br />
-              Build Wealth. Build Trust. Together.
+              {t('landing.hero.titleLine2')}
             </h1>
             <p className="hero-subtitle">
-              Join the trusted community savings platform that brings people together 
-              to achieve financial goals through mutual support and transparency.
+              {t('landing.hero.subtitle')}
             </p>
             <div className="hero-cta">
               <Link to="/dashboard" className="cta-button primary">
-                Get Started Today
+                {t('landing.hero.getStarted')}
                 <ArrowRight size={20} />
               </Link>
               <Link to="/groups" className="cta-button secondary">
-                Explore Groups
+                {t('landing.hero.exploreGroups')}
               </Link>
             </div>
           </div>
@@ -51,14 +52,14 @@ const Landing = () => {
               </div>
               <div className="image-item">
                 <img 
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face" 
+                  src="/business11a.jpg" 
                   alt="Person planning financial future" 
                   className="hero-img"
                 />
               </div>
               <div className="image-item">
                 <img 
-                  src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=400&fit=crop&crop=face" 
+                  src="/investment01.jpg" 
                   alt="Community member saving together" 
                   className="hero-img"
                 />
@@ -77,28 +78,28 @@ const Landing = () => {
                 <Users size={32} />
               </div>
               <div className="stat-number">{stats.groups}</div>
-              <div className="stat-label">Active Groups</div>
+              <div className="stat-label">{t('landing.stats.activeGroups')}</div>
             </div>
             <div className="stat-item">
               <div className="stat-icon">
                 <TrendingUp size={32} />
               </div>
               <div className="stat-number">{stats.members}</div>
-              <div className="stat-label">Community Members</div>
+              <div className="stat-label">{t('landing.stats.communityMembers')}</div>
             </div>
             <div className="stat-item">
               <div className="stat-icon">
                 <Shield size={32} />
               </div>
               <div className="stat-number">SRD {stats.totalSavings.toLocaleString()}</div>
-              <div className="stat-label">Total Savings</div>
+              <div className="stat-label">{t('landing.stats.totalSavings')}</div>
             </div>
             <div className="stat-item">
               <div className="stat-icon">
                 <Clock size={32} />
               </div>
               <div className="stat-number">{stats.roundsCompleted}</div>
-              <div className="stat-label">Rounds Completed</div>
+              <div className="stat-label">{t('landing.stats.roundsCompleted')}</div>
             </div>
           </div>
         </div>
@@ -107,31 +108,29 @@ const Landing = () => {
       {/* How It Works Section */}
       <section className="how-it-works">
         <div className="container">
-          <h2 className="section-title">How Kasmoni Works</h2>
-          <p className="section-subtitle">
-            A simple, transparent system that empowers communities to save together
-          </p>
+          <h2 className="section-title">{t('landing.how.title')}</h2>
+          <p className="section-subtitle">{t('landing.how.subtitle')}</p>
           
           <div className="steps-grid">
             <div className="step-item">
               <div className="step-number">1</div>
-              <h3>Join a Group</h3>
-              <p>Find a savings group that fits your schedule and contribution amount, starting from SRD 1,000.</p>
+              <h3>{t('landing.how.step1.title')}</h3>
+              <p>{t('landing.how.step1.desc')}</p>
             </div>
             <div className="step-item">
               <div className="step-number">2</div>
-              <h3>Save Regularly</h3>
-              <p>Make your monthly contributions on time. Everyone contributes the same amount each month.</p>
+              <h3>{t('landing.how.step2.title')}</h3>
+              <p>{t('landing.how.step2.desc')}</p>
             </div>
             <div className="step-item">
               <div className="step-number">3</div>
-              <h3>Receive Your Turn</h3>
-              <p>When it's your turn, receive the full pot - all contributions from your group members.</p>
+              <h3>{t('landing.how.step3.title')}</h3>
+              <p>{t('landing.how.step3.desc')}</p>
             </div>
             <div className="step-item">
               <div className="step-number">4</div>
-              <h3>Build Trust</h3>
-              <p>Continue saving and supporting others, building lasting relationships and financial security.</p>
+              <h3>{t('landing.how.step4.title')}</h3>
+              <p>{t('landing.how.step4.desc')}</p>
             </div>
           </div>
         </div>
@@ -142,34 +141,34 @@ const Landing = () => {
         <div className="container">
           <div className="benefits-content">
             <div className="benefits-text">
-              <h2>Why Choose Sranan Kasmoni?</h2>
+              <h2>{t('landing.why.title')}</h2>
               <div className="benefits-list">
                 <div className="benefit-item">
                   <CheckCircle size={24} className="benefit-icon" />
                   <div>
-                    <h4>No Banks, No Credit Checks</h4>
-                    <p>Just real people helping real people with transparent, community-based savings.</p>
+                    <h4>{t('landing.why.item1.title')}</h4>
+                    <p>{t('landing.why.item1.desc')}</p>
                   </div>
                 </div>
                 <div className="benefit-item">
                   <CheckCircle size={24} className="benefit-icon" />
                   <div>
-                    <h4>Secure & Transparent</h4>
-                    <p>Every transaction is recorded and visible to all group members for complete transparency.</p>
+                    <h4>{t('landing.why.item2.title')}</h4>
+                    <p>{t('landing.why.item2.desc')}</p>
                   </div>
                 </div>
                 <div className="benefit-item">
                   <CheckCircle size={24} className="benefit-icon" />
                   <div>
-                    <h4>Flexible & Accessible</h4>
-                    <p>Choose your contribution amount and join groups that fit your financial situation.</p>
+                    <h4>{t('landing.why.item3.title')}</h4>
+                    <p>{t('landing.why.item3.desc')}</p>
                   </div>
                 </div>
                 <div className="benefit-item">
                   <CheckCircle size={24} className="benefit-icon" />
                   <div>
-                    <h4>Community Support</h4>
-                    <p>Build lasting relationships while achieving your financial goals together.</p>
+                    <h4>{t('landing.why.item4.title')}</h4>
+                    <p>{t('landing.why.item4.desc')}</p>
                   </div>
                 </div>
               </div>
@@ -189,15 +188,15 @@ const Landing = () => {
       <section className="cta-section">
         <div className="container">
           <div className="cta-content">
-            <h2>Ready to Start Your Financial Journey?</h2>
-            <p>Join thousands of Surinamese who are already building wealth and trust together.</p>
+            <h2>{t('landing.cta.title')}</h2>
+            <p>{t('landing.cta.subtitle')}</p>
             <div className="cta-buttons">
               <Link to="/dashboard" className="cta-button primary large">
-                Start Saving Today
+                {t('landing.cta.primary')}
                 <ArrowRight size={24} />
               </Link>
               <Link to="/groups" className="cta-button secondary large">
-                Browse Groups
+                {t('landing.cta.secondary')}
               </Link>
             </div>
           </div>
@@ -207,15 +206,15 @@ const Landing = () => {
       {/* Contact Section */}
       <section className="contact-section">
         <div className="container">
-          <h2 className="section-title">Get in Touch</h2>
+          <h2 className="section-title">{t('landing.contact.title')}</h2>
           <div className="contact-content">
             <div className="contact-info">
               <div className="contact-item">
-                <h4>Email</h4>
+                <h4>{t('landing.contact.email')}</h4>
                 <p>bitsu.sr@gmail.com</p>
               </div>
               <div className="contact-item">
-                <h4>Follow Us</h4>
+                <h4>{t('landing.contact.followUs')}</h4>
                 <div className="social-links">
                   <a 
                     href="https://www.facebook.com/kasmoni.sr" 
@@ -223,7 +222,7 @@ const Landing = () => {
                     rel="noopener noreferrer"
                     className="social-link"
                   >
-                    Facebook
+                    {t('landing.contact.facebook')}
                   </a>
                   <a 
                     href="https://x.com/sr_kasmoni" 
@@ -231,16 +230,13 @@ const Landing = () => {
                     rel="noopener noreferrer"
                     className="social-link"
                   >
-                    Twitter
+                    {t('landing.contact.twitter')}
                   </a>
                 </div>
               </div>
             </div>
             <div className="contact-message">
-              <p>
-                Have questions about joining a Kasmoni group? Our team is here to help 
-                you get started on your community savings journey.
-              </p>
+              <p>{t('landing.contact.message')}</p>
             </div>
           </div>
         </div>

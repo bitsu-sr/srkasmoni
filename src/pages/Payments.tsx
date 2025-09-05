@@ -9,10 +9,12 @@ import PaymentFilters from '../components/PaymentFilters'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { useAuth } from '../contexts/AuthContext'
 import './Payments.css'
+import { useLanguage } from '../contexts/LanguageContext'
 import { supabase } from '../lib/supabase'
 
 const Payments = () => {
   const { user } = useAuth();
+  const { t } = useLanguage()
   
   // Determine user permissions
   const isAdmin = user?.role === 'admin'
@@ -312,16 +314,13 @@ const Payments = () => {
     <div className="payments-page">
       <div className="payments-page-header">
         <div className="payments-container">
-          <h1 className="payments-page-title">Payments</h1>
+          <h1 className="payments-page-title">{t('payments.title')}</h1>
           <p className="payments-page-subtitle">
-            {canViewAllRecords 
-              ? "Track all payments and their status" 
-              : "Track your payments and their status"
-            }
+            {canViewAllRecords ? t('payments.subtitle.admin') : t('payments.subtitle.user')}
           </p>
           {!canViewAllRecords && (
             <div className="payments-user-notice">
-              🔒 Viewing only your payment records
+              🔒 {t('payments.userNotice')}
             </div>
           )}
         </div>
@@ -334,7 +333,7 @@ const Payments = () => {
             <div className="payments-actions-left">
               <button className="payments-btn payments-btn-primary" onClick={handleAddPayment}>
                 <Plus size={20} />
-                Record Payment
+                {t('payments.recordPayment')}
               </button>
             </div>
           </div>
@@ -347,9 +346,9 @@ const Payments = () => {
               <CheckCircle size={24} />
             </div>
             <div className="payments-summary-content">
-              <h3>Received</h3>
+              <h3>{t('payments.summary.received')}</h3>
               <div className="payments-summary-value">SRD {stats.receivedAmount.toLocaleString()}</div>
-              <div className="payments-summary-count">{stats.receivedCount} payments</div>
+              <div className="payments-summary-count">{t('payments.summary.count').replace('{count}', String(stats.receivedCount))}</div>
             </div>
           </div>
           <div className="payments-summary-card">
@@ -357,9 +356,9 @@ const Payments = () => {
               <Clock size={24} />
             </div>
             <div className="payments-summary-content">
-              <h3>Pending</h3>
+              <h3>{t('payments.summary.pending')}</h3>
               <div className="payments-summary-value">SRD {stats.pendingAmount.toLocaleString()}</div>
-              <div className="payments-summary-count">{stats.pendingCount} payments</div>
+              <div className="payments-summary-count">{t('payments.summary.count').replace('{count}', String(stats.pendingCount))}</div>
             </div>
           </div>
           <div className="payments-summary-card">
@@ -367,9 +366,9 @@ const Payments = () => {
               <XCircle size={24} />
             </div>
             <div className="payments-summary-content">
-              <h3>Not Paid</h3>
+              <h3>{t('payments.summary.notPaid')}</h3>
               <div className="payments-summary-value">SRD {stats.notPaidAmount.toLocaleString()}</div>
-              <div className="payments-summary-count">{stats.notPaidCount} payments</div>
+              <div className="payments-summary-count">{t('payments.summary.count').replace('{count}', String(stats.notPaidCount))}</div>
             </div>
           </div>
           <div className="payments-summary-card">
@@ -377,9 +376,9 @@ const Payments = () => {
               <CheckCircle size={24} />
             </div>
             <div className="payments-summary-content">
-              <h3>Settled</h3>
+              <h3>{t('payments.summary.settled')}</h3>
               <div className="payments-summary-value">SRD {stats.settledAmount.toLocaleString()}</div>
-              <div className="payments-summary-count">{stats.settledCount} payments</div>
+              <div className="payments-summary-count">{t('payments.summary.count').replace('{count}', String(stats.settledCount))}</div>
             </div>
           </div>
         </div>
@@ -394,7 +393,7 @@ const Payments = () => {
         {/* Page Size Selector and Pagination Info */}
         <div className="payments-pagination-section">
           <div className="payments-page-size-selector">
-            <label htmlFor="payments-page-size">Rows per page:</label>
+            <label htmlFor="payments-page-size">{t('payments.pagination.rowsPerPage')}</label>
             <select
               id="payments-page-size"
               value={pageSize}
@@ -411,10 +410,15 @@ const Payments = () => {
           <div className="payments-pagination-info">
             <div className="payments-pagination-stats">
               <span className="payments-record-count">
-                Showing {startIndex + 1}-{Math.min(endIndex, payments.length)} of {payments.length} payments
+                {t('payments.pagination.showing')
+                  .replace('{from}', String(startIndex + 1))
+                  .replace('{to}', String(Math.min(endIndex, payments.length)))
+                  .replace('{total}', String(payments.length))}
               </span>
               <span className="payments-page-info">
-                Page {currentPage} of {totalPages}
+                {t('payments.pagination.pageOf')
+                  .replace('{page}', String(currentPage))
+                  .replace('{pages}', String(totalPages))}
               </span>
             </div>
           </div>
@@ -426,15 +430,12 @@ const Payments = () => {
             <div className="payments-privacy-notice">
               <div className="payments-privacy-icon">🔒</div>
               <div className="payments-privacy-text">
-                <strong>Privacy Notice:</strong> You are only viewing your own payment records. 
-                Administrators can see all payments across the system.
+                <strong>{t('payments.privacy.title')}</strong> {t('payments.privacy.body')}
               </div>
             </div>
           )}
           <div className="payments-section-header">
-            <h2>
-              {canViewAllRecords ? 'All Payments' : 'Your Payments'}
-            </h2>
+            <h2>{canViewAllRecords ? t('payments.section.all') : t('payments.section.yours')}</h2>
             <div className="payments-section-actions">
               <span className="payments-total-count">
                 {payments.length} payment{payments.length !== 1 ? 's' : ''}
@@ -445,7 +446,7 @@ const Payments = () => {
           {isLoading ? (
             <div className="payments-loading-state">
               <div className="payments-spinner"></div>
-              <p>Loading payments...</p>
+              <p>{t('payments.loading')}</p>
             </div>
           ) : (
             <PaymentTable

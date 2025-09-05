@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, Menu, X, FileText, DollarSign, Shield, MessageSquare } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import LoginModal from './LoginModal'
 import UserProfileDropdown from './UserProfileDropdown'
 import MobileBottomSheet from './MobileBottomSheet'
@@ -14,6 +15,7 @@ const Navbar = () => {
   const location = useLocation()
   const menuRef = useRef<HTMLDivElement>(null)
   const { isAuthenticated, isAdmin, isSuperUser } = useAuth()
+  const { t } = useLanguage()
 
   // Check for pending password reset requests
   useEffect(() => {
@@ -48,26 +50,26 @@ const Navbar = () => {
   }, [])
 
   const navItems = [
-    { path: isAdmin() || isSuperUser() ? '/dashboard' : '/my-dashboard', label: 'Dashboard', icon: Home },
-    { path: '/groups', label: 'Groups', icon: Users },
-    { path: '/members', label: 'Members', icon: UserCheck },
-    { path: '/payments', label: 'Payments', icon: CreditCard },
+    { path: isAdmin() || isSuperUser() ? '/dashboard' : '/my-dashboard', label: isAdmin() || isSuperUser() ? t('nav.dashboard') : t('nav.myDashboard'), icon: Home },
+    { path: '/groups', label: t('nav.groups'), icon: Users },
+    { path: '/members', label: t('nav.members'), icon: UserCheck },
+    { path: '/payments', label: t('nav.payments'), icon: CreditCard },
   ]
 
   const hamburgerItems = [
-    { path: '/payouts', label: 'Payouts', icon: DollarSign },
-    { path: '/payments-due', label: 'Payments Due', icon: CreditCard },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { path: '/messaging', label: 'Messages', icon: MessageSquare },
-    { path: '/payment-logs', label: 'Payment Logs', icon: FileText },
+    { path: '/payouts', label: t('nav.payouts'), icon: DollarSign },
+    { path: '/payments-due', label: t('nav.paymentsDue'), icon: CreditCard },
+    { path: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
+    { path: '/messaging', label: t('nav.messages'), icon: MessageSquare },
+    { path: '/payment-logs', label: t('nav.paymentLogs'), icon: FileText },
   ]
 
   // Add admin-only items
   if (isAdmin()) {
     hamburgerItems.push(
-      { path: '/user-management', label: 'User Management', icon: Shield },
-      { path: '/login-logs', label: 'Login Logs', icon: Shield },
-      { path: '/settings', label: 'Settings', icon: Settings }
+      { path: '/user-management', label: t('nav.userManagement'), icon: Shield },
+      { path: '/login-logs', label: t('nav.loginLogs'), icon: Shield },
+      { path: '/settings', label: t('nav.settings'), icon: Settings }
     )
   }
 
@@ -169,7 +171,7 @@ const Navbar = () => {
                 className="login-btn"
                 onClick={() => setIsLoginModalOpen(true)}
               >
-                Login
+                {t('auth.login')}
               </button>
             )}
           </div>
@@ -192,7 +194,7 @@ const Navbar = () => {
                 className="mobile-login-btn"
                 onClick={() => setIsLoginModalOpen(true)}
               >
-                Login
+                {t('auth.login')}
               </button>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Plus, Users, UserPlus, TrendingUp, DollarSign, Clock, CheckCircle, XCircle, ArrowRight, AlertTriangle } from 'lucide-react'
 import { useCachedDashboard } from '../hooks/useCachedQueries'
+import { useLanguage } from '../contexts/LanguageContext'
 import { dashboardService } from '../services/dashboardService'
 import './Dashboard.css'
 
@@ -69,6 +70,7 @@ const DashboardSkeleton = () => (
 
 const Dashboard = () => {
   const navigate = useNavigate()
+  const { t } = useLanguage()
   
   // Navigation handlers
   const handleAddPayment = () => {
@@ -99,10 +101,10 @@ const Dashboard = () => {
       <div className="dashboard">
         <div className="container">
           <div className="error-state">
-            <h2>Error Loading Dashboard</h2>
-            <p>There was a problem loading the dashboard data.</p>
+            <h2>{t('dashboard.title')}</h2>
+            <p>{t('common.loading')}</p>
             <button onClick={() => refetch()} className="retry-button">
-              Try Again
+              {t('common.tryAgain')}
             </button>
             <button 
               onClick={async () => {
@@ -116,7 +118,7 @@ const Dashboard = () => {
               className="retry-button"
               style={{ marginLeft: '10px' }}
             >
-              Test Database
+              {t('common.testDatabase')}
             </button>
           </div>
         </div>
@@ -132,17 +134,17 @@ const Dashboard = () => {
           <div className="container">
             <div className="dashboard-header-content">
               <div className="dashboard-header-text">
-                <h1>Dashboard</h1>
-                <p>Overview of your Kasmoni groups and payments</p>
+                <h1>{t('dashboard.title')}</h1>
+                <p>{t('dashboard.subtitle')}</p>
               </div>
               <div className="dashboard-header-actions">
                 <button className="btn btn-primary" onClick={handleAddPayment}>
                   <Plus size={20} />
-                  Add Payment
+                  {t('dashboard.addPayment')}
                 </button>
                 <button className="btn btn-secondary" onClick={handleCreateGroup}>
                   <UserPlus size={20} />
-                  Create Group
+                  {t('dashboard.createGroup')}
                 </button>
               </div>
             </div>
@@ -154,16 +156,16 @@ const Dashboard = () => {
             <div className="empty-icon">
               <Users size={64} />
             </div>
-            <h2>Welcome to Sranan Kasmoni</h2>
-            <p>Your dashboard is ready but there's no data yet. Get started by:</p>
+            <h2>{t('dashboard.welcome')}</h2>
+            <p>{t('dashboard.getStarted')}</p>
             <div className="empty-actions">
               <button className="btn btn-primary" onClick={handleCreateGroup}>
                 <UserPlus size={20} />
-                Create Your First Group
+                {t('dashboard.createYourFirstGroup')}
               </button>
               <button className="btn btn-secondary" onClick={handleAddPayment}>
                 <Plus size={20} />
-                Add Your First Payment
+                {t('dashboard.addYourFirstPayment')}
               </button>
             </div>
             <div className="empty-info">
@@ -187,14 +189,14 @@ const Dashboard = () => {
   // Transform data for display
   const stats = [
     {
-      title: 'Total Amount Expected',
+      title: t('dashboard.stats.totalExpected'),
       value: `SRD ${(dashboardData?.stats?.totalExpected || 0).toLocaleString()}`,
       change: (dashboardData?.stats?.totalExpected || 0) > 0 ? '+100%' : '0%',
       icon: Users, // Changed from Calendar to Users
       color: 'info'
     },
     {
-      title: 'Total Amount Paid',
+      title: t('dashboard.stats.totalPaid'),
       value: `SRD ${(dashboardData?.stats?.totalPaid || 0).toLocaleString()}`,
       change: (dashboardData?.stats?.totalPaid || 0) > 0 && (dashboardData?.stats?.totalExpected || 0) > 0 ? 
         `+${Math.round(((dashboardData?.stats?.totalPaid || 0) / (dashboardData?.stats?.totalExpected || 1)) * 100)}%` : '0%',
@@ -202,42 +204,42 @@ const Dashboard = () => {
       color: 'success'
     },
     {
-      title: 'Total Amount Received',
+      title: t('dashboard.stats.totalReceived'),
       value: `SRD ${(dashboardData?.stats?.totalReceived || 0).toLocaleString()}`,
       change: (dashboardData?.stats?.totalReceived || 0) > 0 ? `+100%` : '0%',
       icon: TrendingUp,
       color: 'primary'
     },
     {
-      title: 'Pending Payments',
+      title: t('dashboard.stats.pendingPayments'),
       value: `SRD ${(dashboardData?.stats?.totalPending || 0).toLocaleString()}`,
       change: (dashboardData?.stats?.totalPending || 0) > 0 ? `+${dashboardData?.stats?.totalPending || 0}` : '0',
       icon: Clock, // Changed from CreditCard to Clock
       color: 'info'
     },
     {
-      title: 'Total Amount Due',
+      title: t('dashboard.stats.totalDue'),
       value: `SRD ${(dashboardData?.stats?.totalAmountDue || 0).toLocaleString()}`,
       change: (dashboardData?.stats?.totalAmountDue || 0) > 0 ? `+${dashboardData?.stats?.totalAmountDue || 0}` : '0',
       icon: AlertTriangle,
       color: 'danger'
     },
     {
-      title: 'Overdue Payments',
+      title: t('dashboard.stats.overduePayments'),
       value: `SRD ${(dashboardData?.stats?.totalOverdue || 0).toLocaleString()}`,
       change: (dashboardData?.stats?.totalOverdue || 0) > 0 ? `+${dashboardData?.stats?.totalOverdue || 0}` : '0',
       icon: XCircle, // Changed from AlertTriangle to XCircle
       color: 'warning'
     },
     {
-      title: 'Active Groups',
+      title: t('dashboard.stats.activeGroups'),
       value: (dashboardData?.stats?.activeGroups || 0).toString(),
       change: (dashboardData?.stats?.activeGroups || 0) > 0 ? `+${dashboardData?.stats?.activeGroups || 0}` : '0',
       icon: Users, // Changed from Users to Users
       color: 'success'
     },
     {
-      title: 'Active Members',
+      title: t('dashboard.stats.activeMembers'),
       value: `${dashboardData?.stats?.activeMembers || 0}/${dashboardData?.stats?.totalMembers || 0}`,
       change: (dashboardData?.stats?.activeMembers || 0) > 0 ? `+${dashboardData?.stats?.activeMembers || 0}` : '0',
           icon: UserPlus,
@@ -280,8 +282,8 @@ const Dashboard = () => {
         <div className="container">
           <div className="dashboard-header-content">
             <div className="dashboard-header-text">
-              <h1>Dashboard</h1>
-              <p>Overview of your Kasmoni groups and payments</p>
+              <h1>{t('dashboard.title')}</h1>
+              <p>{t('dashboard.subtitle')}</p>
               {showLoadingIndicator && (
                 <div className="loading-indicator">
                   <div className="loading-spinner"></div>
@@ -292,11 +294,11 @@ const Dashboard = () => {
             <div className="dashboard-header-actions">
               <button className="btn btn-primary" onClick={handleAddPayment}>
                 <Plus size={20} />
-                Add Payment
+                {t('dashboard.addPayment')}
               </button>
               <button className="btn btn-secondary" onClick={handleCreateGroup}>
                 <UserPlus size={20} />
-                Create Group
+                {t('dashboard.createGroup')}
             </button>
             </div>
           </div>
@@ -325,14 +327,14 @@ const Dashboard = () => {
 
         {/* Groups Table */}
         <div className="dashboard-groups-section">
-          <h2>All Groups</h2>
+          <h2>{t('dashboard.groups.all')}</h2>
           <div className="dashboard-groups-table">
             <div className="dashboard-table-header">
-              <div className="dashboard-header-cell">Group Name</div>
-              <div className="dashboard-header-cell">Monthly Amount</div>
-              <div className="dashboard-header-cell">Next Recipient</div>
-              <div className="dashboard-header-cell">Slots Progress</div>
-              <div className="dashboard-header-cell">Created</div>
+              <div className="dashboard-header-cell">{t('dashboard.groups.headers.name')}</div>
+              <div className="dashboard-header-cell">{t('dashboard.groups.headers.monthlyAmount')}</div>
+              <div className="dashboard-header-cell">{t('dashboard.groups.headers.nextRecipient')}</div>
+              <div className="dashboard-header-cell">{t('dashboard.groups.headers.slotsProgress')}</div>
+              <div className="dashboard-header-cell">{t('dashboard.groups.headers.created')}</div>
                        </div>
             {dashboardData?.groups
               .sort((a: any, b: any) => a.name.localeCompare(b.name))

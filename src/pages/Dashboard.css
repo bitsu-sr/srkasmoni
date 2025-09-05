@@ -1,7 +1,7 @@
 /* Dashboard Layout */
 .dashboard {
   min-height: 100vh;
-  background-color: #F5F5F7;
+  background-color: #F5F5F7; 
 }
 
 /* CSS Reset for Dashboard - Override any conflicting styles */

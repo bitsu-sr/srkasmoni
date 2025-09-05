@@ -19,6 +19,7 @@ import {
   ChevronUp
 } from 'lucide-react'
 import './Payouts.css'
+import { useLanguage } from '../contexts/LanguageContext'
 import '../components/PaymentTable.css'
 import { Payout, PayoutDetails, FilterType, StatusFilter, SortField, SortDirection } from '../types/payout'
 import { payoutService } from '../services/payoutService'
@@ -28,6 +29,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 
 const Payouts: React.FC = () => {
+  const { t } = useLanguage()
   // Auth state
   const { user } = useAuth()
   const isAdminUser = user?.role === 'admin' || user?.role === 'super_user'
@@ -580,7 +582,7 @@ const Payouts: React.FC = () => {
       <div className="payouts-page">
         <div className="payouts-loading">
           <div className="payouts-spinner"></div>
-          <p>Loading payouts...</p>
+          <p>{t('payouts.loading')}</p>
         </div>
       </div>
     )
@@ -591,10 +593,10 @@ const Payouts: React.FC = () => {
       <div className="payouts-page">
         <div className="payouts-error">
           <AlertCircle className="payouts-error-icon" />
-          <h2>Error Loading Payouts</h2>
+          <h2>{t('payouts.error.title')}</h2>
           <p>{error}</p>
           <button onClick={() => fetchPayouts()} className="payouts-retry-btn">
-            Try Again
+            {t('payouts.retry')}
           </button>
         </div>
       </div>
@@ -606,18 +608,18 @@ const Payouts: React.FC = () => {
       {/* Header */}
       <div className="payouts-header">
         <div className="payouts-header-content">
-          <h1 className="payouts-title">Payouts</h1>
+          <h1 className="payouts-title">{t('payouts.title')}</h1>
           <p className="payouts-subtitle">
             {selectedMonth === currentMonth 
-              ? `Current month (${selectedMonthDisplay}) - Members receiving payouts this month`
-              : `${selectedMonthDisplay} - Members receiving payouts for this month`
+              ? t('payouts.subtitle.current').replace('{month}', selectedMonthDisplay)
+              : t('payouts.subtitle.other').replace('{month}', selectedMonthDisplay)
             }
           </p>
         </div>
         <div className="payouts-header-actions">
           <button onClick={handlePrint} className="payouts-print-btn">
             <Printer className="payouts-btn-icon" />
-            Print
+            {t('payouts.print')}
           </button>
         </div>
       </div>
@@ -629,8 +631,8 @@ const Payouts: React.FC = () => {
             <Eye className="payouts-privacy-icon-svg" />
           </div>
           <div className="payouts-privacy-content">
-            <h3>Privacy Notice</h3>
-            <p>You are viewing only your own payout records. Administrators can see all payout records.</p>
+            <h3>{t('payouts.privacy.title')}</h3>
+            <p>{t('payouts.privacy.body')}</p>
           </div>
         </div>
       )}
@@ -645,8 +647,8 @@ const Payouts: React.FC = () => {
             <h3 className="payouts-summary-value">{totalPayouts}</h3>
             <p className="payouts-summary-label">
               {selectedMonth === currentMonth 
-                ? 'Current Month Payouts' 
-                : `${selectedMonthDisplay} Payouts`
+                ? t('payouts.summary.count.current') 
+                : t('payouts.summary.count.other').replace('{month}', selectedMonthDisplay)
               }
             </p>
           </div>
@@ -660,8 +662,8 @@ const Payouts: React.FC = () => {
             <h3 className="payouts-summary-value">SRD {totalAmount.toLocaleString()}</h3>
             <p className="payouts-summary-label">
               {selectedMonth === currentMonth 
-                ? 'Current Month Amount' 
-                : `${selectedMonthDisplay} Amount`
+                ? t('payouts.summary.amount.current') 
+                : t('payouts.summary.amount.other').replace('{month}', selectedMonthDisplay)
               }
             </p>
           </div>
@@ -673,7 +675,7 @@ const Payouts: React.FC = () => {
           </div>
           <div className="payouts-summary-content">
             <h3 className="payouts-summary-value">{completedPayouts}</h3>
-            <p className="payouts-summary-label">Completed</p>
+            <p className="payouts-summary-label">{t('payouts.summary.completed')}</p>
           </div>
         </div>
         
@@ -683,14 +685,14 @@ const Payouts: React.FC = () => {
           </div>
           <div className="payouts-summary-content">
             <h3 className="payouts-summary-value">{pendingPayouts}</h3>
-            <p className="payouts-summary-label">Pending</p>
+            <p className="payouts-summary-label">{t('payouts.summary.pending')}</p>
           </div>
         </div>
       </div>
 
       {/* Selected Month Note */}
       <div className="payouts-current-month-note">
-        <p>Showing payouts for <strong>{selectedMonthDisplay}</strong> - Members whose assigned month is {selectedMonthDisplay}</p>
+        <p>{t('payouts.note.showing').replace('{month}', selectedMonthDisplay).replace('{month}', selectedMonthDisplay)}</p>
       </div>
 
       {/* Filters Button */}
@@ -700,7 +702,7 @@ const Payouts: React.FC = () => {
           className="payouts-filters-btn"
         >
           <Filter className="payouts-btn-icon" />
-          Filters
+          {t('payouts.filters.toggle')}
           {showFilters ? <ChevronUp className="payouts-btn-icon" /> : <ChevronDown className="payouts-btn-icon" />}
         </button>
       </div>
@@ -709,50 +711,50 @@ const Payouts: React.FC = () => {
       <div className={`payouts-filters ${showFilters ? 'payouts-filters-open' : 'payouts-filters-closed'}`}>
         <div className="payouts-filters-row">
           <div className="payouts-filter-group">
-            <label className="payouts-filter-label">Filter Type:</label>
+            <label className="payouts-filter-label">{t('payouts.filters.type')}</label>
             <select 
               value={filterType} 
               onChange={(e) => setFilterType(e.target.value as FilterType)}
               className="payouts-filter-select"
             >
-              <option value="all">All Fields</option>
-              <option value="memberName">Member Name</option>
-              <option value="groupName">Group Name</option>
-              <option value="bankName">Bank Name</option>
+              <option value="all">{t('payouts.filters.type.all')}</option>
+              <option value="memberName">{t('payouts.filters.type.member')}</option>
+              <option value="groupName">{t('payouts.filters.type.group')}</option>
+              <option value="bankName">{t('payouts.filters.type.bank')}</option>
             </select>
           </div>
           
           <div className="payouts-filter-group">
-            <label className="payouts-filter-label">Search:</label>
+            <label className="payouts-filter-label">{t('payouts.filters.search')}</label>
             <div className="payouts-search-input">
               <Search className="payouts-search-icon" />
               <input
                 type="text"
                 value={filterValue}
                 onChange={(e) => setFilterValue(e.target.value)}
-                placeholder="Enter search term..."
+                placeholder={t('payouts.filters.search.placeholder')}
                 className="payouts-search-field"
               />
             </div>
           </div>
           
           <div className="payouts-filter-group">
-            <label className="payouts-filter-label">Status:</label>
+            <label className="payouts-filter-label">{t('payouts.filters.status')}</label>
             <select 
               value={statusFilter} 
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
               className="payouts-filter-select"
             >
-              <option value="all">All Statuses</option>
-              <option value="completed">Completed</option>
-              <option value="pending">Pending</option>
+              <option value="all">{t('payouts.filters.status.all')}</option>
+              <option value="completed">{t('payouts.summary.completed')}</option>
+              <option value="pending">{t('payouts.summary.pending')}</option>
               <option value="processing">Processing</option>
               <option value="failed">Failed</option>
             </select>
           </div>
           
           <div className="payouts-filter-group">
-            <label className="payouts-filter-label">Month:</label>
+            <label className="payouts-filter-label">{t('payouts.filters.month')}</label>
             <input
               type="month"
               value={selectedMonth}
@@ -766,7 +768,7 @@ const Payouts: React.FC = () => {
         
         <div className="payouts-filters-actions">
           <button onClick={clearFilters} className="payouts-clear-filters-btn">
-            Clear Filters
+            {t('payouts.filters.clear')}
           </button>
         </div>
       </div>
@@ -780,7 +782,7 @@ const Payouts: React.FC = () => {
                 className="payouts-table-header-cell sortable col-member"
                 onClick={() => handleSort('memberName')}
               >
-                Member Name
+                {t('payouts.table.member')}
                 {sortField === 'memberName' && (
                   <span className="payouts-sort-indicator">
                     {sortDirection === 'asc' ? '↑' : '↓'}
@@ -791,7 +793,7 @@ const Payouts: React.FC = () => {
                 className="payouts-table-header-cell sortable col-group"
                 onClick={() => handleSort('groupName')}
               >
-                Group
+                {t('payouts.table.group')}
                 {sortField === 'groupName' && (
                   <span className="payouts-sort-indicator">
                     {sortDirection === 'asc' ? '↑' : '↓'}
@@ -802,7 +804,7 @@ const Payouts: React.FC = () => {
                 className="payouts-table-header-cell sortable col-total"
                 onClick={() => handleSort('totalAmount')}
               >
-                Total Amount
+                {t('payouts.table.total')}
                 {sortField === 'totalAmount' && (
                   <span className="payouts-sort-indicator">
                     {sortDirection === 'asc' ? '↑' : '↓'}
@@ -814,15 +816,15 @@ const Payouts: React.FC = () => {
                 className="payouts-table-header-cell sortable col-status"
                 onClick={() => handleSort('status')}
               >
-                Status
+                {t('payouts.table.status')}
                 {sortField === 'status' && (
                   <span className="payouts-sort-indicator">
                     {sortDirection === 'asc' ? '↑' : '↓'}
                   </span>
                 )}
               </th>
-              <th className="payouts-table-header-cell col-bank">Bank</th>
-              <th className="payouts-table-header-cell col-actions">Actions</th>
+              <th className="payouts-table-header-cell col-bank">{t('payouts.table.bank')}</th>
+              <th className="payouts-table-header-cell col-actions">{t('payouts.table.actions')}</th>
             </tr>
           </thead>
           <tbody className="payouts-table-body">
@@ -830,10 +832,10 @@ const Payouts: React.FC = () => {
               <tr className="payouts-table-empty-row">
                 <td colSpan={6} className="payouts-table-empty-cell">
                   <div className="payouts-empty-state">
-                    <p>No payouts found for {selectedMonthDisplay}</p>
-                    <p>This means no members are assigned to receive payouts for this month</p>
+                    <p>{t('payouts.empty.title').replace('{month}', selectedMonthDisplay)}</p>
+                    <p>{t('payouts.empty.desc')}</p>
                     <button onClick={clearFilters} className="payouts-clear-filters-btn">
-                      Clear Filters
+                      {t('payouts.filters.clear')}
                     </button>
                   </div>
                 </td>
@@ -900,7 +902,10 @@ const Payouts: React.FC = () => {
         <div className="payouts-pagination">
           <div className="payouts-pagination-info">
             <span>
-              Showing {startIndex + 1}-{Math.min(endIndex, filteredPayouts.length)} of {filteredPayouts.length} payouts
+              {t('payouts.pagination.showing')
+                .replace('{from}', String(startIndex + 1))
+                .replace('{to}', String(Math.min(endIndex, filteredPayouts.length)))
+                .replace('{total}', String(filteredPayouts.length))}
             </span>
           </div>
           
@@ -911,7 +916,7 @@ const Payouts: React.FC = () => {
               className="payouts-pagination-btn"
             >
               <ChevronLeft className="payouts-pagination-icon" />
-              <span className="payouts-pagination-label">Previous</span>
+              <span className="payouts-pagination-label">{t('payouts.pagination.previous')}</span>
             </button>
             
             <div className="payouts-page-numbers">
@@ -931,13 +936,13 @@ const Payouts: React.FC = () => {
               disabled={currentPage === totalPages}
               className="payouts-pagination-btn"
             >
-              <span className="payouts-pagination-label">Next</span>
+              <span className="payouts-pagination-label">{t('payouts.pagination.next')}</span>
               <ChevronRight className="payouts-pagination-icon" />
             </button>
           </div>
           
           <div className="payouts-page-size">
-            <label className="payouts-page-size-label">Show:</label>
+            <label className="payouts-page-size-label">{t('payouts.pagination.show')}</label>
             <select
               value={pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { DollarSign, Users, CreditCard, Calendar, TrendingUp, Clock } from 'lucide-react'
 import { userDashboardService, UserDashboardData } from '../services/userDashboardService'
+import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 
 import { formatDate } from '../utils/dateUtils'
@@ -8,6 +9,7 @@ import './MyDashboard.css'
 
 const MyDashboard = () => {
   const { user } = useAuth()
+  const { t, setLocale, locale } = useLanguage()
   const [dashboardData, setDashboardData] = useState<UserDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -76,25 +78,42 @@ const MyDashboard = () => {
 
   return (
     <div className="my-dashboard">
-      <div className="page-header">
-        <div className="container">
-          <div className="header-content">
-            <div className="header-text">
-              <h1 className="page-title">My Dashboard</h1>
-              <p className="page-subtitle">Welcome back, {user.first_name}! Here's your personal overview</p>
+      <div className="my-dashboard-page-header">
+        <div className="my-dashboard-container">
+          <div className="my-dashboard-header-content">
+            <div className="my-dashboard-header-text">
+              <h1 className="my-dashboard-page-title">{t('myDashboard.title')}</h1>
+              <p className="my-dashboard-page-subtitle">{t('myDashboard.subtitle').replace('{name}', user.first_name || '')}</p>
             </div>
-            <button 
-              className="btn btn-secondary" 
-              onClick={loadDashboardData}
-              disabled={loading}
-            >
-              {loading ? 'Refreshing...' : 'Refresh Data'}
-            </button>
+            <div className="my-dashboard-header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {(user?.role !== 'admin' && user?.role !== 'super_user') && (
+                <div className="my-dashboard-lang-toggle">
+                  <select
+                    value={locale}
+                    onChange={(e) => setLocale(e.target.value as 'en' | 'nl')}
+                    aria-label="Language Selector"
+                    id="my-dashboard-language"
+                    name="language"
+                    className="my-dashboard-lang-select"
+                  >
+                    <option value="en">EN</option>
+                    <option value="nl">NL</option>
+                  </select>
+                </div>
+              )}
+              <button 
+                className="my-dashboard-btn my-dashboard-btn-secondary" 
+                onClick={loadDashboardData}
+                disabled={loading}
+              >
+                {loading ? t('myDashboard.refreshing') : t('myDashboard.refreshData')}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="container">
+      <div className="my-dashboard-container">
         {/* Stats Grid */}
         <div className="my-dashboard-stats-grid">
           {loading ? (
@@ -190,26 +209,26 @@ const MyDashboard = () => {
 
         {/* User Slots Overview */}
         <div className="user-slots-overview">
-          <h2 className="section-title">My Slots Overview</h2>
+          <h2 className="section-title">{t('myDashboard.slotsOverview')}</h2>
           {loading ? (
             // Loading skeleton
             <div className="user-slots-table-skeleton">
-              <div className="table-header-skeleton">
-                <div className="header-cell-skeleton">Group Name</div>
-                <div className="header-cell-skeleton">Status</div>
-                <div className="header-cell-skeleton">Monthly Amount</div>
-                <div className="header-cell-skeleton">Assigned Month</div>
-                <div className="header-cell-skeleton">Payment Status</div>
-                <div className="header-cell-skeleton">Description</div>
+              <div className="my-dashboard-table-header-skeleton">
+                <div className="my-dashboard-header-cell-skeleton">Group Name</div>
+                <div className="my-dashboard-header-cell-skeleton">Status</div>
+                <div className="my-dashboard-header-cell-skeleton">Monthly Amount</div>
+                <div className="my-dashboard-header-cell-skeleton">Assigned Month</div>
+                <div className="my-dashboard-header-cell-skeleton">Payment Status</div>
+                <div className="my-dashboard-header-cell-skeleton">Description</div>
               </div>
               {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="table-row-skeleton">
-                  <div className="cell-skeleton">Loading...</div>
-                  <div className="cell-skeleton">Loading...</div>
-                  <div className="cell-skeleton">Loading...</div>
-                  <div className="cell-skeleton">Loading...</div>
-                  <div className="cell-skeleton">Loading...</div>
-                  <div className="cell-skeleton">Loading...</div>
+                <div key={index} className="my-dashboard-table-row-skeleton">
+                  <div className="my-dashboard-table-cell-skeleton">Loading...</div>
+                  <div className="my-dashboard-table-cell-skeleton">Loading...</div>
+                  <div className="my-dashboard-table-cell-skeleton">Loading...</div>
+                  <div className="my-dashboard-table-cell-skeleton">Loading...</div>
+                  <div className="my-dashboard-table-cell-skeleton">Loading...</div>
+                  <div className="my-dashboard-table-cell-skeleton">Loading...</div>
                 </div>
               ))}
             </div>
@@ -257,15 +276,15 @@ const MyDashboard = () => {
               <div className="no-slots-icon">
                 <Calendar size={48} />
               </div>
-              <h3>No Slots Found</h3>
-              <p>You don't have any assigned slots yet. Contact your group administrator to get started.</p>
+              <h3>{t('myDashboard.noSlotsTitle')}</h3>
+              <p>{t('myDashboard.noSlotsDesc')}</p>
             </div>
           )}
         </div>
 
         {/* Recent Activity */}
         <div className="recent-activity">
-          <h2 className="section-title">Recent Activity</h2>
+          <h2 className="section-title">{t('myDashboard.recentActivity')}</h2>
           <div className="activity-list">
             {loading ? (
               // Loading skeleton

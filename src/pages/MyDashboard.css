@@ -7,19 +7,26 @@
   }
 }
 
+.my-dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;  
+}
+
 .my-dashboard {
   min-height: 100vh;
   background-color: #f8f9fa;
 }
 
-.my-dashboard .page-header {
+.my-dashboard .my-dashboard-page-header {
   background: linear-gradient(135deg, #217346 0%, #1e6b3d 100%);
   color: white;
   padding: 2rem 0;
   margin-bottom: 2rem;
+  position: relative;
 }
 
-.my-dashboard .header-content {
+.my-dashboard .my-dashboard-header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -27,21 +34,48 @@
   gap: 1rem;
 }
 
-.my-dashboard .page-title {
+/* Top-right compact language selector */
+.my-dashboard-lang-toggle {
+  position: absolute;
+  top: 12px;
+  right: 20px;
+}
+
+.my-dashboard-lang-select {
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.5);
+  background: rgba(255, 255, 255, 0.925);
+  color: #000000;
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .my-dashboard-lang-toggle {
+    top: 8px;
+    right: 12px;
+  }
+  .my-dashboard-lang-select {
+    font-size: 11px;
+    padding: 3px 5px;
+  }
+}
+
+.my-dashboard .my-dashboard-page-title {
   font-size: 2.5rem;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
   color: white;
 }
 
-.my-dashboard .page-subtitle {
+.my-dashboard .my-dashboard-page-subtitle {
   font-size: 1.1rem;
   margin: 0;
   opacity: 0.9;
   color: white;
 }
 
-.my-dashboard .btn {
+.my-dashboard .my-dashboard-btn {
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 8px;
@@ -55,18 +89,18 @@
   font-size: 0.9rem;
 }
 
-.my-dashboard .btn-secondary {
+.my-dashboard .my-dashboard-btn-secondary {
   background-color: rgba(255, 255, 255, 0.2);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-.my-dashboard .btn-secondary:hover {
+.my-dashboard .my-dashboard-btn-secondary:hover {
   background-color: rgba(255, 255, 255, 0.3);
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.my-dashboard .btn-secondary:disabled {
+.my-dashboard .my-dashboard-btn-secondary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

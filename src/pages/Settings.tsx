@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLanguage } from '../contexts/LanguageContext'
 import { User, Bell, Shield, Palette, Globe, Database, Download, Upload, Trash2, Save, X, Building2, Plus, Edit, Zap } from 'lucide-react'
 import type { Bank, BankFormData } from '../types/bank'
 import { bankService } from '../services/bankService'
@@ -24,6 +25,7 @@ interface FormData {
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile')
+  const { locale, setLocale, t } = useLanguage()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     name: 'John Doe',
@@ -39,6 +41,14 @@ const Settings = () => {
       marketing: false
     }
   })
+
+  // Initialize theme and language from localStorage/context
+  useEffect(() => {
+    const storedTheme = (localStorage.getItem('theme') as 'light' | 'dark' | null) || 'light'
+    document.documentElement.setAttribute('data-theme', storedTheme)
+    const storedLocale = (localStorage.getItem('locale') as 'en' | 'nl' | null) || locale || 'en'
+    setFormData(prev => ({ ...prev, theme: storedTheme, language: storedLocale }))
+  }, [])
 
   // Banks state
   const [banks, setBanks] = useState<Bank[]>([])
@@ -127,6 +137,17 @@ const Settings = () => {
         }))
       }
     } else {
+      // Apply theme immediately and persist
+      if (field === 'theme') {
+        const nextTheme = value as 'light' | 'dark'
+        document.documentElement.setAttribute('data-theme', nextTheme)
+        localStorage.setItem('theme', nextTheme)
+      }
+      // Apply language immediately via context and persist
+      if (field === 'language') {
+        const nextLocale = value as 'en' | 'nl'
+        setLocale(nextLocale)
+      }
       setFormData(prev => ({
         ...prev,
         [field]: value
@@ -159,22 +180,22 @@ const Settings = () => {
   }
 
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'appearance', label: 'Appearance', icon: Palette },
-    { id: 'language', label: 'Language', icon: Globe },
-    { id: 'data', label: 'Data & Export', icon: Database },
-    { id: 'banks', label: 'Banks', icon: Building2 },
-    { id: 'performance', label: 'Performance', icon: Zap }
+    { id: 'profile', label: t('settings.tabs.profile'), icon: User },
+    { id: 'notifications', label: t('settings.tabs.notifications'), icon: Bell },
+    { id: 'security', label: t('settings.tabs.security'), icon: Shield },
+    { id: 'appearance', label: t('settings.tabs.appearance'), icon: Palette },
+    { id: 'language', label: t('settings.tabs.language'), icon: Globe },
+    { id: 'data', label: t('settings.tabs.data'), icon: Database },
+    { id: 'banks', label: t('settings.tabs.banks'), icon: Building2 },
+    { id: 'performance', label: t('settings.tabs.performance'), icon: Zap }
   ]
 
   return (
     <div className="settings">
       <div className="page-header">
         <div className="container">
-          <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">Manage your account preferences and app settings</p>
+          <h1 className="page-title">{t('settings.pageTitle')}</h1>
+          <p className="page-subtitle">{t('settings.pageSubtitle')}</p>
         </div>
       </div>
 
@@ -205,21 +226,21 @@ const Settings = () => {
             {activeTab === 'profile' && (
               <div className="settings-tab">
                 <div className="tab-header">
-                  <h2>Profile Settings</h2>
+                  <h2>{t('settings.tabs.profile')} {t('settings.pageTitle')}</h2>
                   <div className="tab-actions">
                     {!isEditing ? (
                       <button className="btn" onClick={() => setIsEditing(true)}>
-                        Edit Profile
+                        {t('settings.editProfile')}
                       </button>
                     ) : (
                       <div className="edit-actions">
                         <button className="btn btn-secondary" onClick={handleCancel}>
                           <X size={16} />
-                          Cancel
+                          {t('settings.cancel')}
                         </button>
                         <button className="btn" onClick={handleSave}>
                           <Save size={16} />
-                          Save Changes
+                          {t('settings.saveChanges')}
                         </button>
                       </div>
                     )}
@@ -404,17 +425,17 @@ const Settings = () => {
             {activeTab === 'appearance' && (
               <div className="settings-tab">
                 <div className="tab-header">
-                  <h2>Appearance Settings</h2>
+                  <h2>{t('appearance.title')}</h2>
                   <button className="btn" onClick={handleSave}>
-                    Save Preferences
+                    {t('settings.savePreferences')}
                   </button>
                 </div>
 
                 <div className="appearance-section">
                   <div className="appearance-item">
                     <div className="appearance-info">
-                      <h3>Theme</h3>
-                      <p>Choose your preferred color scheme</p>
+                      <h3>{t('appearance.theme')}</h3>
+                      <p>{t('appearance.choose')}</p>
                     </div>
                     <div className="theme-options">
                       <label className="theme-option">
@@ -447,25 +468,25 @@ const Settings = () => {
             {activeTab === 'language' && (
               <div className="settings-tab">
                 <div className="tab-header">
-                  <h2>Language Settings</h2>
+                  <h2>{t('language.title')}</h2>
                   <button className="btn" onClick={handleSave}>
-                    Save Preferences
+                    {t('settings.savePreferences')}
                   </button>
                 </div>
 
                 <div className="language-section">
                   <div className="language-item">
                     <div className="language-info">
-                      <h3>App Language</h3>
-                      <p>Choose your preferred language for the application</p>
+                      <h3>{t('settings.tabs.language')}</h3>
+                      <p>{t('language.choose')}</p>
                     </div>
                     <select
                       value={formData.language}
                       onChange={(e) => handleInputChange('language', e.target.value)}
                       className="language-select"
                     >
-                      <option value="en">English</option>
-                      <option value="nl">Nederlands</option>
+                      <option value="en">{t('language.english')}</option>
+                      <option value="nl">{t('language.dutch')}</option>
                       <option value="srn">Sranan Tongo</option>
                     </select>
                   </div>

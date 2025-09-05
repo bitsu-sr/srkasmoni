@@ -9,6 +9,7 @@ import GroupModal from '../components/GroupModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { formatDateRange, calculateDuration } from '../utils/dateUtils'
 import './Groups.css'
+import { useLanguage } from '../contexts/LanguageContext'
 import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
 
 interface CSVImportResult {
@@ -21,6 +22,7 @@ const Groups = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { settings, updateSetting } = usePerformanceSettings()
+  const { t } = useLanguage()
   const isAdmin = user?.role === 'admin'
   const [groups, setGroups] = useState<GroupWithDetails[]>([])
   const [loading, setLoading] = useState(true)
@@ -466,7 +468,7 @@ const Groups = () => {
     return (
       <div className="groups">
         <div className="container">
-          <div className="loading">Loading groups...</div>
+          <div className="loading">{t('groups.loading')}</div>
         </div>
       </div>
     )
@@ -476,12 +478,9 @@ const Groups = () => {
     <div className="groups">
       <div className="groups-page-header">
         <div className="groups-container">
-          <h1 className="groups-page-title">Groups</h1>
+          <h1 className="groups-page-title">{t('groups.title')}</h1>
           <p className="groups-page-subtitle">
-            {isAdmin 
-              ? "Manage your savings groups" 
-              : "View your savings groups"
-            }
+            {isAdmin ? t('groups.manageSubtitle') : t('groups.viewSubtitle')}
           </p>
         </div>
       </div>
@@ -493,7 +492,7 @@ const Groups = () => {
             <div className="groups-csv-import-section">
               <button className="groups-btn groups-btn-secondary" onClick={downloadSampleCSV}>
                 <Download size={20} />
-                Download Sample CSV
+                {t('groups.downloadSample')}
               </button>
               <button 
                 className="groups-btn groups-btn-secondary" 
@@ -501,7 +500,7 @@ const Groups = () => {
                 disabled={isExporting || groups.length === 0}
               >
                 <Download size={20} />
-                {isExporting ? 'Exporting...' : 'Export Groups'}
+                {isExporting ? 'Exporting...' : t('groups.exportGroups')}
               </button>
               <div className="groups-file-upload-wrapper">
                 <input
@@ -514,14 +513,14 @@ const Groups = () => {
                 />
                 <label htmlFor="csv-upload" className="groups-btn groups-btn-secondary">
                   <Upload size={20} />
-                  {isImporting ? 'Importing...' : 'Import CSV'}
+                  {isImporting ? 'Importing...' : t('groups.importCsv')}
                 </label>
               </div> 
             </div>
             <div className="groups-create-group-section">
               <button className="groups-btn groups-btn-primary" onClick={() => setShowCreateModal(true)}>
                 <Plus size={20} />
-                Create New Group
+                {t('groups.createNew')}
               </button>
             </div>
           </div>
@@ -871,12 +870,9 @@ const Groups = () => {
         {groups.length === 0 && (
           <div className="empty-state">
             <Users size={64} className="empty-icon" />
-            <h3>No Groups Yet</h3>
+            <h3>{t('groups.noGroupsTitle')}</h3>
             <p>
-              {isAdmin 
-                ? "Create your first savings group to get started"
-                : "No groups are available yet"
-              }
+              {isAdmin ? t('groups.noGroupsAdmin') : t('groups.noGroupsUser')}
             </p>
             {isAdmin && (
               <button className="groups-btn groups-btn-primary" onClick={() => setShowCreateModal(true)}>

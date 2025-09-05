@@ -1,12 +1,14 @@
 import './Footer.css'
+import { useLanguage } from '../contexts/LanguageContext'
 
 const Footer = () => {
+  const { t } = useLanguage()
   return (
     <footer className="footer">
       <div className="footer-content">
         <div className="footer-left">
-          <p className="copyright">© 2024 Sranan Kasmoni. All Rights Reserved</p>
-          <p className="email">Email: bitsu.sr@gmail.com</p>
+          <p className="copyright">© 2024 Sranan Kasmoni. {t('footer.rights')}</p>
+          <p className="email">{t('footer.email')}: bitsu.sr@gmail.com</p>
         </div>
         <div className="footer-right">
           <a 
