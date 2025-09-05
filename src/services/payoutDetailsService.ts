@@ -36,7 +36,12 @@ export const payoutDetailsService = {
         payoutDate: data.payout_date || new Date().toISOString().split('T')[0],
         payoutMonth: data.payout_month || '2025-08',
         baseAmount: parseFloat(data.monthly_amount) * data.duration,
-        settledDeduction: 0 // This will be calculated separately
+        settledDeduction: 0, // This will be calculated separately
+        // Payment information
+        paymentMethod: (data.payment_method as 'bank_transfer' | 'cash') || 'bank_transfer',
+        senderBankId: data.sender_bank ?? null,
+        receiverBankId: data.receiver_bank ?? null,
+        notes: data.notes || undefined
       }
     } catch (error) {
       console.error('Error fetching payout details:', error)
@@ -58,6 +63,10 @@ export const payoutDetailsService = {
             additional_cost: payoutDetails.additionalCost,
             payout_date: payoutDetails.payoutDate,
             payout_month: payoutDetails.payoutMonth,
+            payment_method: payoutDetails.paymentMethod,
+            sender_bank: payoutDetails.paymentMethod === 'bank_transfer' ? payoutDetails.senderBankId : null,
+            receiver_bank: payoutDetails.paymentMethod === 'bank_transfer' ? payoutDetails.receiverBankId : null,
+            notes: payoutDetails.notes || null,
             updated_at: new Date().toISOString()
           })
           .eq('id', payoutDetails.id)
@@ -84,7 +93,11 @@ export const payoutDetailsService = {
             payout: payoutDetails.payout,
             additional_cost: payoutDetails.additionalCost,
             payout_date: payoutDetails.payoutDate,
-            payout_month: payoutDetails.payoutMonth
+            payout_month: payoutDetails.payoutMonth,
+            payment_method: payoutDetails.paymentMethod,
+            sender_bank: payoutDetails.paymentMethod === 'bank_transfer' ? payoutDetails.senderBankId : null,
+            receiver_bank: payoutDetails.paymentMethod === 'bank_transfer' ? payoutDetails.receiverBankId : null,
+            notes: payoutDetails.notes || null
           })
           .select()
           .single()

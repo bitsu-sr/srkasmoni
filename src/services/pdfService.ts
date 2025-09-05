@@ -22,7 +22,20 @@ export interface PaymentRow {
 pdfMake.vfs = pdfFonts.vfs;
 
 export const pdfService = {
-  async generatePayoutPDF(payout: Payout, lastSlotPaid: boolean, adminFeePaid: boolean, settledDeductionAmount: number = 0, additionalCost: number = 0, payoutDate: string = ''): Promise<void> {
+  async generatePayoutPDF(
+    payout: Payout,
+    lastSlotPaid: boolean,
+    adminFeePaid: boolean,
+    settledDeductionAmount: number = 0,
+    additionalCost: number = 0,
+    payoutDate: string = '',
+    paymentInfo?: {
+      paymentMethod: 'bank_transfer' | 'cash'
+      senderBankName?: string | null
+      receiverBankName?: string | null
+      notes?: string
+    }
+  ): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
         // Fetch logo and convert to base64
@@ -124,14 +137,47 @@ export const pdfService = {
               vLineColor: () => '#cccccc'
             },
             margin: [0, 0, 0, 20]
-          },
-          {
-            text: 'Calculation Breakdown',
-            fontSize: 14,
-            bold: true,
-            margin: [0, 0, 0, 10]
           }
         );
+
+        // Payment Information Section (if provided)
+        if (paymentInfo) {
+          const methodLabel = paymentInfo.paymentMethod === 'bank_transfer' ? 'Bank Transfer' : 'Cash';
+          const paymentRows: any[] = [
+            ['Payment Method:', methodLabel]
+          ];
+          if (paymentInfo.paymentMethod === 'bank_transfer') {
+            paymentRows.push(
+              ["Sranan Kasmoni's Bank:", paymentInfo.senderBankName || '-'],
+              ["Recipient's Bank:", paymentInfo.receiverBankName || '-']
+            );
+          }
+          if (paymentInfo.notes && paymentInfo.notes.trim().length > 0) {
+            paymentRows.push(['Notes:', paymentInfo.notes]);
+          }
+
+          content.push(
+            {
+              text: 'Payment Information',
+              fontSize: 14,
+              bold: true,
+              margin: [0, 0, 0, 10]
+            },
+            {
+              table: {
+                widths: ['*', '*'],
+                body: paymentRows
+              },
+              layout: {
+                hLineWidth: () => 0.5,
+                vLineWidth: () => 0.5,
+                hLineColor: () => '#cccccc',
+                vLineColor: () => '#cccccc'
+              },
+              margin: [0, 0, 0, 20]
+            }
+          );
+        }
 
         const docDefinition: TDocumentDefinitions = {
           pageSize: 'A4',
@@ -171,6 +217,14 @@ export const pdfService = {
         const adminFeeDeduction = adminFeePaid ? 0 : 200;
         const subTotal = baseAmount - settledDeductionAmount - lastSlotDeduction - adminFeeDeduction;
         const totalAmount = subTotal - additionalCost;
+
+        // Add Calculation Breakdown header before the calculation table
+        content.push({
+          text: 'Calculation Breakdown',
+          fontSize: 14,
+          bold: true,
+          margin: [0, 0, 0, 10]
+        });
 
         const calculationData = [
           [{ text: 'Base Amount:', bold: true }, { text: `SRD ${baseAmount.toLocaleString()}.00`, bold: true, alignment: 'right' }],

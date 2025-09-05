@@ -24,12 +24,18 @@ import '../components/PaymentTable.css'
 import { Payout, PayoutDetails, FilterType, StatusFilter, SortField, SortDirection } from '../types/payout'
 import { payoutService } from '../services/payoutService'
 import { payoutDetailsService } from '../services/payoutDetailsService'
+import { bankService } from '../services/bankService'
+import { Bank } from '../types/bank'
 import { pdfService } from '../services/pdfService'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 
 const Payouts: React.FC = () => {
   const { t } = useLanguage()
+  const tt = (key: string, fallback: string) => {
+    const value = t(key) as unknown as string
+    return value === key ? fallback : value
+  }
   // Auth state
   const { user } = useAuth()
   const isAdminUser = user?.role === 'admin' || user?.role === 'super_user'
@@ -91,6 +97,14 @@ const Payouts: React.FC = () => {
   const [isProcessingPayout, setIsProcessingPayout] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [selectedPayoutMonth, setSelectedPayoutMonth] = useState('')
+
+  // Banks and payment info state
+  const [banks, setBanks] = useState<Bank[]>([])
+  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'cash'>('bank_transfer')
+  const [senderBankId, setSenderBankId] = useState<number | null>(null)
+  const [receiverBankId, setReceiverBankId] = useState<number | null>(null)
+  const [notes, setNotes] = useState('')
+  const [paymentError, setPaymentError] = useState<string | null>(null)
 
   // Calculate summary statistics
   const totalPayouts = filteredPayouts.length
@@ -397,6 +411,10 @@ const Payouts: React.FC = () => {
     setSelectedPayoutMonth(formatMonth(payout.receiveMonth))
     
     try {
+      // Load banks for dropdowns
+      const banksData = await bankService.getAllBanks()
+      setBanks(banksData)
+
       // Load existing payout details if they exist
       const existingDetails = await payoutDetailsService.getPayoutDetails(payout.groupId, payout.memberId)
       
@@ -408,6 +426,11 @@ const Payouts: React.FC = () => {
         setPayoutDate(existingDetails.payoutDate)
         setIsPayoutPaid(existingDetails.payout)
         setPayoutDetailsExist(true)
+        // Set payment info from existing
+        setPaymentMethod(existingDetails.paymentMethod || 'bank_transfer')
+        setSenderBankId(existingDetails.senderBankId ?? null)
+        setReceiverBankId(existingDetails.receiverBankId ?? null)
+        setNotes(existingDetails.notes || '')
       } else {
         // Create new payout details object
         const newPayoutDetails: PayoutDetails = {
@@ -422,7 +445,11 @@ const Payouts: React.FC = () => {
           payoutDate: new Date().toISOString().split('T')[0],
           payoutMonth: convertMonthToYYYYMM(selectedPayoutMonth),
           baseAmount: payout.totalAmount,
-          settledDeduction: 0
+          settledDeduction: 0,
+          paymentMethod: 'bank_transfer',
+          senderBankId: null,
+          receiverBankId: null,
+          notes: ''
         }
         setPayoutDetails(newPayoutDetails)
         setLastSlotPaid(false)
@@ -431,6 +458,10 @@ const Payouts: React.FC = () => {
         setPayoutDate(new Date().toISOString().split('T')[0])
         setIsPayoutPaid(false)
         setPayoutDetailsExist(false)
+        setPaymentMethod('bank_transfer')
+        setSenderBankId(null)
+        setReceiverBankId(null)
+        setNotes('')
       }
     } catch (error) {
       console.error('Error loading payout details:', error)
@@ -447,7 +478,11 @@ const Payouts: React.FC = () => {
         payoutDate: new Date().toISOString().split('T')[0],
         payoutMonth: convertMonthToYYYYMM(selectedPayoutMonth),
         baseAmount: payout.totalAmount,
-        settledDeduction: 0
+        settledDeduction: 0,
+        paymentMethod: 'bank_transfer',
+        senderBankId: null,
+        receiverBankId: null,
+        notes: ''
       })
       setLastSlotPaid(false)
       setAdminFeePaid(false)
@@ -455,6 +490,10 @@ const Payouts: React.FC = () => {
       setPayoutDate(new Date().toISOString().split('T')[0])
       setIsPayoutPaid(false)
       setPayoutDetailsExist(false)
+      setPaymentMethod('bank_transfer')
+      setSenderBankId(null)
+      setReceiverBankId(null)
+      setNotes('')
     }
     
     // Fetch settled payments for the selected member
@@ -473,6 +512,14 @@ const Payouts: React.FC = () => {
     setIsSavingPayoutDetails(true)
     
     try {
+      // Validate payment info
+      if (paymentMethod === 'bank_transfer' && (!senderBankId || !receiverBankId)) {
+        setPaymentError('Please select both banks for bank transfer.')
+        setIsSavingPayoutDetails(false)
+        return
+      }
+      setPaymentError(null)
+
       // Update payout details with current toggle states and new fields
       const updatedPayoutDetails: PayoutDetails = {
         ...payoutDetails,
@@ -480,7 +527,11 @@ const Payouts: React.FC = () => {
         administrationFee: adminFeePaid,
         additionalCost: additionalCost,
         payoutDate: payoutDate,
-        payoutMonth: convertMonthToYYYYMM(selectedPayoutMonth)
+        payoutMonth: convertMonthToYYYYMM(selectedPayoutMonth),
+        paymentMethod: paymentMethod,
+        senderBankId: paymentMethod === 'bank_transfer' ? senderBankId : null,
+        receiverBankId: paymentMethod === 'bank_transfer' ? receiverBankId : null,
+        notes: notes || ''
       }
       
       // Save to database
@@ -508,7 +559,24 @@ const Payouts: React.FC = () => {
     setShowPdfSuccess(false)
     
     try {
-      await pdfService.generatePayoutPDF(payout, lastSlotPaid, adminFeePaid, settledDeductionAmount, additionalCost, payoutDate)
+      // Map selected bank IDs to names for PDF
+      const senderBankName = banks.find(b => b.id === senderBankId)?.name || null
+      const receiverBankName = banks.find(b => b.id === receiverBankId)?.name || null
+
+      await pdfService.generatePayoutPDF(
+        payout,
+        lastSlotPaid,
+        adminFeePaid,
+        settledDeductionAmount,
+        additionalCost,
+        payoutDate,
+        {
+          paymentMethod: paymentMethod,
+          senderBankName,
+          receiverBankName,
+          notes: notes || ''
+        }
+      )
       setShowPdfSuccess(true)
       setTimeout(() => setShowPdfSuccess(false), 3000) // Hide after 3 seconds
     } catch (error) {
@@ -1033,6 +1101,78 @@ const Payouts: React.FC = () => {
                 </div>
               </div>
               
+              {/* Payment Information Section */}
+              <div className="payouts-details-section">
+                <h3 className="payouts-details-section-title">{tt('payouts.payment.sectionTitle', 'Payment Information')}</h3>
+                <div className="payouts-payment-info">
+                  <div className="payouts-status-toggle">
+                    <span className="payouts-status-label">{tt('payouts.payment.method', 'Payment Method')}</span>
+                    <div className="payouts-toggle-switch">
+                      <input 
+                        type="checkbox" 
+                        id="paymentMethodToggle" 
+                        className="payouts-toggle-input"
+                        checked={paymentMethod === 'bank_transfer'}
+                        onChange={(e) => {
+                          const isBank = e.target.checked
+                          setPaymentMethod(isBank ? 'bank_transfer' : 'cash')
+                          if (!isBank) { setSenderBankId(null); setReceiverBankId(null) }
+                        }}
+                      />
+                      <label htmlFor="paymentMethodToggle" className="payouts-toggle-label"></label>
+                    </div>
+                    <span className="payouts-status-value">{paymentMethod === 'bank_transfer' ? tt('payouts.payment.bankTransfer', 'Bank Transfer') : tt('payouts.payment.cash', 'Cash')}</span>
+                  </div>
+
+                  <div className="payouts-payment-grid">
+                    <div className="payouts-detail-item">
+                      <label className="payouts-detail-label">{tt('payouts.payment.senderBank', "Sranan Kasmoni's Bank")}</label>
+                      <select
+                        className="payouts-filter-select"
+                        value={senderBankId ?? ''}
+                        onChange={(e) => setSenderBankId(e.target.value ? Number(e.target.value) : null)}
+                        disabled={paymentMethod !== 'bank_transfer'}
+                      >
+                        <option value="">{tt('payouts.payment.selectBank', 'Select bank')}</option>
+                        {banks.map((b) => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="payouts-detail-item">
+                      <label className="payouts-detail-label">{tt('payouts.payment.receiverBank', `${selectedPayout.memberName.split(' ')[0]}'s Bank`)}</label>
+                      <select
+                        className="payouts-filter-select"
+                        value={receiverBankId ?? ''}
+                        onChange={(e) => setReceiverBankId(e.target.value ? Number(e.target.value) : null)}
+                        disabled={paymentMethod !== 'bank_transfer'}
+                      >
+                        <option value="">{tt('payouts.payment.selectBank', 'Select bank')}</option>
+                        {banks.map((b) => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="payouts-detail-item" style={{ gridColumn: '1 / -1' }}>
+                      <label className="payouts-detail-label">{tt('payouts.payment.notes', 'Notes')}</label>
+                      <input
+                        type="text"
+                        className="payouts-search-field"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value.slice(0, 100))}
+                        placeholder={tt('payouts.payment.notesPlaceholder', 'Optional (max 100 characters)')}
+                      />
+                    </div>
+                  </div>
+
+                  {paymentError && (
+                    <div className="payouts-pdf-error" style={{ marginTop: 8 }}>
+                      <span>✗ {paymentError}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Deductions Section */}
               <div className="payouts-details-section">
                 <h3 className="payouts-details-section-title">Deductions</h3>
@@ -1160,7 +1300,7 @@ const Payouts: React.FC = () => {
                 <button 
                   onClick={handleSavePayoutDetails}
                   className="payouts-modal-save-btn"
-                  disabled={isSavingPayoutDetails}
+                  disabled={isSavingPayoutDetails || (paymentMethod === 'bank_transfer' && (!senderBankId || !receiverBankId))}
                 >
                   {isSavingPayoutDetails ? (
                     <>

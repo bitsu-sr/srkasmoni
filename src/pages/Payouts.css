@@ -853,6 +853,58 @@
   color: #1e293b;
 }
 
+/* Payment Information */
+.payouts-payment-info {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.payouts-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.payouts-payment-info .payouts-filter-select,
+.payouts-payment-info .payouts-search-field {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  background-color: white;
+}
+
+.payouts-payment-info .payouts-filter-select:focus,
+.payouts-payment-info .payouts-search-field:focus {
+  outline: none;
+  border-color: #16a34a; /* Excel green */
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+.payouts-status-value {
+  margin-left: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #065f46; /* deep green */
+}
+
+/* Title Case labels and inherit modal font within Payment section */
+.payouts-payment-info .payouts-detail-label,
+.payouts-payment-info .payouts-status-label {
+  text-transform: capitalize;
+  letter-spacing: normal;
+  font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+  .payouts-payment-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Payment Status Section */
 .payouts-payment-status {
   display: flex;

@@ -34,6 +34,11 @@ export interface PayoutDetails {
   payoutMonth: string
   baseAmount: number
   settledDeduction: number
+  // Payment information
+  paymentMethod: 'bank_transfer' | 'cash'
+  senderBankId: number | null
+  receiverBankId: number | null
+  notes?: string
 }
 
 export type FilterType = 'all' | 'memberName' | 'groupName' | 'bankName'
