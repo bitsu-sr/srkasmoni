@@ -157,13 +157,13 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      const checkForDuplicates = async () => {
        if (formData.memberId && formData.groupId && formData.slotId && !isEditing) {
          try {
-           // Check if a payment already exists for this member, group, and slot/month
-           const isDuplicate = await paymentService.checkDuplicatePayment(formData)
-           if (isDuplicate) {
-             setDuplicateWarning('⚠️ A payment for this member, group, and month already exists. Duplicate payments are not allowed.')
-           } else {
-             setDuplicateWarning('')
-           }
+          // Check if a payment exists for this member, group, and slot for the current month
+          const isDuplicate = await paymentService.checkDuplicatePayment(formData)
+          if (isDuplicate) {
+            setDuplicateWarning('⚠️ A payment for this member, group, and slot exists for the current month. Duplicate payments for the same month are not allowed.')
+          } else {
+            setDuplicateWarning('')
+          }
          } catch (error) {
            console.error('Error checking for duplicates:', error)
            setDuplicateWarning('')

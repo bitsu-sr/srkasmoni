@@ -509,6 +509,7 @@ export const paymentService = {
   // Check for duplicate payment
   async checkDuplicatePayment(paymentData: PaymentFormData): Promise<boolean> {
     try {
+      const currentMonth = new Date().toISOString().substring(0, 7)
       // First, let's check if we have a real slot_id
       if (paymentData.slotId && typeof paymentData.slotId === 'number' && paymentData.slotId > 0) {
         // Check by slot_id (most precise)
@@ -518,6 +519,7 @@ export const paymentService = {
           .eq('member_id', paymentData.memberId)
           .eq('group_id', paymentData.groupId)
           .eq('slot_id', paymentData.slotId)
+          .eq('payment_month', currentMonth)
 
         if (error) {
           throw new Error(`Failed to check for duplicate payment: ${error.message}`)
@@ -541,6 +543,7 @@ export const paymentService = {
           .eq('member_id', parseInt(memberId))
           .eq('group_id', parseInt(groupId))
           .eq('payment_slots.month_date', monthDate)
+          .eq('payment_month', currentMonth)
 
         if (error) {
           throw new Error(`Failed to check for duplicate payment: ${error.message}`)
