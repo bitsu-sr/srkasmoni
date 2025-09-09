@@ -723,7 +723,11 @@ const GroupDetails = () => {
                       const slotAmount = (group?.monthlyAmount || 0) * groupDuration
 
                       return (
-                        <tr key={slot.id}>
+                        <tr 
+                          key={slot.id}
+                          onClick={() => navigate(`/members/${slot.memberId}`)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <td>{formatMonthYear(monthDate)}</td>
                           <td>{slot.member?.firstName} {slot.member?.lastName}</td>
                           <td>
@@ -744,7 +748,7 @@ const GroupDetails = () => {
                           <td className="payment-table-actions">
                             <button
                               className="payment-table-action-btn payment-table-action-delete"
-                              onClick={() => confirmRemoveSlot(slot.memberId, monthDate, `${slot.member?.firstName} ${slot.member?.lastName}`)}
+                              onClick={(e) => { e.stopPropagation(); confirmRemoveSlot(slot.memberId, monthDate, `${slot.member?.firstName} ${slot.member?.lastName}`) }}
                               title="Remove this slot"
                             >
                               <Trash2 size={16} />

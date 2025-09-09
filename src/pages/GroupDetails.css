@@ -237,6 +237,17 @@
   background: #f9fafb;
 }
 
+/* Make slots table rows look clickable */
+.slots-table tbody tr {
+  cursor: pointer;
+}
+
+/* Keep action buttons within rows from stretching layout */
+.slots-table .payment-table-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
 .table-contact {
   display: flex;
   flex-direction: column;
