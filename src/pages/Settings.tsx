@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
+import { usePWASettings } from '../contexts/PWASettingsContext'
 import { User, Bell, Shield, Palette, Globe, Database, Download, Upload, Trash2, Save, X, Building2, Plus, Edit, Zap } from 'lucide-react'
 import type { Bank, BankFormData } from '../types/bank'
 import { bankService } from '../services/bankService'
@@ -21,11 +22,17 @@ interface FormData {
     updates: boolean
     marketing: boolean
   }
+  pwa: {
+    showInstallPrompt: boolean
+    promptDismissed: boolean
+    promptDismissedPermanently: boolean
+  }
 }
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile')
   const { locale, setLocale, t } = useLanguage()
+  const { pwaSettings, updatePWASettings, resetPWASettings } = usePWASettings()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     name: 'John Doe',
@@ -39,6 +46,11 @@ const Settings = () => {
       reminders: true,
       updates: true,
       marketing: false
+    },
+    pwa: {
+      showInstallPrompt: pwaSettings.showInstallPrompt,
+      promptDismissed: pwaSettings.promptDismissed,
+      promptDismissedPermanently: pwaSettings.promptDismissedPermanently
     }
   })
 
@@ -175,6 +187,11 @@ const Settings = () => {
         reminders: true,
         updates: true,
         marketing: false
+      },
+      pwa: {
+        showInstallPrompt: pwaSettings.showInstallPrompt,
+        promptDismissed: pwaSettings.promptDismissed,
+        promptDismissedPermanently: pwaSettings.promptDismissedPermanently
       }
     })
   }
@@ -370,6 +387,35 @@ const Settings = () => {
                       />
                       <span className="toggle-slider"></span>
                     </label>
+                  </div>
+
+                  {/* PWA Settings */}
+                  <div className="notification-item pwa-settings-item">
+                    <div className="notification-info">
+                      <h3>App Installation</h3>
+                      <p>Show install prompt for adding app to home screen</p>
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={pwaSettings.showInstallPrompt}
+                        onChange={(e) => updatePWASettings({ showInstallPrompt: e.target.checked })}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
+
+                  <div className="notification-item pwa-settings-item">
+                    <div className="notification-info">
+                      <h3>Reset Installation Settings</h3>
+                      <p>Clear all installation preferences and show prompts again</p>
+                    </div>
+                    <button 
+                      className="btn btn-secondary btn-sm"
+                      onClick={resetPWASettings}
+                    >
+                      Reset
+                    </button>
                   </div>
                 </div>
               </div>

@@ -504,6 +504,22 @@ input:checked + .toggle-slider:before {
   }
 }
 
+/* PWA Settings Styles */
+.pwa-settings-item {
+  border-left: 4px solid #217346;
+  background: #f8fff9;
+}
+
+.pwa-settings-item .notification-info h3 {
+  color: #217346;
+}
+
+.pwa-settings-item .btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  min-width: 60px;
+}
+
 /* Banks Section Styles */
 .banks-section {
   margin-top: 20px;

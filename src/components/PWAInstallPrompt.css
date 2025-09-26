@@ -78,6 +78,20 @@
   color: #495057;
 }
 
+.pwa-install-tertiary {
+  background-color: transparent;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+  font-size: 12px;
+  padding: 8px 16px;
+}
+
+.pwa-install-tertiary:hover {
+  background-color: #f8f9fa;
+  color: #495057;
+  border-color: #adb5bd;
+}
+
 @keyframes slideUp {
   from {
     transform: translateY(100%);
@@ -103,9 +117,17 @@
   
   .pwa-install-actions {
     flex-direction: column;
+    gap: 8px;
   }
   
   .pwa-install-btn {
     width: 100%;
+  }
+  
+  .pwa-install-tertiary {
+    order: 3;
+    margin-top: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
   }
 }

@@ -3,6 +3,7 @@ import { PerformanceSettingsProvider } from './contexts/PerformanceSettingsConte
 import { LanguageProvider } from './contexts/LanguageContext'
 import { ReactQueryProvider } from './contexts/ReactQueryProvider'
 import { AuthProvider } from './contexts/AuthContext'
+import { PWASettingsProvider } from './contexts/PWASettingsContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -35,7 +36,8 @@ function App() {
       <PerformanceSettingsProvider>
         <LanguageProvider>
           <AuthProvider>
-            <Router>
+            <PWASettingsProvider>
+              <Router>
               <div className="app">
                 <Navbar />
                 <main className="main-content">
@@ -134,6 +136,7 @@ function App() {
                 <PWAInstallPrompt />
               </div>
             </Router>
+            </PWASettingsProvider>
           </AuthProvider>
         </LanguageProvider>
       </PerformanceSettingsProvider>
