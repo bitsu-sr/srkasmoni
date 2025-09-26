@@ -1,8 +1,9 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts'
-import { TrendingUp, DollarSign, Users, Calendar, Building2 } from 'lucide-react'
+import { TrendingUp, DollarSign, Users, Calendar, Building2, ChevronLeft, ChevronRight, Filter } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { paymentService } from '../services/paymentService'
 import { groupService } from '../services/groupService'
+import { formatDate } from '../utils/dateUtils'
 import './Analytics.css'
 
 const Analytics = () => {
@@ -14,15 +15,147 @@ const Analytics = () => {
   const [isLoadingGroupData, setIsLoadingGroupData] = useState(true)
   const [isLoadingDailyData, setIsLoadingDailyData] = useState(true)
 
-  // Fetch bank data on component mount
+  // Filter state management - default to current month
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'day' | 'week' | 'month' | 'year'>('month')
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [customDateRange, setCustomDateRange] = useState<{ start: Date; end: Date } | null>(null)
+
+  // Date navigation functions
+  const navigateDate = (direction: 'prev' | 'next') => {
+    const newDate = new Date(selectedDate)
+    
+    switch (selectedFilter) {
+      case 'day':
+        newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1))
+        break
+      case 'week':
+        newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7))
+        break
+      case 'month':
+        newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1))
+        break
+      case 'year':
+        newDate.setFullYear(newDate.getFullYear() + (direction === 'next' ? 1 : -1))
+        break
+    }
+    
+    setSelectedDate(newDate)
+  }
+
+  // Get date range based on selected filter
+  const getDateRange = () => {
+    const now = new Date()
+    const date = selectedDate
+    
+    switch (selectedFilter) {
+      case 'all':
+        return null // No date filtering
+      case 'day':
+        const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+        const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59)
+        return { start: startOfDay, end: endOfDay }
+      case 'week':
+        const startOfWeek = new Date(date)
+        startOfWeek.setDate(date.getDate() - date.getDay()) // Start of week (Sunday)
+        const endOfWeek = new Date(startOfWeek)
+        endOfWeek.setDate(startOfWeek.getDate() + 6)
+        endOfWeek.setHours(23, 59, 59)
+        return { start: startOfWeek, end: endOfWeek }
+      case 'month':
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1)
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59)
+        return { start: startOfMonth, end: endOfMonth }
+      case 'year':
+        const startOfYear = new Date(date.getFullYear(), 0, 1)
+        const endOfYear = new Date(date.getFullYear(), 11, 31, 23, 59, 59)
+        return { start: startOfYear, end: endOfYear }
+      default:
+        return null
+    }
+  }
+
+  // Format date display based on selected filter
+  const getDateDisplayText = () => {
+    const dateRange = getDateRange()
+    if (!dateRange) return 'All Time'
+    
+    const { start, end } = dateRange
+    
+    switch (selectedFilter) {
+      case 'day':
+        return formatDate(start.toISOString().split('T')[0])
+      case 'week':
+        return `${formatDate(start.toISOString().split('T')[0])} - ${formatDate(end.toISOString().split('T')[0])}`
+      case 'month':
+        return start.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+      case 'year':
+        return start.getFullYear().toString()
+      default:
+        return 'All Time'
+    }
+  }
+
+  // Fetch bank data with date filtering
   useEffect(() => {
     const fetchBankData = async () => {
       try {
         setIsLoadingBankData(true)
-        const [receiverData, senderData] = await Promise.all([
-          paymentService.getPaymentStatsByReceiverBank(),
-          paymentService.getPaymentStatsBySenderBank()
-        ])
+        
+        const dateRange = getDateRange()
+        let payments: any[] = []
+        
+        if (dateRange) {
+          // Fetch payments with date filtering
+          const filters = {
+            startDate: dateRange.start.toISOString().split('T')[0],
+            endDate: dateRange.end.toISOString().split('T')[0]
+          }
+          payments = await paymentService.getPayments(filters)
+        } else {
+          // Fetch all payments
+          payments = await paymentService.getPayments()
+        }
+        
+        // Process payments to generate bank statistics
+        const receiverBankMap = new Map<string, { totalAmount: number; paymentCount: number }>()
+        const senderBankMap = new Map<string, { totalAmount: number; paymentCount: number }>()
+        
+        payments.forEach(payment => {
+          // Only include received and settled payments
+          if (payment.status === 'received' || payment.status === 'settled') {
+            // Receiver bank data
+            if (payment.receiverBank?.name) {
+              const bankName = payment.receiverBank.name
+              const existing = receiverBankMap.get(bankName) || { totalAmount: 0, paymentCount: 0 }
+              receiverBankMap.set(bankName, {
+                totalAmount: existing.totalAmount + payment.amount,
+                paymentCount: existing.paymentCount + 1
+              })
+            }
+            
+            // Sender bank data (only for bank transfers)
+            if (payment.senderBank?.name && payment.paymentMethod === 'bank_transfer') {
+              const bankName = payment.senderBank.name
+              const existing = senderBankMap.get(bankName) || { totalAmount: 0, paymentCount: 0 }
+              senderBankMap.set(bankName, {
+                totalAmount: existing.totalAmount + payment.amount,
+                paymentCount: existing.paymentCount + 1
+              })
+            }
+          }
+        })
+        
+        // Convert maps to arrays
+        const receiverData = Array.from(receiverBankMap.entries()).map(([bankName, stats]) => ({
+          bankName,
+          ...stats
+        }))
+        
+        const senderData = Array.from(senderBankMap.entries()).map(([bankName, stats]) => ({
+          bankName,
+          ...stats
+        }))
+        
         setReceiverBankData(receiverData)
         setSenderBankData(senderData)
       } catch (error) {
@@ -35,21 +168,67 @@ const Analytics = () => {
     }
 
     fetchBankData()
-  }, [])
+  }, [selectedFilter, selectedDate])
 
-  // Fetch group progress data on component mount
+  // Fetch group progress data with date filtering
   useEffect(() => {
     const fetchGroupProgressData = async () => {
       try {
         setIsLoadingGroupData(true)
+        
+        const dateRange = getDateRange()
+        let payments: any[] = []
+        
+        if (dateRange) {
+          // Fetch payments with date filtering
+          const filters = {
+            startDate: dateRange.start.toISOString().split('T')[0],
+            endDate: dateRange.end.toISOString().split('T')[0]
+          }
+          payments = await paymentService.getPayments(filters)
+        } else {
+          // Fetch all payments
+          payments = await paymentService.getPayments()
+        }
+        
+        // Get all groups
         const dashboardGroups = await groupService.getDashboardGroups()
         
-        const progressData = dashboardGroups.map(group => ({
-          groupName: group.name,
-          progressPercentage: group.slotsTotal > 0 ? Math.round((group.slotsPaid / group.slotsTotal) * 100) : 0,
-          slotsPaid: group.slotsPaid,
-          slotsTotal: group.slotsTotal
-        }))
+        // Calculate progress for each group based on filtered payments
+        const progressData = dashboardGroups.map(group => {
+          // Count payments for this group in the filtered period
+          const groupPayments = payments.filter(payment => 
+            payment.groupId === group.id && 
+            (payment.status === 'received' || payment.status === 'settled')
+          )
+          
+          // For date filtering, we'll show the actual payments made in the period
+          // vs the total slots that should have been paid in that period
+          let slotsPaid = 0
+          let slotsTotal = 0
+          
+          if (dateRange) {
+            // Calculate how many slots should have been paid in this period
+            const startMonth = dateRange.start.getFullYear() * 12 + dateRange.start.getMonth()
+            const endMonth = dateRange.end.getFullYear() * 12 + dateRange.end.getMonth()
+            const monthsInRange = endMonth - startMonth + 1
+            
+            // Estimate slots that should be paid (this is a simplified calculation)
+            slotsTotal = Math.min(monthsInRange, group.slotsTotal)
+            slotsPaid = groupPayments.length
+          } else {
+            // Use the original group data for 'all' filter
+            slotsPaid = group.slotsPaid
+            slotsTotal = group.slotsTotal
+          }
+          
+          return {
+            groupName: group.name,
+            progressPercentage: slotsTotal > 0 ? Math.round((slotsPaid / slotsTotal) * 100) : 0,
+            slotsPaid,
+            slotsTotal
+          }
+        })
         
         // Sort groups by name in ascending order (A to Z)
         const sortedProgressData = progressData.sort((a, b) => a.groupName.localeCompare(b.groupName))
@@ -64,15 +243,28 @@ const Analytics = () => {
     }
 
     fetchGroupProgressData()
-  }, [])
+  }, [selectedFilter, selectedDate])
 
-  // Fetch daily payment data on component mount
+  // Fetch daily payment data with date filtering
   useEffect(() => {
     const fetchDailyPaymentData = async () => {
       try {
         setIsLoadingDailyData(true)
         const dailyData = await paymentService.getDailyPaymentStats()
-        setDailyPaymentData(dailyData)
+        
+        // Apply date filtering if not 'all'
+        const dateRange = getDateRange()
+        let filteredDailyData = dailyData
+        
+        if (dateRange) {
+          // Filter daily data based on date range
+          filteredDailyData = dailyData.filter(item => {
+            const itemDate = new Date(item.date)
+            return itemDate >= dateRange.start && itemDate <= dateRange.end
+          })
+        }
+        
+        setDailyPaymentData(filteredDailyData)
       } catch (error) {
         console.error('Error fetching daily payment data:', error)
         setDailyPaymentData([])
@@ -82,7 +274,7 @@ const Analytics = () => {
     }
 
     fetchDailyPaymentData()
-  }, [])
+  }, [selectedFilter, selectedDate])
 
   // Mock data for charts - will be replaced with real data later
   const monthlyData = [
@@ -126,6 +318,48 @@ const Analytics = () => {
       </div>
 
       <div className="container">
+        {/* Filter Controls */}
+        <div className="analytics-filter-controls">
+          <div className="analytics-filter-section">
+            <div className="analytics-filter-label">
+              <Filter size={20} />
+              <span>Filter by Period</span>
+            </div>
+            <div className="analytics-filter-buttons">
+              {(['all', 'day', 'week', 'month', 'year'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  className={`analytics-filter-btn ${selectedFilter === filter ? 'active' : ''}`}
+                  onClick={() => setSelectedFilter(filter)}
+                >
+                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {selectedFilter !== 'all' && (
+            <div className="analytics-date-navigation">
+              <button
+                className="analytics-nav-btn"
+                onClick={() => navigateDate('prev')}
+                title={`Previous ${selectedFilter}`}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <div className="analytics-date-display">
+                {getDateDisplayText()}
+              </div>
+              <button
+                className="analytics-nav-btn"
+                onClick={() => navigateDate('next')}
+                title={`Next ${selectedFilter}`}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
+        </div>
         {/* Bank Charts Section */}
         <div className="analytics-bank-charts-section">
           {/* Sender Bank Chart */}
@@ -135,7 +369,10 @@ const Analytics = () => {
                 <Building2 size={24} className="analytics-chart-icon" />
                 <h2 className="analytics-chart-title">Transfers by Sender Bank</h2>
               </div>
-              <p className="analytics-chart-subtitle">Total amount transferred from each sender bank</p>
+              <p className="analytics-chart-subtitle">
+                Total amount transferred from each sender bank
+                {selectedFilter !== 'all' && ` (${getDateDisplayText()})`}
+              </p>
             </div>
             
             {isLoadingBankData ? (
@@ -194,7 +431,10 @@ const Analytics = () => {
                 <Building2 size={24} className="analytics-chart-icon" />
                 <h2 className="analytics-chart-title">Transfers by Receiver Bank</h2>
               </div>
-              <p className="analytics-chart-subtitle">Total amount transferred to each receiver bank (including cash transfers and settled payments)</p>
+              <p className="analytics-chart-subtitle">
+                Total amount transferred to each receiver bank (including cash transfers and settled payments)
+                {selectedFilter !== 'all' && ` (${getDateDisplayText()})`}
+              </p>
             </div>
             
             {isLoadingBankData ? (
@@ -254,7 +494,10 @@ const Analytics = () => {
               <Users size={24} className="analytics-chart-icon" />
               <h2 className="analytics-chart-title">Group Progress</h2>
             </div>
-            <p className="analytics-chart-subtitle">Payment completion percentage for each group</p>
+            <p className="analytics-chart-subtitle">
+              Payment completion percentage for each group
+              {selectedFilter !== 'all' && ` (${getDateDisplayText()})`}
+            </p>
           </div>
           
           {isLoadingGroupData ? (
@@ -317,7 +560,10 @@ const Analytics = () => {
               <Calendar size={24} className="analytics-chart-icon" />
               <h2 className="analytics-chart-title">Daily Payments</h2>
             </div>
-            <p className="analytics-chart-subtitle">Total payment amounts per day (last 30 days)</p>
+            <p className="analytics-chart-subtitle">
+              Total payment amounts per day
+              {selectedFilter !== 'all' ? ` (${getDateDisplayText()})` : ' (last 30 days)'}
+            </p>
           </div>
           
           {isLoadingDailyData ? (
