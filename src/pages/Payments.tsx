@@ -50,6 +50,7 @@ const Payments = () => {
   const [deletingPayment, setDeletingPayment] = useState<Payment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null)
+  const [selectedWorkflow, setSelectedWorkflow] = useState<'group-first' | 'member-first' | 'multi-group'>('member-first')
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -184,6 +185,10 @@ const Payments = () => {
     }
     setEditingPayment(null)
     setIsModalOpen(true)
+  }
+
+  const handleWorkflowChange = (newWorkflow: 'group-first' | 'member-first' | 'multi-group') => {
+    setSelectedWorkflow(newWorkflow)
   }
 
   const handleEditPayment = (payment: Payment) => {
@@ -331,7 +336,7 @@ const Payments = () => {
         {canManagePayments && (
           <div className="payments-page-actions">
             <div className="payments-actions-left">
-              <button className="payments-btn payments-btn-primary" onClick={handleAddPayment}>
+              <button className="payments-btn payments-btn-primary" onClick={() => handleAddPayment()}>
                 <Plus size={20} />
                 {t('payments.recordPayment')}
               </button>
@@ -593,6 +598,8 @@ const Payments = () => {
           onSave={handleSavePayment}
           payment={editingPayment || undefined}
           isEditing={!!editingPayment}
+          workflow={selectedWorkflow}
+          onWorkflowChange={handleWorkflowChange}
         />
       )}
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, Menu, X, FileText, DollarSign, Shield, MessageSquare } from 'lucide-react'
+import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, Menu, X, FileText, DollarSign, Shield, MessageSquare, TestTube } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import LoginModal from './LoginModal'
@@ -69,7 +69,8 @@ const Navbar = () => {
     hamburgerItems.push(
       { path: '/user-management', label: t('nav.userManagement'), icon: Shield },
       { path: '/login-logs', label: t('nav.loginLogs'), icon: Shield },
-      { path: '/settings', label: t('nav.settings'), icon: Settings }
+      { path: '/settings', label: t('nav.settings'), icon: Settings },
+      { path: '/payment-modal-test', label: 'Payment Modal Test', icon: TestTube }
     )
   }
 

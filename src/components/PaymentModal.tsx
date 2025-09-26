@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { X, User, Building2, Calendar, DollarSign, CreditCard, Banknote } from 'lucide-react'
 import type { Payment, PaymentFormData } from '../types/payment'
 import type { Group } from '../types/member'
@@ -9,6 +9,7 @@ import { groupService } from '../services/groupService'
 import { bankService } from '../services/bankService'
 import { paymentService } from '../services/paymentService'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 import './PaymentModal.css'
 
 interface PaymentModalProps {
@@ -18,9 +19,11 @@ interface PaymentModalProps {
   payment?: Payment
   isEditing?: boolean
   prefillData?: Partial<PaymentFormData>
+  workflow?: 'group-first' | 'member-first' | 'multi-group'
+  onWorkflowChange?: (workflow: 'group-first' | 'member-first' | 'multi-group') => void
 }
 
-const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, prefillData }: PaymentModalProps) => {
+const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, prefillData, workflow = 'member-first', onWorkflowChange }: PaymentModalProps) => {
   const { user } = useAuth();
   
   // Check if user has permission to create/edit payments
@@ -45,14 +48,56 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
   const [memberSlots, setMemberSlots] = useState<PaymentSlot[]>([])
   const [banks, setBanks] = useState<Bank[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isInitialLoading, setIsInitialLoading] = useState(false)
+  const [isWorkflowLoading, setIsWorkflowLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [duplicateWarning, setDuplicateWarning] = useState<string>('')
+  
+  // Member-first workflow state
+  const [allMembers, setAllMembers] = useState<any[]>([])
+  const [memberGroups, setMemberGroups] = useState<Group[]>([])
+  const [memberSearchTerm, setMemberSearchTerm] = useState('')
+  const [isMemberDropdownOpen, setIsMemberDropdownOpen] = useState(false)
+  const [selectedMemberIndex, setSelectedMemberIndex] = useState(-1)
+  const [isLoadingMemberGroups, setIsLoadingMemberGroups] = useState(false)
+  
+  // Multi-group workflow state
+  const [selectedMemberForMulti, setSelectedMemberForMulti] = useState<any>(null)
+  const [memberGroupsForMulti, setMemberGroupsForMulti] = useState<Group[]>([])
+  const [selectedGroupsForMulti, setSelectedGroupsForMulti] = useState<Set<number>>(new Set())
+  const [groupSlotsForMulti, setGroupSlotsForMulti] = useState<Record<number, PaymentSlot[]>>({})
+  const [selectedSlotsForMulti, setSelectedSlotsForMulti] = useState<Record<number, string>>({})
+  const [groupAmountsForMulti, setGroupAmountsForMulti] = useState<Record<number, number>>({})
+  const [existingPayments, setExistingPayments] = useState<Record<string, boolean>>({})
 
      // Load initial data
    useEffect(() => {
      if (isOpen) {
-       loadGroups()
-       loadBanks()
+       setIsInitialLoading(true)
+       
+       const loadInitialData = async () => {
+         try {
+           // Load groups and banks in parallel
+           const [groupsData, banksData] = await Promise.all([
+             groupService.getAllGroups(),
+             bankService.getAllBanks()
+           ])
+           
+           setGroups(groupsData)
+           setBanks(banksData)
+           
+           // Load all members for member-first and multi-group workflows
+           if (workflow === 'member-first' || workflow === 'multi-group') {
+             await loadAllMembersWithGroups(groupsData)
+           }
+         } catch (error) {
+           console.error('Failed to load initial data:', error)
+         } finally {
+           setIsInitialLoading(false)
+         }
+       }
+       
+       loadInitialData()
        
        if (prefillData) {
          // Handle prefill data (e.g., from Payments Due page)
@@ -139,11 +184,17 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
          }
          
          // Load cascading data for editing (but don't override existing data)
-         loadGroups()
-         loadBanks()
+         // Groups and banks are already loaded in the initial data loading
        }
      }
-   }, [isOpen, payment, isEditing, prefillData])
+   }, [isOpen, payment, isEditing, prefillData, workflow])
+
+   // Load all members after groups are loaded for member-first workflow
+   useEffect(() => {
+     if (workflow === 'member-first' && groups.length > 0) {
+       loadAllMembers()
+     }
+   }, [groups, workflow])
 
    // Ensure amount is loaded whenever groupId changes
    useEffect(() => {
@@ -176,23 +227,24 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      checkForDuplicates()
    }, [formData.memberId, formData.groupId, formData.slotId, isEditing])
 
-  const loadGroups = async () => {
-    try {
-      const groupsData = await groupService.getAllGroups()
-      setGroups(groupsData)
-    } catch (error) {
-      console.error('Failed to load groups:', error)
-    }
-  }
+   // Close dropdown when clicking outside (member-first workflow)
+   useEffect(() => {
+     const handleClickOutside = (event: MouseEvent) => {
+       const target = event.target as Element
+       if (!target.closest('.searchable-dropdown-container')) {
+         setIsMemberDropdownOpen(false)
+       }
+     }
 
-  const loadBanks = async () => {
-    try {
-      const banksData = await bankService.getAllBanks()
-      setBanks(banksData)
-    } catch (error) {
-      console.error('Failed to load banks:', error)
-    }
-  }
+     if (isMemberDropdownOpen) {
+       document.addEventListener('mousedown', handleClickOutside)
+     }
+
+     return () => {
+       document.removeEventListener('mousedown', handleClickOutside)
+     }
+   }, [isMemberDropdownOpen])
+
 
      const loadGroupMembers = async (groupId: number) => {
      if (!groupId) return
@@ -257,6 +309,338 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      }
    }
 
+  // Member-first workflow functions
+  const loadAllMembers = async () => {
+    try {
+      const allMembersData = []
+      
+      for (const group of groups) {
+        const members = await paymentSlotService.getGroupMembers(group.id)
+        
+        const membersWithGroup = members.map(member => ({
+          ...member,
+          group: group
+        }))
+        allMembersData.push(...membersWithGroup)
+      }
+      setAllMembers(allMembersData)
+    } catch (error) {
+      console.error('Failed to load all members:', error)
+    }
+  }
+
+  const loadAllMembersWithGroups = async (groupsData: Group[]) => {
+    try {
+      const allMembersData = []
+      
+      for (const group of groupsData) {
+        const members = await paymentSlotService.getGroupMembers(group.id)
+        
+        const membersWithGroup = members.map(member => ({
+          ...member,
+          group: group
+        }))
+        allMembersData.push(...membersWithGroup)
+      }
+      setAllMembers(allMembersData)
+    } catch (error) {
+      console.error('Failed to load all members:', error)
+    }
+  }
+
+  const loadMemberGroups = async (memberId: number) => {
+    if (!memberId) return
+    try {
+      setIsLoadingMemberGroups(true)
+      
+      const memberEntries = allMembers.filter(member => member.memberId === memberId)
+      
+      const memberGroupsData = memberEntries.map(member => member.group)
+      
+      const groupMap = new Map()
+      memberGroupsData.forEach(group => {
+        if (!groupMap.has(group.id)) {
+          groupMap.set(group.id, group)
+        }
+      })
+      const uniqueGroups = Array.from(groupMap.values())
+      
+      setMemberGroups(uniqueGroups)
+      setFormData(prev => ({
+        ...prev,
+        groupId: 0,
+        slotId: '',
+        amount: 0
+      }))
+      setMemberSlots([])
+    } catch (error) {
+      console.error('Failed to load member groups:', error)
+    } finally {
+      setIsLoadingMemberGroups(false)
+    }
+  }
+
+  // Filter members based on search term (memoized for performance)
+  const filteredMembers = useMemo(() => {
+    const matchingMembers = allMembers.filter(member => {
+      const fullName = `${member.member.firstName} ${member.member.lastName}`.toLowerCase()
+      return fullName.includes(memberSearchTerm.toLowerCase())
+    })
+    
+    const memberMap = new Map()
+    matchingMembers.forEach(member => {
+      if (!memberMap.has(member.memberId)) {
+        memberMap.set(member.memberId, member)
+      }
+    })
+    
+    return Array.from(memberMap.values())
+  }, [allMembers, memberSearchTerm])
+
+  const getMemberName = (memberId: number) => {
+    const member = allMembers.find(m => m.memberId === memberId)
+    return member ? `${member.member.firstName} ${member.member.lastName}` : 'Unknown Member'
+  }
+
+  const handleMemberSelect = (memberId: number) => {
+    handleInputChange('memberId', memberId)
+    setMemberSearchTerm('')
+    setIsMemberDropdownOpen(false)
+    setSelectedMemberIndex(-1)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isMemberDropdownOpen) return
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedMemberIndex(prev => 
+          prev < filteredMembers.length - 1 ? prev + 1 : 0
+        )
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedMemberIndex(prev => 
+          prev > 0 ? prev - 1 : filteredMembers.length - 1
+        )
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selectedMemberIndex >= 0 && filteredMembers[selectedMemberIndex]) {
+          handleMemberSelect(filteredMembers[selectedMemberIndex].memberId)
+        }
+        break
+      case 'Escape':
+        setIsMemberDropdownOpen(false)
+        setSelectedMemberIndex(-1)
+        break
+    }
+  }
+
+  // Multi-group workflow functions
+  const loadMemberForMulti = async (memberId: number) => {
+    if (!memberId) return
+    try {
+      setIsLoadingMemberGroups(true)
+      
+      // Find member in allMembers data
+      const memberEntries = allMembers.filter(member => member.memberId === memberId)
+      
+      const memberGroupsData = memberEntries.map(member => member.group)
+      
+      // Remove duplicates using Map
+      const groupMap = new Map()
+      memberGroupsData.forEach(group => {
+        if (!groupMap.has(group.id)) {
+          groupMap.set(group.id, group)
+        }
+      })
+      const uniqueGroups = Array.from(groupMap.values())
+      
+      setMemberGroupsForMulti(uniqueGroups)
+      setSelectedMemberForMulti(memberEntries[0]) // Use first entry for member info
+      
+      // Load slots and amounts for each group
+      const slotsPromises = uniqueGroups.map(async (group) => {
+        try {
+          const slots = await paymentSlotService.getAvailableMonthAssignments(memberId, group.id)
+          const amount = await paymentSlotService.getGroupMonthlyAmount(group.id)
+          return { groupId: group.id, slots, amount }
+        } catch (error) {
+          console.error(`Failed to load data for group ${group.id}:`, error)
+          return { groupId: group.id, slots: [], amount: 0 }
+        }
+      })
+      
+      const groupData = await Promise.all(slotsPromises)
+      
+      const slotsData: Record<number, PaymentSlot[]> = {}
+      const amountsData: Record<number, number> = {}
+      
+      groupData.forEach(({ groupId, slots, amount }) => {
+        slotsData[groupId] = slots
+        amountsData[groupId] = amount
+      })
+      
+      setGroupSlotsForMulti(slotsData)
+      setGroupAmountsForMulti(amountsData)
+      
+    } catch (error) {
+      console.error('Failed to load member for multi-group:', error)
+    } finally {
+      setIsLoadingMemberGroups(false)
+    }
+  }
+
+  const handleGroupToggleForMulti = (groupId: number) => {
+    const newSelectedGroups = new Set(selectedGroupsForMulti)
+    if (newSelectedGroups.has(groupId)) {
+      newSelectedGroups.delete(groupId)
+      // Clear slot selection for this group
+      const newSelectedSlots = { ...selectedSlotsForMulti }
+      delete newSelectedSlots[groupId]
+      setSelectedSlotsForMulti(newSelectedSlots)
+    } else {
+      newSelectedGroups.add(groupId)
+    }
+    setSelectedGroupsForMulti(newSelectedGroups)
+  }
+
+  const handleSlotChangeForMulti = (groupId: number, slotId: string) => {
+    setSelectedSlotsForMulti(prev => ({
+      ...prev,
+      [groupId]: slotId
+    }))
+    
+    // Check for existing payment when slot is selected
+    if (selectedMemberForMulti && slotId) {
+      checkExistingPayment(selectedMemberForMulti.memberId, groupId, slotId)
+    }
+  }
+
+  const checkExistingPayment = async (memberId: number, groupId: number, slotId: string) => {
+    try {
+      const paymentKey = `${memberId}-${groupId}-${slotId}`
+      
+      // Check if we already have this payment checked
+      if (existingPayments[paymentKey] !== undefined) {
+        return
+      }
+      
+      // Get the slot details to get the month date
+      const groupSlots = groupSlotsForMulti[groupId] || []
+      const slot = groupSlots.find(s => String(s.id) === slotId)
+      
+      if (!slot) return
+      
+      
+      // First, find the actual payment_slot record to get the numeric ID
+      const { data: slotData, error: slotError } = await supabase
+        .from('payment_slots')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('member_id', memberId)
+        .eq('month_date', slot.monthDate)
+        .single()
+      
+      if (slotError || !slotData) {
+        setExistingPayments(prev => ({
+          ...prev,
+          [paymentKey]: false
+        }))
+        return
+      }
+      
+      // Now check for existing payments using the numeric slot_id
+      const { data: paymentResults, error } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('member_id', memberId)
+        .eq('group_id', groupId)
+        .eq('slot_id', slotData.id)
+      
+      if (error) {
+        console.error('Error querying payments:', error)
+        setExistingPayments(prev => ({
+          ...prev,
+          [paymentKey]: false
+        }))
+        return
+      }
+      
+      const hasExistingPayment = paymentResults && paymentResults.length > 0
+      
+      setExistingPayments(prev => ({
+        ...prev,
+        [paymentKey]: hasExistingPayment
+      }))
+      
+    } catch (error) {
+      console.error('Error checking existing payment:', error)
+    }
+  }
+
+  const handleMultiGroupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!selectedMemberForMulti || selectedGroupsForMulti.size === 0) {
+      alert('Please select a member and at least one group')
+      return
+    }
+
+    // Validate that all selected groups have slots selected
+    const missingSlots = Array.from(selectedGroupsForMulti).filter(groupId => !selectedSlotsForMulti[groupId])
+    if (missingSlots.length > 0) {
+      alert('Please select slots for all selected groups')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      // Create payments for each selected group
+      const payments = Array.from(selectedGroupsForMulti).map(groupId => {
+        const amount = groupAmountsForMulti[groupId] || 0
+        
+        return {
+          memberId: selectedMemberForMulti.memberId,
+          groupId: groupId,
+          slotId: selectedSlotsForMulti[groupId],
+          paymentDate: new Date().toLocaleDateString('en-CA'),
+          paymentMonth: new Date().toISOString().substring(0, 7),
+          amount: amount,
+          paymentMethod: 'bank_transfer' as const,
+          status: 'pending' as const,
+          senderBankId: undefined,
+          receiverBankId: undefined,
+          notes: `Multi-group payment for ${selectedMemberForMulti.member.firstName} ${selectedMemberForMulti.member.lastName}`
+        }
+      })
+
+      // Save each payment
+      for (const payment of payments) {
+        await paymentService.createPayment(payment)
+      }
+      
+      // Reset multi-group state
+      setSelectedMemberForMulti(null)
+      setMemberGroupsForMulti([])
+      setSelectedGroupsForMulti(new Set())
+      setGroupSlotsForMulti({})
+      setSelectedSlotsForMulti({})
+      setGroupAmountsForMulti({})
+      setExistingPayments({})
+      
+      onClose()
+      alert(`Successfully created ${payments.length} payments!`)
+    } catch (error) {
+      console.error('Failed to save multi-group payments:', error)
+      alert('Failed to save payments. Please try again.')
+    } finally {
+      setIsLoading(false)
+     }
+   }
+
   const handleInputChange = (field: keyof PaymentFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     
@@ -265,13 +649,26 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
 
-    // Handle cascading updates
+    // Handle cascading updates based on workflow
+    if (workflow === 'group-first') {
     if (field === 'groupId') {
       loadGroupMembers(value)
+        loadGroupMonthlyAmount(value)
     } else if (field === 'memberId') {
       loadMemberSlots(value, formData.groupId)
     } else if (field === 'slotId') {
       // Amount is already set when group is selected
+      }
+    } else {
+      // Member-first workflow
+      if (field === 'memberId') {
+        loadMemberGroups(value)
+      } else if (field === 'groupId') {
+        loadMemberSlots(formData.memberId, value)
+        loadGroupMonthlyAmount(value)
+      } else if (field === 'slotId') {
+        // Amount is already set when group is selected
+      }
     }
   }
 
@@ -298,9 +695,6 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
 
        const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Debug logging
-    console.log('🔍 Form submission data:', formData)
     
     // Check if user has permission to create/edit payments
     if (!canManagePayments) {
@@ -398,15 +792,115 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
 
   return (
     <div className="payment-modal-overlay">
+      {/* Loading Overlay */}
+      {(isInitialLoading || isLoadingMemberGroups || isWorkflowLoading) && (
+        <div className="payment-modal-loading-overlay">
+          <div className="payment-modal-loading-spinner">
+            <div className="spinner-ring"></div>
+            <div className="spinner-ring"></div>
+            <div className="spinner-ring"></div>
+          </div>
+          <p className="payment-modal-loading-text">
+            {isInitialLoading ? 'Loading payment data...' : 
+             isWorkflowLoading ? 'Loading member data...' : 
+             'Loading member groups...'}
+          </p>
+        </div>
+      )}
+      
+      
       <div className="payment-modal-content payment-modal-container">
         <div className="payment-modal-header">
-          <h2>{isEditing ? 'Edit Payment' : 'Record New Payment'}</h2>
+          <h2>
+            {isEditing ? 'Edit Payment' : 'Record New Payment'}
+            {workflow === 'member-first' && (
+              <span className="workflow-indicator"> - Member First</span>
+            )}
+          </h2>
           <button className="payment-modal-close" onClick={onClose}>
             <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="payment-modal-form">
+        <form onSubmit={workflow === 'multi-group' ? handleMultiGroupSubmit : handleSubmit} className="payment-modal-form">
+          {/* Workflow Selection */}
+          <div className="workflow-selection-section">
+            <label htmlFor="workflowSelect">
+              <Building2 size={16} />
+              Payment Workflow *
+            </label>
+            <select
+              id="workflowSelect"
+              value={workflow}
+              onChange={(e) => {
+                const newWorkflow = e.target.value as 'group-first' | 'member-first' | 'multi-group'
+                
+                // Notify parent component of workflow change
+                if (onWorkflowChange) {
+                  onWorkflowChange(newWorkflow)
+                }
+                
+                // Reset form data when switching workflows
+                setFormData({
+                  memberId: 0,
+                  groupId: 0,
+                  slotId: '',
+                  paymentDate: new Date().toLocaleDateString('en-CA'),
+                  paymentMonth: new Date().toISOString().substring(0, 7),
+                  amount: 0,
+                  paymentMethod: 'bank_transfer',
+                  status: 'pending',
+                  senderBankId: undefined,
+                  receiverBankId: undefined,
+                  notes: ''
+                })
+                
+                // Clear dependent data
+                setGroupMembers([])
+                setMemberGroups([])
+                setMemberSlots([])
+                setErrors({})
+                setMemberSearchTerm('')
+                setIsMemberDropdownOpen(false)
+                setSelectedMemberIndex(-1)
+                
+                // Reset multi-group specific state
+                setSelectedMemberForMulti(null)
+                setMemberGroupsForMulti([])
+                setSelectedGroupsForMulti(new Set())
+                setGroupSlotsForMulti({})
+                setSelectedSlotsForMulti({})
+                setGroupAmountsForMulti({})
+                setExistingPayments({})
+                
+                // Update workflow
+                if (newWorkflow === 'member-first' || newWorkflow === 'multi-group') {
+                  setIsWorkflowLoading(true)
+                  loadAllMembersWithGroups(groups).finally(() => {
+                    setIsWorkflowLoading(false)
+                  })
+                }
+              }}
+              className="workflow-dropdown"
+            >
+              <option value="group-first">
+                Group First - Select group, then member, then slot
+              </option>
+              <option value="member-first">
+                Member First - Select member, then group, then slot
+              </option>
+              <option value="multi-group">
+                Multi-Group - Select member, then multiple groups
+              </option>
+            </select>
+            <small className="payment-modal-form-help">
+              Choose how you want to record the payment
+            </small>
+          </div>
+
+          {/* Group-First Workflow */}
+          {workflow === 'group-first' && (
+            <>
           {/* Group Selection */}
           <div className="payment-modal-form-group">
             <label htmlFor="groupId">
@@ -451,13 +945,254 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
              </select>
              {errors.memberId && <span className="payment-modal-error-message">{errors.memberId}</span>}
              <small className="payment-modal-form-help">
-               Debug: formData.memberId = {formData.memberId}, 
-               groupMembers count = {groupMembers.length}, 
-               first member id = {groupMembers[0]?.member?.id}
+                  Available members: {groupMembers.length}
              </small>
            </div>
+            </>
+          )}
 
-                     {/* Slot Selection */}
+          {/* Member-First Workflow */}
+          {workflow === 'member-first' && (
+            <>
+              {/* Member Selection - Searchable Dropdown */}
+              <div className="payment-modal-form-group">
+                <label htmlFor="memberSearch">
+                  <User size={16} />
+                  Member *
+                </label>
+                <div className="searchable-dropdown-container">
+                  <input
+                    type="text"
+                    id="memberSearch"
+                    value={memberSearchTerm || (formData.memberId ? getMemberName(formData.memberId) : '')}
+                    onChange={(e) => {
+                      setMemberSearchTerm(e.target.value)
+                      setIsMemberDropdownOpen(true)
+                      setSelectedMemberIndex(-1)
+                      if (e.target.value === '') {
+                        handleInputChange('memberId', 0)
+                      }
+                    }}
+                    onFocus={() => setIsMemberDropdownOpen(true)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Search for a member..."
+                    className={`searchable-dropdown-input ${errors.memberId ? 'error' : ''}`}
+                    autoComplete="off"
+                  />
+                  {isMemberDropdownOpen && (
+                    <div className="searchable-dropdown-list">
+                      {filteredMembers.length > 0 ? (
+                        filteredMembers.map((member, index) => (
+                          <div
+                            key={`member-${member.memberId}-${index}`}
+                            className={`searchable-dropdown-item ${index === selectedMemberIndex ? 'selected' : ''}`}
+                            onClick={() => handleMemberSelect(member.memberId)}
+                          >
+                            <div className="member-name">
+                              {member.member.firstName} {member.member.lastName}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="searchable-dropdown-no-results">
+                          No members found
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {errors.memberId && <span className="payment-modal-error-message">{errors.memberId}</span>}
+                <small className="payment-modal-form-help">
+                  Available members: {allMembers.length} | Showing: {filteredMembers.length}
+                </small>
+              </div>
+
+              {/* Group Selection */}
+              <div className="payment-modal-form-group">
+                <label htmlFor="groupId">
+                  <Building2 size={16} />
+                  Available Groups *
+                </label>
+                <select
+                  id="groupId"
+                  value={formData.groupId}
+                  onChange={(e) => handleInputChange('groupId', Number(e.target.value))}
+                  disabled={!formData.memberId || isLoadingMemberGroups}
+                  className={errors.groupId ? 'error' : ''}
+                >
+                  <option value={0}>
+                    {isLoadingMemberGroups ? 'Loading groups...' : 'Select a group'}
+                  </option>
+                  {memberGroups.map(group => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.groupId && <span className="payment-modal-error-message">{errors.groupId}</span>}
+                <small className="payment-modal-form-help">
+                  {isLoadingMemberGroups 
+                    ? 'Loading available groups...' 
+                    : `Available groups: ${memberGroups.length}`
+                  }
+                </small>
+              </div>
+            </>
+          )}
+
+          {/* Multi-Group Workflow */}
+          {workflow === 'multi-group' && (
+            <>
+              {/* Member Selection for Multi-Group */}
+              <div className="payment-modal-form-group">
+                <label htmlFor="memberSearchMulti">
+                  <User size={16} />
+                  Select Member *
+                </label>
+                <div className="searchable-dropdown-container">
+                  <input
+                    type="text"
+                    id="memberSearchMulti"
+                    value={memberSearchTerm || (selectedMemberForMulti ? `${selectedMemberForMulti.member.firstName} ${selectedMemberForMulti.member.lastName}` : '')}
+                    onChange={(e) => {
+                      setMemberSearchTerm(e.target.value)
+                      setIsMemberDropdownOpen(true)
+                      setSelectedMemberIndex(-1)
+                      if (e.target.value === '') {
+                        setSelectedMemberForMulti(null)
+                        setMemberGroupsForMulti([])
+                        setSelectedGroupsForMulti(new Set())
+                        setGroupSlotsForMulti({})
+                        setSelectedSlotsForMulti({})
+                        setGroupAmountsForMulti({})
+                      }
+                    }}
+                    onFocus={() => setIsMemberDropdownOpen(true)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Search for a member..."
+                    className={`searchable-dropdown-input ${!selectedMemberForMulti ? 'error' : ''}`}
+                    autoComplete="off"
+                  />
+                  {isMemberDropdownOpen && (
+                    <div className="searchable-dropdown-list">
+                      {filteredMembers.length > 0 ? (
+                        filteredMembers.map((member, index) => (
+                          <div
+                            key={`member-multi-${member.memberId}-${index}`}
+                            className={`searchable-dropdown-item ${index === selectedMemberIndex ? 'selected' : ''}`}
+                            onClick={() => {
+                              handleMemberSelect(member.memberId)
+                              loadMemberForMulti(member.memberId)
+                            }}
+                          >
+                            <div className="member-name">
+                              {member.member.firstName} {member.member.lastName}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="searchable-dropdown-no-results">
+                          No members found
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <small className="payment-modal-form-help">
+                  Select a member to see their groups
+                </small>
+              </div>
+
+              {/* Group Selection for Multi-Group */}
+              {selectedMemberForMulti && (
+                <div className="payment-modal-form-group full-width">
+                  <label>
+                    <Building2 size={16} />
+                    Select Groups to Pay For *
+                  </label>
+                  {isLoadingMemberGroups ? (
+                    <div className="payment-modal-loading">Loading groups...</div>
+                  ) : (
+                    <div className="multi-group-selection">
+                      {memberGroupsForMulti.map(group => {
+                        const hasSlots = groupSlotsForMulti[group.id] && groupSlotsForMulti[group.id].length > 0
+                        const isSelected = selectedGroupsForMulti.has(group.id)
+                        const amount = groupAmountsForMulti[group.id] || 0
+                        const selectedSlotId = selectedSlotsForMulti[group.id]
+                        const paymentKey = selectedMemberForMulti && selectedSlotId ? `${selectedMemberForMulti.memberId}-${group.id}-${selectedSlotId}` : ''
+                        const hasExistingPayment = paymentKey ? existingPayments[paymentKey] : false
+                        
+                        return (
+                          <div key={group.id} className={`multi-group-item ${!hasSlots ? 'no-slots' : ''} ${isSelected ? 'selected' : ''} ${hasExistingPayment ? 'has-existing-payment' : ''}`}>
+                            <div className="multi-group-main-row">
+                              <label className="multi-group-checkbox">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => handleGroupToggleForMulti(group.id)}
+                                  disabled={!hasSlots}
+                                />
+                                <span className="multi-group-info">
+                                  <span className="multi-group-name">{group.name}</span>
+                                  <span className="multi-group-amount">SRD {amount.toLocaleString()}</span>
+                                </span>
+                              </label>
+                              
+                              {isSelected && hasSlots && (
+                                <div className="multi-group-slot-selection">
+                                  <label htmlFor={`slot-${group.id}`}>Slot:</label>
+                                  <select
+                                    id={`slot-${group.id}`}
+                                    value={selectedSlotsForMulti[group.id] || ''}
+                                    onChange={(e) => handleSlotChangeForMulti(group.id, e.target.value)}
+                                    className={hasExistingPayment ? 'has-existing-payment' : ''}
+                                  >
+                                    <option value="">Choose slot</option>
+                                    {groupSlotsForMulti[group.id]?.map(slot => {
+                                      const slotPaymentKey = selectedMemberForMulti ? `${selectedMemberForMulti.memberId}-${group.id}-${slot.id}` : ''
+                                      const slotHasExistingPayment = slotPaymentKey ? existingPayments[slotPaymentKey] : false
+                                      
+                                      return (
+                                        <option key={slot.id} value={slot.id} className={slotHasExistingPayment ? 'has-existing-payment' : ''}>
+                                          {paymentSlotService.formatMonthDate(slot.monthDate)}
+                                          {slotHasExistingPayment ? ' (Already Paid)' : ''}
+                                        </option>
+                                      )
+                                    })}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {hasExistingPayment && selectedSlotId && (
+                              <div className="multi-group-existing-payment-warning">
+                                ⚠️ Payment already exists for this member, group, and slot combination
+                              </div>
+                            )}
+                            
+                            {!hasSlots && (
+                              <div className="multi-group-no-slots">
+                                No available slots for this group
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <small className="payment-modal-form-help">
+                    {selectedGroupsForMulti.size > 0 
+                      ? `Selected ${selectedGroupsForMulti.size} group(s)`
+                      : 'Select one or more groups to pay for'
+                    }
+                  </small>
+                </div>
+              )}
+            </>
+          )}
+
+                     {/* Slot Selection - Hidden for multi-group */}
+           {workflow !== 'multi-group' && (
            <div className="payment-modal-form-group">
              <label htmlFor="slotId">
                <Calendar size={16} />
@@ -480,8 +1215,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
              {errors.slotId && <span className="payment-modal-error-message">{errors.slotId}</span>}
              <small className="payment-modal-form-help">Available slots: {memberSlots.length}</small>
            </div>
+           )}
 
-          {/* Amount (Read-only) */}
+          {/* Amount (Read-only) - Hidden for multi-group */}
+          {workflow !== 'multi-group' && (
           <div className="payment-modal-form-group">
             <label htmlFor="amount">
               <DollarSign size={16} />
@@ -496,6 +1233,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
             />
             <small className="payment-modal-form-help">Amount is locked to group's monthly amount</small>
           </div>
+          )}
 
           {/* Payment Date */}
           <div className="payment-modal-form-group">

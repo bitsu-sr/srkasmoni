@@ -1,0 +1,675 @@
+/* Payment Modal Test Page Styles */
+.payment-modal-test-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.payment-modal-test-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.payment-modal-test-header h1 {
+  color: #2e7d32; /* Excel green theme */
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.payment-modal-test-header p {
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.payment-modal-test-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.payment-modal-test-actions .btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.payment-modal-test-actions .btn-primary {
+  background-color: #2e7d32;
+  color: white;
+}
+
+.payment-modal-test-actions .btn-primary:hover {
+  background-color: #1b5e20;
+  transform: translateY(-2px);
+}
+
+.payment-modal-test-actions .btn-secondary {
+  background-color: #1976d2;
+  color: white;
+}
+
+.payment-modal-test-actions .btn-secondary:hover {
+  background-color: #1565c0;
+  transform: translateY(-2px);
+}
+
+.payment-modal-test-actions .btn-danger {
+  background-color: #d32f2f;
+  color: white;
+}
+
+.payment-modal-test-actions .btn-danger:hover {
+  background-color: #c62828;
+  transform: translateY(-2px);
+}
+
+/* Saved Payments Section */
+.saved-payments-section {
+  margin-top: 3rem;
+}
+
+.saved-payments-section h2 {
+  color: #2e7d32;
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+}
+
+.saved-payments-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.saved-payment-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.saved-payment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.saved-payment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.saved-payment-header h3 {
+  color: #2e7d32;
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.saved-payment-timestamp {
+  color: #666;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.saved-payment-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.saved-payment-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.saved-payment-detail strong {
+  color: #333;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.saved-payment-detail {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Modal Overlay */
+.payment-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.payment-modal-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.payment-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+}
+
+.payment-modal-header h2 {
+  margin: 0;
+  color: #2e7d32;
+  font-size: 1.5rem;
+}
+
+.payment-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.payment-modal-close:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.payment-modal-form {
+  padding: 1.5rem;
+}
+
+.payment-modal-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.payment-modal-form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.payment-modal-form-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.required-asterisk {
+  color: #d32f2f;
+  margin-left: 0.25rem;
+}
+
+.payment-modal-form-group input,
+.payment-modal-form-group select,
+.payment-modal-form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.payment-modal-form-group input:focus,
+.payment-modal-form-group select:focus,
+.payment-modal-form-group textarea:focus {
+  outline: none;
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+}
+
+.payment-modal-form-group input.error,
+.payment-modal-form-group select.error {
+  border-color: #d32f2f;
+}
+
+.payment-modal-readonly {
+  background-color: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.payment-modal-form-help {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.payment-modal-error-message {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #d32f2f;
+}
+
+/* Payment Method Toggle */
+.payment-modal-method-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.payment-modal-toggle-option {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.payment-modal-toggle-option:hover {
+  border-color: #2e7d32;
+}
+
+.payment-modal-toggle-option.active {
+  border-color: #2e7d32;
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+/* Test Notice */
+.payment-modal-test-notice {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.payment-modal-test-notice p {
+  margin: 0;
+  color: #856404;
+  font-weight: 500;
+}
+
+/* Form Actions */
+.payment-modal-form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.payment-modal-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.payment-modal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.payment-modal-btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.payment-modal-btn-secondary:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+.payment-modal-btn {
+  background-color: #2e7d32;
+  color: white;
+}
+
+.payment-modal-btn:hover:not(:disabled) {
+  background-color: #1b5e20;
+}
+
+/* Workflow Selection Styles */
+.workflow-selection-section {
+  margin-bottom: 1.5rem;
+}
+
+.workflow-selection-section label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.workflow-dropdown {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: white;
+  font-size: 0.95rem;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 16px;
+  padding-right: 3rem;
+}
+
+.workflow-dropdown:hover {
+  border-color: #2e7d32;
+  box-shadow: 0 2px 4px rgba(46, 125, 50, 0.1);
+}
+
+.workflow-dropdown:focus {
+  outline: none;
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
+.workflow-dropdown option {
+  padding: 0.5rem;
+  font-size: 0.95rem;
+}
+
+/* Searchable Dropdown Styles */
+.searchable-dropdown-container {
+  position: relative;
+  width: 100%;
+}
+
+.searchable-dropdown-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+  background-color: white;
+}
+
+.searchable-dropdown-input:focus {
+  outline: none;
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+}
+
+.searchable-dropdown-input.error {
+  border-color: #d32f2f;
+}
+
+.searchable-dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.searchable-dropdown-item {
+  padding: 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.searchable-dropdown-item:hover,
+.searchable-dropdown-item.selected {
+  background-color: #f8f9fa;
+}
+
+.searchable-dropdown-item.selected {
+  background-color: #e8f5e8;
+  border-left: 3px solid #2e7d32;
+}
+
+.searchable-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.member-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.searchable-dropdown-no-results {
+  padding: 0.75rem;
+  color: #666;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .payment-modal-test-page {
+    padding: 1rem;
+  }
+
+  .payment-modal-test-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .payment-modal-test-actions .btn {
+    width: 100%;
+    max-width: 300px;
+    justify-content: center;
+  }
+
+  .saved-payments-list {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-modal-container {
+    margin: 0.5rem;
+    max-height: 95vh;
+  }
+
+  .payment-modal-form-actions {
+    flex-direction: column;
+  }
+
+  .payment-modal-btn {
+    width: 100%;
+  }
+
+  .workflow-dropdown {
+    font-size: 0.9rem;
+    padding: 0.625rem 0.875rem;
+    padding-right: 2.5rem;
+  }
+
+  .workflow-dropdown option {
+    font-size: 0.9rem;
+  }
+}
+
+/* Multi-Group Selection Styles */
+.multi-group-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  width: 100%;
+}
+
+.multi-group-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+
+.multi-group-item.selected {
+  border-color: #2e7d32;
+  background-color: #f8f9fa;
+}
+
+.multi-group-main-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.multi-group-item:hover {
+  border-color: #2e7d32;
+  box-shadow: 0 2px 4px rgba(46, 125, 50, 0.1);
+}
+
+.multi-group-item.no-slots {
+  opacity: 0.6;
+  background-color: #f5f5f5;
+}
+
+.multi-group-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+  flex: 1;
+}
+
+.multi-group-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #2e7d32;
+  cursor: pointer;
+}
+
+.multi-group-checkbox input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.multi-group-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+}
+
+.multi-group-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.multi-group-amount {
+  font-weight: 500;
+  color: #2e7d32;
+  background-color: #e8f5e8;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.multi-group-slot-selection {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.multi-group-slot-selection label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #666;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.multi-group-slot-selection select {
+  flex: 1;
+  min-width: 150px;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background-color: white;
+}
+
+.multi-group-no-slots {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  color: #856404;
+  font-size: 0.875rem;
+  font-style: italic;
+  text-align: center;
+}
+
+.payment-modal-loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
+}
