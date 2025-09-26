@@ -18,7 +18,6 @@ const Analytics = () => {
   // Filter state management - default to current month
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'day' | 'week' | 'month' | 'year'>('month')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const [customDateRange, setCustomDateRange] = useState<{ start: Date; end: Date } | null>(null)
 
   // Date navigation functions
   const navigateDate = (direction: 'prev' | 'next') => {
@@ -44,7 +43,6 @@ const Analytics = () => {
 
   // Get date range based on selected filter
   const getDateRange = () => {
-    const now = new Date()
     const date = selectedDate
     
     switch (selectedFilter) {
