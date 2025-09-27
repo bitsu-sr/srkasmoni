@@ -229,10 +229,16 @@ const Payments = () => {
     }
     
     try {
-      if (editingPayment) {
-        await paymentService.updatePayment(editingPayment.id, paymentData)
-      } else {
-        await paymentService.createPayment(paymentData)
+      // Check if this is a multi-group workflow refresh call (has memberId but no groupId/slotId)
+      const isMultiGroupRefresh = paymentData.memberId > 0 && paymentData.groupId === 0 && paymentData.slotId === ''
+      
+      if (!isMultiGroupRefresh) {
+        // Only save if this is not a multi-group refresh call
+        if (editingPayment) {
+          await paymentService.updatePayment(editingPayment.id, paymentData)
+        } else {
+          await paymentService.createPayment(paymentData)
+        }
       }
       
       setIsModalOpen(false)

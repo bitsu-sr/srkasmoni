@@ -224,8 +224,8 @@
 /* Form Actions */
 .payment-modal-form-actions {
   display: flex;
-  gap: 12px;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   padding: 20px 24px;
   border-top: 1px solid var(--border);
   background: white;
@@ -234,6 +234,39 @@
   margin: 0 -24px 0 -24px;
   box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
   grid-column: 1 / -1;
+}
+
+.payment-modal-actions-left {
+  display: flex;
+  align-items: center;
+}
+
+.payment-modal-actions-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.payment-modal-total-amount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #f0f9ff;
+  border: 1px solid #0ea5e9;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.payment-modal-total-amount .total-label {
+  color: #0c4a6e;
+  font-size: 0.875rem;
+}
+
+.payment-modal-total-amount .total-amount {
+  color: #166534;
+  font-weight: 600;
+  font-size: 1rem;
 }
 
 .payment-modal-permission-warning {
@@ -347,13 +380,30 @@
 
   .payment-modal-form-actions {
     flex-direction: column;
+    gap: 16px;
     margin: 0; /* Avoid horizontal overflow from negative margins */
     padding: 16px; /* Reduce padding on small screens */
+  }
+
+  .payment-modal-actions-left {
+    order: 2;
+    justify-content: center;
+  }
+
+  .payment-modal-actions-right {
+    order: 1;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .payment-modal-form-actions .payment-modal-btn {
     width: 100%;
     min-width: auto;
+  }
+
+  .payment-modal-total-amount {
+    padding: 6px 12px;
+    font-size: 0.875rem;
   }
 }
 
@@ -547,11 +597,24 @@
   justify-content: space-between;
   align-items: center;
   flex: 1;
+  gap: 1rem;
 }
 
 .multi-group-name {
   font-weight: 600;
   color: #333;
+  flex: 1;
+}
+
+.multi-group-slot {
+  font-weight: 500;
+  color: #666;
+  background-color: #f5f5f5;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  min-width: 80px;
+  text-align: center;
 }
 
 .multi-group-amount {
@@ -561,6 +624,8 @@
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.875rem;
+  min-width: 100px;
+  text-align: right;
 }
 
 .multi-group-slot-selection {
@@ -613,6 +678,17 @@
   font-size: 0.875rem;
   font-style: italic;
   text-align: center;
+}
+
+.multi-group-no-combinations {
+  color: #666;
+  font-style: italic;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 2rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px dashed #ddd;
 }
 
 .multi-group-existing-payment-warning {

@@ -63,12 +63,31 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
   
   // Multi-group workflow state
   const [selectedMemberForMulti, setSelectedMemberForMulti] = useState<any>(null)
-  const [memberGroupsForMulti, setMemberGroupsForMulti] = useState<Group[]>([])
-  const [selectedGroupsForMulti, setSelectedGroupsForMulti] = useState<Set<number>>(new Set())
-  const [groupSlotsForMulti, setGroupSlotsForMulti] = useState<Record<number, PaymentSlot[]>>({})
-  const [selectedSlotsForMulti, setSelectedSlotsForMulti] = useState<Record<number, string>>({})
-  const [groupAmountsForMulti, setGroupAmountsForMulti] = useState<Record<number, number>>({})
+  const [groupSlotCombinations, setGroupSlotCombinations] = useState<Array<{
+    groupId: number
+    groupName: string
+    slotId: string
+    slotMonth: string
+    amount: number
+    combinationKey: string
+  }>>([])
+  const [selectedCombinations, setSelectedCombinations] = useState<Set<string>>(new Set())
   const [existingPayments, setExistingPayments] = useState<Record<string, boolean>>({})
+  const [multiGroupPaymentInfo, setMultiGroupPaymentInfo] = useState<{
+    senderBankId?: number
+    receiverBankId?: number
+    paymentDate: string
+    paymentMonth: string
+    paymentMethod: 'bank_transfer' | 'cash'
+    status: 'pending' | 'received' | 'settled'
+    notes: string
+  }>({
+    paymentDate: new Date().toLocaleDateString('en-CA'),
+    paymentMonth: new Date().toISOString().substring(0, 7),
+    paymentMethod: 'bank_transfer',
+    status: 'pending',
+    notes: ''
+  })
 
      // Load initial data
    useEffect(() => {
@@ -458,7 +477,6 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
       })
       const uniqueGroups = Array.from(groupMap.values())
       
-      setMemberGroupsForMulti(uniqueGroups)
       setSelectedMemberForMulti(memberEntries[0]) // Use first entry for member info
       
       // Load slots and amounts for each group
@@ -466,25 +484,46 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
         try {
           const slots = await paymentSlotService.getAvailableMonthAssignments(memberId, group.id)
           const amount = await paymentSlotService.getGroupMonthlyAmount(group.id)
-          return { groupId: group.id, slots, amount }
+          return { groupId: group.id, groupName: group.name, slots, amount }
         } catch (error) {
           console.error(`Failed to load data for group ${group.id}:`, error)
-          return { groupId: group.id, slots: [], amount: 0 }
+          return { groupId: group.id, groupName: group.name, slots: [], amount: 0 }
         }
       })
       
       const groupData = await Promise.all(slotsPromises)
       
-      const slotsData: Record<number, PaymentSlot[]> = {}
-      const amountsData: Record<number, number> = {}
+      // Create individual group/slot combinations
+      const combinations: Array<{
+        groupId: number
+        groupName: string
+        slotId: string
+        slotMonth: string
+        amount: number
+        combinationKey: string
+      }> = []
       
-      groupData.forEach(({ groupId, slots, amount }) => {
-        slotsData[groupId] = slots
-        amountsData[groupId] = amount
+      groupData.forEach(({ groupId, groupName, slots, amount }) => {
+        slots.forEach(slot => {
+          // Format month for display
+          const [year, month] = slot.monthDate.split('-').map(Number)
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+          const slotMonth = `${monthNames[month - 1]} ${year}`
+          
+          const combinationKey = `${groupId}-${slot.id}`
+          
+          combinations.push({
+            groupId,
+            groupName,
+            slotId: String(slot.id),
+            slotMonth,
+            amount,
+            combinationKey
+          })
+        })
       })
       
-      setGroupSlotsForMulti(slotsData)
-      setGroupAmountsForMulti(amountsData)
+      setGroupSlotCombinations(combinations)
       
     } catch (error) {
       console.error('Failed to load member for multi-group:', error)
@@ -493,30 +532,28 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
     }
   }
 
-  const handleGroupToggleForMulti = (groupId: number) => {
-    const newSelectedGroups = new Set(selectedGroupsForMulti)
-    if (newSelectedGroups.has(groupId)) {
-      newSelectedGroups.delete(groupId)
-      // Clear slot selection for this group
-      const newSelectedSlots = { ...selectedSlotsForMulti }
-      delete newSelectedSlots[groupId]
-      setSelectedSlotsForMulti(newSelectedSlots)
-    } else {
-      newSelectedGroups.add(groupId)
-    }
-    setSelectedGroupsForMulti(newSelectedGroups)
-  }
-
-  const handleSlotChangeForMulti = (groupId: number, slotId: string) => {
-    setSelectedSlotsForMulti(prev => ({
-      ...prev,
-      [groupId]: slotId
-    }))
+  const handleCombinationToggle = (combinationKey: string) => {
+    const combination = groupSlotCombinations.find(c => c.combinationKey === combinationKey)
+    if (!combination || !selectedMemberForMulti) return
     
-    // Check for existing payment when slot is selected
-    if (selectedMemberForMulti && slotId) {
-      checkExistingPayment(selectedMemberForMulti.memberId, groupId, slotId)
+    const paymentKey = `${selectedMemberForMulti.memberId}-${combination.groupId}-${combination.slotId}`
+    const hasExistingPayment = existingPayments[paymentKey]
+    
+    // Don't allow selection if payment already exists
+    if (hasExistingPayment) {
+      return
     }
+    
+    const newSelectedCombinations = new Set(selectedCombinations)
+    if (newSelectedCombinations.has(combinationKey)) {
+      newSelectedCombinations.delete(combinationKey)
+    } else {
+      newSelectedCombinations.add(combinationKey)
+      
+      // Check for existing payment when combination is selected
+      checkExistingPayment(selectedMemberForMulti.memberId, combination.groupId, combination.slotId)
+    }
+    setSelectedCombinations(newSelectedCombinations)
   }
 
   const checkExistingPayment = async (memberId: number, groupId: number, slotId: string) => {
@@ -528,37 +565,36 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
         return
       }
       
-      // Get the slot details to get the month date
-      const groupSlots = groupSlotsForMulti[groupId] || []
-      const slot = groupSlots.find(s => String(s.id) === slotId)
+      // Find the combination to get the slot month
+      const combination = groupSlotCombinations.find(c => 
+        c.groupId === groupId && c.slotId === slotId
+      )
       
-      if (!slot) return
+      if (!combination) return
       
+      // Get current month for payment_month comparison
+      const currentMonth = new Date().toISOString().substring(0, 7)
       
-      // First, find the actual payment_slot record to get the numeric ID
-      const { data: slotData, error: slotError } = await supabase
-        .from('payment_slots')
-        .select('id')
-        .eq('group_id', groupId)
-        .eq('member_id', memberId)
-        .eq('month_date', slot.monthDate)
-        .single()
+      // Parse the slot month back to YYYY-MM format for database query
+      const [monthName, year] = combination.slotMonth.split(' ')
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      const monthNumber = monthNames.indexOf(monthName) + 1
+      const monthDate = `${year}-${monthNumber.toString().padStart(2, '0')}`
       
-      if (slotError || !slotData) {
-        setExistingPayments(prev => ({
-          ...prev,
-          [paymentKey]: false
-        }))
-        return
-      }
-      
-      // Now check for existing payments using the numeric slot_id
+      // Check for existing payments for this member, group, and month using the same logic as other workflows
+      // We need to join with payment_slots to get the month_date and check payment_month
       const { data: paymentResults, error } = await supabase
         .from('payments')
-        .select('id')
+        .select(`
+          id,
+          payment_slots!inner(
+            month_date
+          )
+        `)
         .eq('member_id', memberId)
         .eq('group_id', groupId)
-        .eq('slot_id', slotData.id)
+        .eq('payment_slots.month_date', monthDate)
+        .eq('payment_month', currentMonth)
       
       if (error) {
         console.error('Error querying payments:', error)
@@ -576,6 +612,20 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
         [paymentKey]: hasExistingPayment
       }))
       
+      // If payment exists, remove it from selected combinations
+      if (hasExistingPayment) {
+        const combination = groupSlotCombinations.find(c => 
+          c.groupId === groupId && c.slotId === slotId
+        )
+        if (combination) {
+          setSelectedCombinations(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(combination.combinationKey)
+            return newSet
+          })
+        }
+      }
+      
     } catch (error) {
       console.error('Error checking existing payment:', error)
     }
@@ -584,55 +634,113 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
   const handleMultiGroupSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!selectedMemberForMulti || selectedGroupsForMulti.size === 0) {
-      alert('Please select a member and at least one group')
+    if (!selectedMemberForMulti || selectedCombinations.size === 0) {
+      alert('Please select a member and at least one group/slot combination')
       return
     }
 
-    // Validate that all selected groups have slots selected
-    const missingSlots = Array.from(selectedGroupsForMulti).filter(groupId => !selectedSlotsForMulti[groupId])
-    if (missingSlots.length > 0) {
-      alert('Please select slots for all selected groups')
+    // Validate bank information
+    if (multiGroupPaymentInfo.paymentMethod === 'bank_transfer' && (!multiGroupPaymentInfo.senderBankId || !multiGroupPaymentInfo.receiverBankId)) {
+      alert('Please select both sender and receiver banks')
       return
     }
 
     setIsLoading(true)
     try {
-      // Create payments for each selected group
-      const payments = Array.from(selectedGroupsForMulti).map(groupId => {
-        const amount = groupAmountsForMulti[groupId] || 0
+      // Create payments for each selected combination
+      const payments = await Promise.all(Array.from(selectedCombinations).map(async (combinationKey) => {
+        const combination = groupSlotCombinations.find(c => c.combinationKey === combinationKey)
+        if (!combination) return null
         
-        return {
-          memberId: selectedMemberForMulti.memberId,
-          groupId: groupId,
-          slotId: selectedSlotsForMulti[groupId],
-          paymentDate: new Date().toLocaleDateString('en-CA'),
-          paymentMonth: new Date().toISOString().substring(0, 7),
-          amount: amount,
-          paymentMethod: 'bank_transfer' as const,
-          status: 'pending' as const,
-          senderBankId: undefined,
-          receiverBankId: undefined,
-          notes: `Multi-group payment for ${selectedMemberForMulti.member.firstName} ${selectedMemberForMulti.member.lastName}`
+        // Parse the slot month back to YYYY-MM format for database query
+        const [monthName, year] = combination.slotMonth.split(' ')
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const monthNumber = monthNames.indexOf(monthName) + 1
+        const monthDate = `${year}-${monthNumber.toString().padStart(2, '0')}`
+        
+        try {
+          // First check if the payment slot already exists
+          const existingSlots = await paymentSlotService.getMemberSlots(selectedMemberForMulti.memberId, combination.groupId)
+          const existingSlot = existingSlots.find(slot => slot.monthDate === monthDate)
+          
+          let slotId: number
+          
+          if (existingSlot) {
+            // Use the existing slot ID
+            slotId = existingSlot.id
+          } else {
+            // Create a new payment slot
+            const newSlot = await paymentSlotService.createPaymentSlot({
+              groupId: combination.groupId,
+              memberId: selectedMemberForMulti.memberId,
+              monthDate: monthDate,
+              amount: combination.amount,
+              dueDate: new Date().toISOString().split('T')[0] // Set to today's date as default
+            })
+            
+            // Use the new slot ID
+            slotId = newSlot.id
+          }
+          
+          return {
+            memberId: selectedMemberForMulti.memberId,
+            groupId: combination.groupId,
+            slotId: slotId,
+            paymentDate: multiGroupPaymentInfo.paymentDate,
+            paymentMonth: multiGroupPaymentInfo.paymentMonth,
+            amount: combination.amount,
+            paymentMethod: multiGroupPaymentInfo.paymentMethod,
+            status: multiGroupPaymentInfo.status,
+            senderBankId: multiGroupPaymentInfo.senderBankId,
+            receiverBankId: multiGroupPaymentInfo.receiverBankId,
+            notes: multiGroupPaymentInfo.notes || `Multi-group payment for ${selectedMemberForMulti.member.firstName} ${selectedMemberForMulti.member.lastName}`
+          }
+        } catch (error) {
+          console.error('Failed to create payment slot for combination:', combinationKey, error)
+          throw new Error(`Failed to create payment slot for ${combination.groupName} - ${combination.slotMonth}. Please try again.`)
         }
-      })
+      }))
 
       // Save each payment
       for (const payment of payments) {
-        await paymentService.createPayment(payment)
+        if (payment) {
+          await paymentService.createPayment(payment)
+        }
       }
       
       // Reset multi-group state
       setSelectedMemberForMulti(null)
-      setMemberGroupsForMulti([])
-      setSelectedGroupsForMulti(new Set())
-      setGroupSlotsForMulti({})
-      setSelectedSlotsForMulti({})
-      setGroupAmountsForMulti({})
+      setGroupSlotCombinations([])
+      setSelectedCombinations(new Set())
       setExistingPayments({})
+      setMultiGroupPaymentInfo({
+        paymentDate: new Date().toLocaleDateString('en-CA'),
+        paymentMonth: new Date().toISOString().substring(0, 7),
+        paymentMethod: 'bank_transfer',
+        status: 'pending',
+        notes: ''
+      })
       
       onClose()
       alert(`Successfully created ${payments.length} payments!`)
+      
+      // Call onSave to trigger parent component refresh
+      // The parent component will handle the refresh logic
+      if (onSave) {
+        onSave({
+          memberId: selectedMemberForMulti.memberId,
+          groupId: 0, // Not applicable for multi-group
+          slotId: '', // Not applicable for multi-group
+          paymentDate: multiGroupPaymentInfo.paymentDate,
+          paymentMonth: multiGroupPaymentInfo.paymentMonth,
+          amount: 0, // Not applicable for multi-group
+          paymentMethod: multiGroupPaymentInfo.paymentMethod,
+          status: multiGroupPaymentInfo.status,
+          senderBankId: multiGroupPaymentInfo.senderBankId,
+          receiverBankId: multiGroupPaymentInfo.receiverBankId,
+          notes: multiGroupPaymentInfo.notes
+        })
+      }
     } catch (error) {
       console.error('Failed to save multi-group payments:', error)
       alert('Failed to save payments. Please try again.')
@@ -647,6 +755,11 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
     // Clear validation errors
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
+    }
+
+    // Sync with multi-group payment info when in multi-group workflow
+    if (workflow === 'multi-group') {
+      setMultiGroupPaymentInfo(prev => ({ ...prev, [field]: value }))
     }
 
     // Handle cascading updates based on workflow
@@ -866,12 +979,16 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                 
                 // Reset multi-group specific state
                 setSelectedMemberForMulti(null)
-                setMemberGroupsForMulti([])
-                setSelectedGroupsForMulti(new Set())
-                setGroupSlotsForMulti({})
-                setSelectedSlotsForMulti({})
-                setGroupAmountsForMulti({})
+                setGroupSlotCombinations([])
+                setSelectedCombinations(new Set())
                 setExistingPayments({})
+                setMultiGroupPaymentInfo({
+        paymentDate: new Date().toLocaleDateString('en-CA'),
+        paymentMonth: new Date().toISOString().substring(0, 7),
+        paymentMethod: 'bank_transfer',
+        status: 'pending',
+        notes: ''
+      })
                 
                 // Update workflow
                 if (newWorkflow === 'member-first' || newWorkflow === 'multi-group') {
@@ -1060,11 +1177,16 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                       setSelectedMemberIndex(-1)
                       if (e.target.value === '') {
                         setSelectedMemberForMulti(null)
-                        setMemberGroupsForMulti([])
-                        setSelectedGroupsForMulti(new Set())
-                        setGroupSlotsForMulti({})
-                        setSelectedSlotsForMulti({})
-                        setGroupAmountsForMulti({})
+                        setGroupSlotCombinations([])
+                        setSelectedCombinations(new Set())
+                        setExistingPayments({})
+                        setMultiGroupPaymentInfo({
+        paymentDate: new Date().toLocaleDateString('en-CA'),
+        paymentMonth: new Date().toISOString().substring(0, 7),
+        paymentMethod: 'bank_transfer',
+        status: 'pending',
+        notes: ''
+      })
                       }
                     }}
                     onFocus={() => setIsMemberDropdownOpen(true)}
@@ -1103,91 +1225,65 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                 </small>
               </div>
 
-              {/* Group Selection for Multi-Group */}
+              {/* Group/Slot Combinations for Multi-Group */}
               {selectedMemberForMulti && (
                 <div className="payment-modal-form-group full-width">
                   <label>
                     <Building2 size={16} />
-                    Select Groups to Pay For *
+                    Select Group/Slot Combinations to Pay For *
                   </label>
                   {isLoadingMemberGroups ? (
-                    <div className="payment-modal-loading">Loading groups...</div>
+                    <div className="payment-modal-loading">Loading combinations...</div>
                   ) : (
                     <div className="multi-group-selection">
-                      {memberGroupsForMulti.map(group => {
-                        const hasSlots = groupSlotsForMulti[group.id] && groupSlotsForMulti[group.id].length > 0
-                        const isSelected = selectedGroupsForMulti.has(group.id)
-                        const amount = groupAmountsForMulti[group.id] || 0
-                        const selectedSlotId = selectedSlotsForMulti[group.id]
-                        const paymentKey = selectedMemberForMulti && selectedSlotId ? `${selectedMemberForMulti.memberId}-${group.id}-${selectedSlotId}` : ''
-                        const hasExistingPayment = paymentKey ? existingPayments[paymentKey] : false
-                        
-                        return (
-                          <div key={group.id} className={`multi-group-item ${!hasSlots ? 'no-slots' : ''} ${isSelected ? 'selected' : ''} ${hasExistingPayment ? 'has-existing-payment' : ''}`}>
-                            <div className="multi-group-main-row">
-                              <label className="multi-group-checkbox">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => handleGroupToggleForMulti(group.id)}
-                                  disabled={!hasSlots}
-                                />
-                                <span className="multi-group-info">
-                                  <span className="multi-group-name">{group.name}</span>
-                                  <span className="multi-group-amount">SRD {amount.toLocaleString()}</span>
-                                </span>
-                              </label>
+                      {groupSlotCombinations.length === 0 ? (
+                        <div className="multi-group-no-combinations">
+                          No available group/slot combinations for this member
+                        </div>
+                      ) : (
+                        groupSlotCombinations.map(combination => {
+                          const isSelected = selectedCombinations.has(combination.combinationKey)
+                          const paymentKey = selectedMemberForMulti ? `${selectedMemberForMulti.memberId}-${combination.groupId}-${combination.slotId}` : ''
+                          const hasExistingPayment = paymentKey ? existingPayments[paymentKey] : false
+                          
+                          return (
+                            <div key={combination.combinationKey} className={`multi-group-item ${isSelected ? 'selected' : ''} ${hasExistingPayment ? 'has-existing-payment' : ''}`}>
+                              <div className="multi-group-main-row">
+                                <label className="multi-group-checkbox">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => handleCombinationToggle(combination.combinationKey)}
+                                    disabled={hasExistingPayment}
+                                  />
+                                  <span className="multi-group-info">
+                                    <span className="multi-group-name">{combination.groupName}</span>
+                                    <span className="multi-group-slot">{combination.slotMonth}</span>
+                                    <span className="multi-group-amount">SRD {combination.amount.toLocaleString()}</span>
+                                  </span>
+                                </label>
+                              </div>
                               
-                              {isSelected && hasSlots && (
-                                <div className="multi-group-slot-selection">
-                                  <label htmlFor={`slot-${group.id}`}>Slot:</label>
-                                  <select
-                                    id={`slot-${group.id}`}
-                                    value={selectedSlotsForMulti[group.id] || ''}
-                                    onChange={(e) => handleSlotChangeForMulti(group.id, e.target.value)}
-                                    className={hasExistingPayment ? 'has-existing-payment' : ''}
-                                  >
-                                    <option value="">Choose slot</option>
-                                    {groupSlotsForMulti[group.id]?.map(slot => {
-                                      const slotPaymentKey = selectedMemberForMulti ? `${selectedMemberForMulti.memberId}-${group.id}-${slot.id}` : ''
-                                      const slotHasExistingPayment = slotPaymentKey ? existingPayments[slotPaymentKey] : false
-                                      
-                                      return (
-                                        <option key={slot.id} value={slot.id} className={slotHasExistingPayment ? 'has-existing-payment' : ''}>
-                                          {paymentSlotService.formatMonthDate(slot.monthDate)}
-                                          {slotHasExistingPayment ? ' (Already Paid)' : ''}
-                                        </option>
-                                      )
-                                    })}
-                                  </select>
+                              {hasExistingPayment && (
+                                <div className="multi-group-existing-payment-warning">
+                                  ⚠️ Payment already exists for this member, group, and slot combination
                                 </div>
                               )}
                             </div>
-                            
-                            {hasExistingPayment && selectedSlotId && (
-                              <div className="multi-group-existing-payment-warning">
-                                ⚠️ Payment already exists for this member, group, and slot combination
-                              </div>
-                            )}
-                            
-                            {!hasSlots && (
-                              <div className="multi-group-no-slots">
-                                No available slots for this group
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
+                          )
+                        })
+                      )}
                     </div>
                   )}
                   <small className="payment-modal-form-help">
-                    {selectedGroupsForMulti.size > 0 
-                      ? `Selected ${selectedGroupsForMulti.size} group(s)`
-                      : 'Select one or more groups to pay for'
+                    {selectedCombinations.size > 0 
+                      ? `Selected ${selectedCombinations.size} combination(s)`
+                      : 'Select one or more group/slot combinations to pay for'
                     }
                   </small>
                 </div>
               )}
+
             </>
           )}
 
@@ -1395,6 +1491,23 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
 
            {/* Form Actions */}
            <div className="payment-modal-form-actions">
+             <div className="payment-modal-actions-left">
+               {workflow === 'multi-group' && selectedCombinations.size > 0 && (
+                 <div className="payment-modal-total-amount">
+                   <span className="total-label">Total:</span>
+                   <span className="total-amount">
+                     SRD {Array.from(selectedCombinations)
+                       .map(combinationKey => {
+                         const combination = groupSlotCombinations.find(c => c.combinationKey === combinationKey)
+                         return combination ? combination.amount : 0
+                       })
+                       .reduce((sum, amount) => sum + amount, 0)
+                       .toLocaleString()}
+                   </span>
+                 </div>
+               )}
+             </div>
+             <div className="payment-modal-actions-right">
              <button type="button" className="payment-modal-btn payment-modal-btn-secondary" onClick={onClose}>
                Cancel
              </button>
@@ -1405,6 +1518,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
              >
                               {isLoading ? 'Saving...' : (isEditing ? 'Update Payment' : 'Record Payment')}
              </button>
+             </div>
            </div>
         </form>
       </div>
