@@ -127,6 +127,10 @@
   background: #ef4444;
 }
 
+.payments-summary-icon-total-paid {
+  background: #107c41; /* Excel green theme color */
+}
+
 .payments-summary-icon-settled {
   background: #8b5cf6;
 }

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Plus, DollarSign, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { Plus, DollarSign, CheckCircle, Clock } from 'lucide-react'
 import type { Payment, PaymentFormData, PaymentStats, PaymentFilters as PaymentFiltersType } from '../types/payment'
 import { paymentService } from '../services/paymentService'
 import PaymentModal from '../components/PaymentModal'
 import PaymentDetails from '../components/PaymentDetails'
 import PaymentTable from '../components/PaymentTable'
 import PaymentFilters from '../components/PaymentFilters'
+import PaymentPieChart from '../components/PaymentPieChart'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { useAuth } from '../contexts/AuthContext'
 import './Payments.css'
@@ -353,6 +354,16 @@ const Payments = () => {
         {/* Payment Summary */}
         <div className="payments-summary">
           <div className="payments-summary-card">
+            <div className="payments-summary-icon payments-summary-icon-total-paid">
+              <DollarSign size={24} />
+            </div>
+            <div className="payments-summary-content">
+              <h3>{t('payments.summary.totalPaid')}</h3>
+              <div className="payments-summary-value">SRD {(stats.receivedAmount + stats.pendingAmount + stats.settledAmount).toLocaleString()}</div>
+              <div className="payments-summary-count">{t('payments.summary.count').replace('{count}', String(stats.receivedCount + stats.pendingCount + stats.settledCount))}</div>
+            </div>
+          </div>
+          <div className="payments-summary-card">
             <div className="payments-summary-icon payments-summary-icon-received">
               <CheckCircle size={24} />
             </div>
@@ -370,16 +381,6 @@ const Payments = () => {
               <h3>{t('payments.summary.pending')}</h3>
               <div className="payments-summary-value">SRD {stats.pendingAmount.toLocaleString()}</div>
               <div className="payments-summary-count">{t('payments.summary.count').replace('{count}', String(stats.pendingCount))}</div>
-            </div>
-          </div>
-          <div className="payments-summary-card">
-            <div className="payments-summary-icon payments-summary-icon-not-paid">
-              <XCircle size={24} />
-            </div>
-            <div className="payments-summary-content">
-              <h3>{t('payments.summary.notPaid')}</h3>
-              <div className="payments-summary-value">SRD {stats.notPaidAmount.toLocaleString()}</div>
-              <div className="payments-summary-count">{t('payments.summary.count').replace('{count}', String(stats.notPaidCount))}</div>
             </div>
           </div>
           <div className="payments-summary-card">
@@ -576,6 +577,11 @@ const Payments = () => {
             
 
           </div>
+        )}
+
+        {/* Payment Distribution Pie Chart */}
+        {!isLoading && payments.length > 0 && (
+          <PaymentPieChart payments={payments} />
         )}
 
         {/* Empty State */}
