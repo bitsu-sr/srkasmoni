@@ -4,6 +4,7 @@ import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
 import { useAuth } from '../contexts/AuthContext'
 import { paymentSlotService } from '../services/paymentSlotService'
 import { paymentService } from '../services/paymentService'
+import { memberInactivityService } from '../services/memberInactivityService'
 
 import { pdfService } from '../services/pdfService'
 import { PaymentSlot } from '../types/paymentSlot'
@@ -146,6 +147,18 @@ const PaymentsDue: React.FC = () => {
         // Default: Sequential loading
         slots = await paymentSlotService.getAllSlots()
       }
+
+      // Get active member IDs for the selected month
+      const activeMemberIds = await memberInactivityService.getActiveMemberIdsForMonth(selectedMonth)
+      
+      // Get active group IDs for the selected month
+      const activeGroupIds = await memberInactivityService.getActiveGroupIdsForMonth(selectedMonth)
+      
+      // Filter slots to only show records where both member AND group are active
+      slots = slots.filter(slot => 
+        activeMemberIds.includes(slot.memberId) && 
+        activeGroupIds.includes(slot.groupId)
+      )
 
       // Filter slots based on user permissions
       if (!canViewAllRecords && user?.username) {

@@ -1,12 +1,15 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Grid, List } from 'lucide-react'
 import { Member, MemberFormData, MemberFilters } from '../types/member'
 import { memberService } from '../services/memberService'
 import { getAllMembersWithStatus, getMemberWithStatus, MemberWithStatus } from '../services/memberStatusService'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MemberModal from '../components/MemberModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
+import MonthFilter from '../components/MonthFilter'
+import { useMonthFilter } from '../hooks/useMonthFilter'
 import './Members.css'
 import { useLanguage } from '../contexts/LanguageContext'
 
@@ -29,9 +32,12 @@ interface SortConfig {
 const Members = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { selectedMonth, updateMonth } = useMonthFilter('members')
   const isAdmin = user?.role === 'admin'
   const { t } = useLanguage()
   const [members, setMembers] = useState<MemberWithStatus[]>([])
+  const [activeMembers, setActiveMembers] = useState<MemberWithStatus[]>([])
+  const [inactiveMembers, setInactiveMembers] = useState<MemberWithStatus[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<Member | null>(null)
@@ -59,6 +65,75 @@ const Members = () => {
       localStorage.setItem('members-view-mode', viewMode)
     } catch {}
   }, [viewMode])
+
+  // Separate members into active and inactive based on selected month
+  const getActiveAndInactiveMembers = useCallback(async () => {
+    const currentMonth = selectedMonth || new Date().toISOString().split('T')[0].substring(0, 7)
+    
+    // First, get all groups to determine which ones are active for the selected month
+    const { data: groupsData, error: groupsError } = await supabase
+      .from('groups')
+      .select('id, start_date, end_date')
+    
+    if (groupsError) {
+      console.error('Error fetching groups:', groupsError)
+      return { activeMembers: members, inactiveMembers: [] }
+    }
+    
+    // Determine which groups are active for the selected month
+    const activeGroupIds = new Set<number>()
+    groupsData.forEach((group: any) => {
+      let isActive = true
+      
+      // Check if group has started
+      if (group.start_date) {
+        const startMonth = group.start_date.substring(0, 7)
+        if (currentMonth < startMonth) {
+          isActive = false
+        }
+      }
+      
+      // Check if group has ended
+      if (isActive && group.end_date) {
+        const endMonth = group.end_date.substring(0, 7)
+        if (currentMonth > endMonth) {
+          isActive = false
+        }
+      }
+      
+      if (isActive) {
+        activeGroupIds.add(group.id)
+      }
+    })
+    
+    // Get all member-group relationships for active groups in a single query
+    const { data: activeMemberGroups, error: memberGroupsError } = await supabase
+      .from('group_members')
+      .select('member_id')
+      .in('group_id', Array.from(activeGroupIds))
+    
+    if (memberGroupsError) {
+      console.error('Error fetching active member groups:', memberGroupsError)
+      return { activeMembers: [], inactiveMembers: members }
+    }
+    
+    // Create a set of active member IDs for fast lookup
+    const activeMemberIds = new Set(activeMemberGroups?.map((item: any) => item.member_id) || [])
+    
+    // Now categorize members based on whether they're in the active set
+    const activeMembers: MemberWithStatus[] = []
+    const inactiveMembers: MemberWithStatus[] = []
+    
+    members.forEach(member => {
+      if (activeMemberIds.has(member.id)) {
+        activeMembers.push(member)
+      } else {
+        inactiveMembers.push(member)
+      }
+    })
+    
+    return { activeMembers, inactiveMembers }
+  }, [selectedMonth, members])
 
   // Load members on component mount
   useEffect(() => {
@@ -89,9 +164,29 @@ const Members = () => {
     loadMembers()
   }, [isAdmin, user?.username])
 
+  // Update active/inactive members when selected month changes
+  useEffect(() => {
+    const updateMemberStatus = async () => {
+      if (members.length === 0) return
+      
+      try {
+        const { activeMembers: active, inactiveMembers: inactive } = await getActiveAndInactiveMembers()
+        setActiveMembers(active)
+        setInactiveMembers(inactive)
+      } catch (error) {
+        console.error('Failed to update member status:', error)
+        // Fallback to all members as active
+        setActiveMembers(members)
+        setInactiveMembers([])
+      }
+    }
+
+    updateMemberStatus()
+  }, [members, selectedMonth, getActiveAndInactiveMembers])
+
   // Filter and sort members based on search, filters, and sort configuration
-  const filteredAndSortedMembers = useMemo(() => {
-    let filtered = members.filter(member => {
+  const getFilteredAndSortedMembers = (membersToFilter: MemberWithStatus[]) => {
+    let filtered = membersToFilter.filter(member => {
       const matchesSearch = 
         member.firstName.toLowerCase().includes(filters.search.toLowerCase()) ||
         member.lastName.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -130,7 +225,7 @@ const Members = () => {
     })
 
     return filtered
-  }, [members, filters, sortConfig])
+  }
 
   const handleSaveMember = async (memberData: MemberFormData) => {
     if (!isAdmin) {
@@ -427,6 +522,11 @@ const Members = () => {
       </div>
 
       <div className="members-container">
+        {/* Month Filter */}
+        <div className="members-month-filter-container">
+          <MonthFilter selectedMonth={selectedMonth} onMonthChange={updateMonth} />
+        </div>
+
         {/* Header Actions - Only show for admins */}
         {isAdmin && (
           <div className="members-page-actions">
@@ -600,159 +700,328 @@ const Members = () => {
 
         
 
-        {/* Member Count - Only show for admins */}
-        {isAdmin && (
-          <div>
-            <div className="members-member-count">
-              {t('members.count.found')
-                .replace('{count}', String(filteredAndSortedMembers.length))
-                .replace('{plural}', filteredAndSortedMembers.length !== 1 ? 's' : '')}
-              {filteredAndSortedMembers.length > 0 && (
-                <span className="members-sort-info">
-                  {t('members.count.sortedBy')
-                    .replace('{field}', sortConfig.field === 'name' ? t('members.sort.name') : t('members.sort.status'))
-                    .replace('{dir}', sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A')}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Members Display */}
-        {viewMode === 'card' ? (
-          /* Members Grid */
-          <div className="members-grid">
-            {filteredAndSortedMembers.map((member) => (
-              <div key={member.id} className="members-member-card">
-                <div className="members-member-header">
-                  <div className="members-member-info">
-                    <h3 className="members-member-name">{member.firstName} {member.lastName}</h3>
-                    <div className="members-status-tags">
-                      <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
-                        {member.statusInfo.isActive ? t('members.status.active') : t('members.status.inactive')}
-                      </span>
-                    </div>
+        {(() => {
+          const filteredActiveMembers = getFilteredAndSortedMembers(activeMembers)
+          const filteredInactiveMembers = getFilteredAndSortedMembers(inactiveMembers)
+          
+          return (
+            <>
+              {/* Active Members Section */}
+              {filteredActiveMembers.length > 0 && (
+                <div className="members-section">
+                  <div className="members-section-header">
+                    <h2 className="members-section-title">Active Members</h2>
+                    <span className="members-section-count">{filteredActiveMembers.length} member{filteredActiveMembers.length !== 1 ? 's' : ''}</span>
                   </div>
-                  <div className="members-member-menu">
-                    <button className="members-menu-btn">
-                      <MoreVertical size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="members-member-details">
-                  <div className="members-detail-item">
-                    <span className="members-detail-label">{t('members.detail.slots')}: {member.statusInfo.totalSlots}</span>
-                  </div>
-                  <div className="members-detail-item">
-                    <span className="members-detail-label">{t('members.detail.nationalId')}: {member.nationalId}</span>
-                  </div>
-                </div>
-
-                <div className="members-financial-box">
-                  <div className="members-financial-row">
-                    <span className="members-financial-label">{t('members.fin.totalMonthly')}</span>
-                    <span className="members-financial-value">
-                      SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="members-financial-row">
-                    <span className="members-financial-label">{t('members.fin.nextReceive')}</span>
-                    <span className="members-financial-value">
-                      {formatMonthDisplay(member.statusInfo.nextReceiveMonth)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="members-member-actions">
-                  <button className="members-btn members-btn-secondary members-view-btn" onClick={() => handleViewDetails(member.id)}>
-                    <Eye size={16} />
-                    {t('members.btn.viewDetails')}
-                  </button>
+                  
+                  {/* Member Count - Only show for admins */}
                   {isAdmin && (
-                    <button 
-                      className="members-btn members-btn-danger"
-                      onClick={() => handleDeleteMember(member)}
-                    >
-                      <Trash2 size={16} />
-                      {t('members.btn.delete')}
-                    </button>
+                    <div className="members-member-count">
+                      {t('members.count.found')
+                        .replace('{count}', String(filteredActiveMembers.length))
+                        .replace('{plural}', filteredActiveMembers.length !== 1 ? 's' : '')}
+                      {filteredActiveMembers.length > 0 && (
+                        <span className="members-sort-info">
+                          {t('members.count.sortedBy')
+                            .replace('{field}', sortConfig.field === 'name' ? t('members.sort.name') : t('members.sort.status'))
+                            .replace('{dir}', sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A')}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {viewMode === 'card' ? (
+                    /* Active Members Grid */
+                    <div className="members-grid">
+                      {filteredActiveMembers.map((member) => (
+                        <div key={member.id} className="members-member-card">
+                          <div className="members-member-header">
+                            <div className="members-member-info">
+                              <h3 className="members-member-name">{member.firstName} {member.lastName}</h3>
+                              <div className="members-status-tags">
+                                <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
+                                  {member.statusInfo.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="members-member-menu">
+                              <button className="members-menu-btn">
+                                <MoreVertical size={16} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="members-member-details">
+                            <div className="members-detail-item">
+                              <span className="members-detail-label">{t('members.detail.slots')}: {member.statusInfo.totalSlots}</span>
+                            </div>
+                            <div className="members-detail-item">
+                              <span className="members-detail-label">{t('members.detail.nationalId')}: {member.nationalId}</span>
+                            </div>
+                          </div>
+
+                          <div className="members-financial-box">
+                            <div className="members-financial-row">
+                              <span className="members-financial-label">{t('members.fin.totalMonthly')}</span>
+                              <span className="members-financial-value">
+                                SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="members-financial-row">
+                              <span className="members-financial-label">{t('members.fin.nextReceive')}</span>
+                              <span className="members-financial-value">
+                                {formatMonthDisplay(member.statusInfo.nextReceiveMonth)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="members-member-actions">
+                            <button className="members-btn members-btn-secondary members-view-btn" onClick={() => handleViewDetails(member.id)}>
+                              <Eye size={16} />
+                              {t('members.btn.viewDetails')}
+                            </button>
+                            {isAdmin && (
+                              <button 
+                                className="members-btn members-btn-danger"
+                                onClick={() => handleDeleteMember(member)}
+                              >
+                                <Trash2 size={16} />
+                                {t('members.btn.delete')}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* Active Members Table */
+                    <div className="members-table-container">
+                      <table className="members-table">
+                        <thead>
+                          <tr>
+                            <th>{t('members.table.name')}</th>
+                            <th>{t('members.table.status')}</th>
+                            <th>{t('members.table.nationalId')}</th>
+                            <th>{t('members.table.phone')}</th>
+                            <th>{t('members.table.city')}</th>
+                            <th>{t('members.table.slots')}</th>
+                            <th>{t('members.table.monthlyAmount')}</th>
+                            <th>{t('members.table.nextReceive')}</th>
+                            <th>{t('members.table.actions')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredActiveMembers.map((member) => (
+                            <tr key={member.id}>
+                              <td className="members-member-name-cell">
+                                <div className="members-member-name-info">
+                                  <span className="members-member-full-name">{member.firstName} {member.lastName}</span>
+                                </div>
+                              </td>
+                              <td>
+                                <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
+                                  {member.statusInfo.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                              <td>{member.nationalId}</td>
+                              <td>{member.phone}</td>
+                              <td>{member.city}</td>
+                              <td>{member.statusInfo.totalSlots}</td>
+                              <td>SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}</td>
+                              <td>{formatMonthDisplay(member.statusInfo.nextReceiveMonth)}</td>
+                              <td className="members-member-actions-cell">
+                                <div className="members-table-actions">
+                                  <button 
+                                    className="members-table-action-btn members-table-action-view"
+                                    onClick={() => handleViewDetails(member.id)}
+                                    title="View Details"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                  {isAdmin && (
+                                    <button 
+                                      className="members-table-action-btn members-table-action-delete"
+                                      onClick={() => handleDeleteMember(member)}
+                                      title="Delete Member"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* Members Table */
-          <div className="members-table-container">
-            <table className="members-table">
-              <thead>
-                <tr>
-                  <th>{t('members.table.name')}</th>
-                  <th>{t('members.table.status')}</th>
-                  <th>{t('members.table.nationalId')}</th>
-                  <th>{t('members.table.phone')}</th>
-                  <th>{t('members.table.city')}</th>
-                  <th>{t('members.table.slots')}</th>
-                  <th>{t('members.table.monthlyAmount')}</th>
-                  <th>{t('members.table.nextReceive')}</th>
-                  <th>{t('members.table.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAndSortedMembers.map((member) => (
-                  <tr key={member.id}>
-                    <td className="members-member-name-cell">
-                      <div className="members-member-name-info">
-                        <span className="members-member-full-name">{member.firstName} {member.lastName}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
-                        {member.statusInfo.isActive ? 'ACTIVE' : 'INACTIVE'}
-                      </span>
-                    </td>
-                    <td>{member.nationalId}</td>
-                    <td>{member.phone}</td>
-                    <td>{member.city}</td>
-                    <td>{member.statusInfo.totalSlots}</td>
-                    <td>SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}</td>
-                    <td>{formatMonthDisplay(member.statusInfo.nextReceiveMonth)}</td>
-                    <td className="members-member-actions-cell">
-                      <div className="members-table-actions">
-                        <button 
-                          className="members-table-action-btn members-table-action-view"
-                          onClick={() => handleViewDetails(member.id)}
-                          title="View Details"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        {isAdmin && (
-                          <button 
-                            className="members-table-action-btn members-table-action-delete"
-                            onClick={() => handleDeleteMember(member)}
-                            title="Delete Member"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              )}
 
-        {/* Empty State */}
-        {filteredAndSortedMembers.length === 0 && (
-          <div className="members-empty-state">
-            <User size={64} className="members-empty-icon" />
-            <h3>{t('members.empty.title')}</h3>
-            <p>{t('members.empty.desc')}</p>
-          </div>
-        )}
+              {/* Inactive Members Section */}
+              {filteredInactiveMembers.length > 0 && (
+                <div className="members-section members-section-inactive">
+                  <div className="members-section-header">
+                    <h2 className="members-section-title">Inactive Members</h2>
+                    <span className="members-section-count">{filteredInactiveMembers.length} member{filteredInactiveMembers.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  
+                  {/* Member Count - Only show for admins */}
+                  {isAdmin && (
+                    <div className="members-member-count">
+                      {t('members.count.found')
+                        .replace('{count}', String(filteredInactiveMembers.length))
+                        .replace('{plural}', filteredInactiveMembers.length !== 1 ? 's' : '')}
+                      {filteredInactiveMembers.length > 0 && (
+                        <span className="members-sort-info">
+                          {t('members.count.sortedBy')
+                            .replace('{field}', sortConfig.field === 'name' ? t('members.sort.name') : t('members.sort.status'))
+                            .replace('{dir}', sortConfig.direction === 'asc' ? 'A-Z' : 'Z-A')}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {viewMode === 'card' ? (
+                    /* Inactive Members Grid */
+                    <div className="members-grid">
+                      {filteredInactiveMembers.map((member) => (
+                        <div key={member.id} className="members-member-card members-member-card-inactive">
+                          <div className="members-member-header">
+                            <div className="members-member-info">
+                              <h3 className="members-member-name">{member.firstName} {member.lastName}</h3>
+                              <div className="members-status-tags">
+                                <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
+                                  {member.statusInfo.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="members-member-menu">
+                              <button className="members-menu-btn">
+                                <MoreVertical size={16} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="members-member-details">
+                            <div className="members-detail-item">
+                              <span className="members-detail-label">{t('members.detail.slots')}: {member.statusInfo.totalSlots}</span>
+                            </div>
+                            <div className="members-detail-item">
+                              <span className="members-detail-label">{t('members.detail.nationalId')}: {member.nationalId}</span>
+                            </div>
+                          </div>
+
+                          <div className="members-financial-box">
+                            <div className="members-financial-row">
+                              <span className="members-financial-label">{t('members.fin.totalMonthly')}</span>
+                              <span className="members-financial-value">
+                                SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="members-financial-row">
+                              <span className="members-financial-label">{t('members.fin.nextReceive')}</span>
+                              <span className="members-financial-value">
+                                {formatMonthDisplay(member.statusInfo.nextReceiveMonth)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="members-member-actions">
+                            <button className="members-btn members-btn-secondary members-view-btn" onClick={() => handleViewDetails(member.id)}>
+                              <Eye size={16} />
+                              {t('members.btn.viewDetails')}
+                            </button>
+                            {isAdmin && (
+                              <button 
+                                className="members-btn members-btn-danger"
+                                onClick={() => handleDeleteMember(member)}
+                              >
+                                <Trash2 size={16} />
+                                {t('members.btn.delete')}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* Inactive Members Table */
+                    <div className="members-table-container members-table-container-inactive">
+                      <table className="members-table members-table-inactive">
+                        <thead>
+                          <tr>
+                            <th>{t('members.table.name')}</th>
+                            <th>{t('members.table.status')}</th>
+                            <th>{t('members.table.nationalId')}</th>
+                            <th>{t('members.table.phone')}</th>
+                            <th>{t('members.table.city')}</th>
+                            <th>{t('members.table.slots')}</th>
+                            <th>{t('members.table.monthlyAmount')}</th>
+                            <th>{t('members.table.nextReceive')}</th>
+                            <th>{t('members.table.actions')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredInactiveMembers.map((member) => (
+                            <tr key={member.id} className="members-member-row-inactive">
+                              <td className="members-member-name-cell">
+                                <div className="members-member-name-info">
+                                  <span className="members-member-full-name">{member.firstName} {member.lastName}</span>
+                                </div>
+                              </td>
+                              <td>
+                                <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
+                                  {member.statusInfo.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                              <td>{member.nationalId}</td>
+                              <td>{member.phone}</td>
+                              <td>{member.city}</td>
+                              <td>{member.statusInfo.totalSlots}</td>
+                              <td>SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}</td>
+                              <td>{formatMonthDisplay(member.statusInfo.nextReceiveMonth)}</td>
+                              <td className="members-member-actions-cell">
+                                <div className="members-table-actions">
+                                  <button 
+                                    className="members-table-action-btn members-table-action-view"
+                                    onClick={() => handleViewDetails(member.id)}
+                                    title="View Details"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                  {isAdmin && (
+                                    <button 
+                                      className="members-table-action-btn members-table-action-delete"
+                                      onClick={() => handleDeleteMember(member)}
+                                      title="Delete Member"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Empty State - Only show when there are no members at all */}
+              {members.length === 0 && (
+                <div className="members-empty-state">
+                  <User size={64} className="members-empty-icon" />
+                  <h3>{t('members.empty.title')}</h3>
+                  <p>{t('members.empty.desc')}</p>
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
 
       <MemberModal

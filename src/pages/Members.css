@@ -853,3 +853,124 @@
     height: 12px;
   }
 }
+
+/* Month Filter Container */
+.members-month-filter-container {
+  margin: 24px 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Members Sections */
+.members-section {
+  margin-bottom: 32px;
+}
+
+.members-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.members-section-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.members-section-count {
+  background: #f3f4f6;
+  color: #6b7280;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.members-section-inactive .members-section-title {
+  color: #6b7280;
+}
+
+.members-section-inactive .members-section-count {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Inactive Member Cards */
+.members-member-card-inactive {
+  opacity: 0.7;
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.members-member-card-inactive:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.1);
+}
+
+.members-member-card-inactive .members-member-name {
+  color: #6b7280;
+}
+
+.members-member-card-inactive .members-detail-label {
+  color: #9ca3af;
+}
+
+.members-member-card-inactive .members-financial-label {
+  color: #9ca3af;
+}
+
+.members-member-card-inactive .members-financial-value {
+  color: #6b7280;
+}
+
+/* Inactive Members Table */
+.members-table-container-inactive {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.members-table-inactive {
+  background: #f9fafb;
+}
+
+.members-table-inactive th {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-bottom-color: #d1d5db;
+}
+
+.members-table-inactive td {
+  border-bottom-color: #e5e7eb;
+}
+
+.members-table-inactive tr:hover {
+  background: #f3f4f6;
+}
+
+/* Inactive Table Rows */
+.members-member-row-inactive {
+  opacity: 0.7;
+  background: #f9fafb;
+}
+
+.members-member-row-inactive:hover {
+  opacity: 0.8;
+  background: #f3f4f6;
+}
+
+.members-member-row-inactive .members-member-full-name {
+  color: #6b7280;
+}
+
+.members-member-row-inactive td {
+  color: #9ca3af;
+}

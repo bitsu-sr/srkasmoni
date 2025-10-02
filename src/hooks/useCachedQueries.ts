@@ -122,12 +122,12 @@ export const useCachedOptimizedPaymentStats = () => {
 }
 
 // Custom hook for cached dashboard data
-export const useCachedDashboard = () => {
-  const queryKey = ['dashboard']
+export const useCachedDashboard = (selectedMonth?: string) => {
+  const queryKey = ['dashboard', selectedMonth]
   
   return useQuery({
     queryKey,
-    queryFn: () => dashboardService.getDashboardData(),
+    queryFn: () => dashboardService.getDashboardData(selectedMonth),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000,   // 10 minutes
     refetchOnWindowFocus: false,

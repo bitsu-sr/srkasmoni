@@ -501,6 +501,12 @@
   color: #6b7280;
 }
 
+.payouts-to-receive-amount {
+  font-weight: 700;
+  color: #1e40af;
+  font-size: 1.125rem;
+}
+
 /* Receive Month */
 .payouts-receive-month {
   font-weight: 500;
@@ -510,32 +516,47 @@
 /* Status Badges */
 .payouts-status-badge {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
+  padding: 0.3rem 1rem;
   border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  width: 5rem;
+  text-align: center;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Special styling for fraction format status - applied via class */
+.payouts-status-badge.fraction-format {
+  font-family: 'Courier New', monospace;
+  font-weight: 900;
+  font-size: 0.85rem;
+  padding: 0.2rem 1rem;
+  text-transform: none;
+  letter-spacing: 0.1em;
+  width: 5rem;
 }
 
 .payout-status-completed {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: #059669;
+  color: white;
 }
 
 .payout-status-pending {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: #d97706;
+  color: white;
 }
 
 .payout-status-processing {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: #2563eb;
+  color: white;
 }
 
 .payout-status-failed {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: #dc2626;
+  color: white;
 }
 
 /* Bank Info */
@@ -1344,11 +1365,13 @@
     font-size: 1.25rem;
 }
   
-  /* Hide Total Amount, Bank and Status columns on small screens */
+  /* Hide Total Amount, To Receive, Bank and Status columns on small screens */
   .payouts-table-header .col-total,
+  .payouts-table-header .col-to-receive,
   .payouts-table-header .col-bank,
   .payouts-table-header .col-status,
   .payouts-table-body .col-total,
+  .payouts-table-body .col-to-receive,
   .payouts-table-body .col-bank,
   .payouts-table-body .col-status {
     display: none;

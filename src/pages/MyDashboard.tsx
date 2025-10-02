@@ -3,6 +3,8 @@ import { DollarSign, Users, CreditCard, Calendar, TrendingUp, Clock } from 'luci
 import { userDashboardService, UserDashboardData } from '../services/userDashboardService'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useMonthFilter } from '../hooks/useMonthFilter'
+import MonthFilter from '../components/MonthFilter'
 
 import { formatDate } from '../utils/dateUtils'
 import './MyDashboard.css'
@@ -10,6 +12,7 @@ import './MyDashboard.css'
 const MyDashboard = () => {
   const { user } = useAuth()
   const { t, setLocale, locale } = useLanguage()
+  const { selectedMonth, updateMonth } = useMonthFilter('my-dashboard')
   const [dashboardData, setDashboardData] = useState<UserDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -17,12 +20,12 @@ const MyDashboard = () => {
     if (user) {
       loadDashboardData()
     }
-  }, [user])
+  }, [user, selectedMonth])
 
   const loadDashboardData = async () => {
     try {
       setLoading(true)
-      const data = await userDashboardService.getUserDashboardData()
+      const data = await userDashboardService.getUserDashboardData(selectedMonth)
       setDashboardData(data)
     } catch (error) {
       // Set empty data on error
@@ -114,6 +117,15 @@ const MyDashboard = () => {
       </div>
 
       <div className="my-dashboard-container">
+        {/* Month Filter */}
+        <div className="my-dashboard-month-filter-container">
+          <MonthFilter 
+            selectedMonth={selectedMonth}
+            onMonthChange={updateMonth}
+            className="my-dashboard-month-filter"
+          />
+        </div>
+
         {/* Stats Grid */}
         <div className="my-dashboard-stats-grid">
           {loading ? (

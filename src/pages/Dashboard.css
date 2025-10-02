@@ -69,6 +69,26 @@
   flex-direction: row !important;
 }
 
+/* Month Filter Container */
+.dashboard-month-filter-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+  padding: 0 1rem;
+}
+
+.dashboard-month-filter {
+  /* Inherits styles from MonthFilter.css */
+}
+
+/* Groups Section Note */
+.dashboard-groups-note {
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin: 0.5rem 0 1.5rem 0;
+  font-style: italic;
+}
+
 .dashboard .page-title {
   font-size: 2rem;
   font-weight: 700;

@@ -7,6 +7,8 @@ import { groupsOptimizedService, GroupWithDetails } from '../services/groupsOpti
 import { useAuth } from '../contexts/AuthContext'
 import GroupModal from '../components/GroupModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
+import MonthFilter from '../components/MonthFilter'
+import { useMonthFilter } from '../hooks/useMonthFilter'
 import { formatDateRange, calculateDuration } from '../utils/dateUtils'
 import './Groups.css'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -23,6 +25,7 @@ const Groups = () => {
   const { user } = useAuth()
   const { settings, updateSetting } = usePerformanceSettings()
   const { t } = useLanguage()
+  const { selectedMonth, updateMonth } = useMonthFilter('groups')
   const isAdmin = user?.role === 'admin'
   const [groups, setGroups] = useState<GroupWithDetails[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,7 +49,7 @@ const Groups = () => {
 
   useEffect(() => {
     loadGroups()
-  }, [])
+  }, [selectedMonth])
 
   // Sync viewMode with performance settings
   useEffect(() => {
@@ -59,6 +62,8 @@ const Groups = () => {
       
       // Use the optimized service to get all groups with details
       const groupsData = await groupsOptimizedService.getAllGroupsWithDetails()
+      
+      // Show all groups - no filtering
       setGroups(groupsData)
     } catch (err) {
       setError('Failed to load groups')
@@ -68,9 +73,46 @@ const Groups = () => {
     }
   }
 
+  // Separate groups into active and inactive based on selected month
+  const getActiveAndInactiveGroups = () => {
+    const currentMonth = selectedMonth || new Date().toISOString().split('T')[0].substring(0, 7)
+    
+    const activeGroups: GroupWithDetails[] = []
+    const inactiveGroups: GroupWithDetails[] = []
+    
+    groups.forEach(group => {
+      // Check if group is active for the selected month
+      let isActive = true
+      
+      // Check if group has started
+      if (group.startDate) {
+        const startMonth = group.startDate.substring(0, 7)
+        if (currentMonth < startMonth) {
+          isActive = false
+        }
+      }
+      
+      // Check if group has ended
+      if (isActive && group.endDate) {
+        const endMonth = group.endDate.substring(0, 7)
+        if (currentMonth > endMonth) {
+          isActive = false
+        }
+      }
+      
+      if (isActive) {
+        activeGroups.push(group)
+      } else {
+        inactiveGroups.push(group)
+      }
+    })
+    
+    return { activeGroups, inactiveGroups }
+  }
+
   // Sort groups based on current sort field and direction
-  const getSortedGroups = () => {
-    return [...groups].sort((a, b) => {
+  const getSortedGroups = (groupsToSort: GroupWithDetails[]) => {
+    return [...groupsToSort].sort((a, b) => {
       let aValue: any
       let bValue: any
       
@@ -486,6 +528,10 @@ const Groups = () => {
       </div>
 
       <div className="groups-container">
+        {/* Month Filter */}
+        <div className="groups-month-filter-container">
+          <MonthFilter selectedMonth={selectedMonth} onMonthChange={updateMonth} />
+        </div>
         {/* Header Actions - Only show for admins */}
         {isAdmin && (
           <div className="groups-page-actions">
@@ -625,262 +671,529 @@ const Groups = () => {
         
 
         {/* Groups Display */}
-        {viewMode === 'card' ? (
-          /* Groups Grid */
-          <div className="groups-grid">
-            {getSortedGroups().map((group) => {
-              const memberCount = group.members?.length || 0
-              const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
-              return (
-                <div key={group.id} className="group-card">
-                  <div className="group-header">
-                    <div className="group-info">
-                      <h3 className="group-name">{group.name}</h3>
-                      {group.description && (
-                        <p className="group-description">{group.description}</p>
-                      )}
-                    </div>
-                    <div className="group-actions">
-                      {isAdmin && (
-                        <>
-                          <button 
-                            className="groups-card-action-btn groups-card-view-btn"
-                            onClick={() => navigateToGroupDetails(group.id)}
-                            title="View Details"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button 
-                            className="groups-card-action-btn groups-card-edit-btn"
-                            onClick={() => openEditModal(group)}
-                            title="Edit Group"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button 
-                            className="groups-card-action-btn groups-card-delete-btn"
-                            onClick={() => openDeleteModal(group)}
-                            title="Delete Group"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </>
-                      )}
-                    </div>
+        {(() => {
+          const { activeGroups, inactiveGroups } = getActiveAndInactiveGroups()
+          const sortedActiveGroups = getSortedGroups(activeGroups)
+          const sortedInactiveGroups = getSortedGroups(inactiveGroups)
+          
+          return (
+            <>
+              {/* Active Groups Section */}
+              {sortedActiveGroups.length > 0 && (
+                <div className="groups-section">
+                  <div className="groups-section-header">
+                    <h2 className="groups-section-title">Active Groups</h2>
+                    <span className="groups-section-count">{sortedActiveGroups.length} group{sortedActiveGroups.length !== 1 ? 's' : ''}</span>
                   </div>
+                  {viewMode === 'card' ? (
+                    <div className="groups-grid">
+                      {sortedActiveGroups.map((group) => {
+                        const memberCount = group.members?.length || 0
+                        const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
+                        return (
+                          <div key={group.id} className="group-card">
+                            <div className="group-header">
+                              <div className="group-info">
+                                <h3 className="group-name">{group.name}</h3>
+                                {group.description && (
+                                  <p className="group-description">{group.description}</p>
+                                )}
+                              </div>
+                              <div className="group-actions">
+                                {isAdmin && (
+                                  <>
+                                    <button 
+                                      className="groups-card-action-btn groups-card-view-btn"
+                                      onClick={() => navigateToGroupDetails(group.id)}
+                                      title="View Details"
+                                    >
+                                      <Eye size={16} />
+                                    </button>
+                                    <button 
+                                      className="groups-card-action-btn groups-card-edit-btn"
+                                      onClick={() => openEditModal(group)}
+                                      title="Edit Group"
+                                    >
+                                      <Edit size={16} />
+                                    </button>
+                                    <button 
+                                      className="groups-card-action-btn groups-card-delete-btn"
+                                      onClick={() => openDeleteModal(group)}
+                                      title="Delete Group"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
 
-                  <div className="group-stats">
-                    <div className="stat-row">
-                      <div className="stat-item">
-                        <Users size={16} />
-                        <span>{memberCount} / {group.maxMembers} members</span>
-                      </div>
-                      <div className="stat-item">
-                        <Calendar size={16} />
-                        <span>
-                          {group.startDate && group.endDate ? 
-                            `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
-                            : 'N/A'
-                          }
-                        </span>
-                      </div>
+                            <div className="group-stats">
+                              <div className="stat-row">
+                                <div className="stat-item">
+                                  <Users size={16} />
+                                  <span>{memberCount} / {group.maxMembers} members</span>
+                                </div>
+                                <div className="stat-item">
+                                  <Calendar size={16} />
+                                  <span>
+                                    {group.startDate && group.endDate ? 
+                                      `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
+                                      : 'N/A'
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="stat-row">
+                                <div className="stat-item">
+                                  <DollarSign size={16} />
+                                  <span>SRD {group.monthlyAmount.toLocaleString()}/month</span>
+                                </div>
+                                <div className="stat-item">
+                                  <CheckCircle size={16} />
+                                  <span>
+                                    Slots Paid: {slotsInfo.paid || 0} / {slotsInfo.total || 0}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="stat-row">
+                                <div className="stat-item">
+                                  <Calendar size={16} />
+                                  <span>Due: {group.paymentDeadlineDay}th</span>
+                                </div>
+                                <div className="stat-item">
+                                  <span className="fine-info">
+                                    {group.lateFineFixedAmount > 0 
+                                      ? `Fine: SRD ${group.lateFineFixedAmount}`
+                                      : `Fine: ${group.lateFinePercentage}%`
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Payment Progress Bar */}
+                              <div className="payment-progress">
+                                <div className="progress-header">
+                                  <span className="progress-label">Payment Progress</span>
+                                  <span className="progress-percentage">
+                                    {slotsInfo.total > 0 
+                                      ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
+                                      : 0
+                                    }%
+                                  </span>
+                                </div>
+                                <div className="progress-bar">
+                                  <div 
+                                    className="progress-fill"
+                                    style={{
+                                      width: `${slotsInfo.total > 0 
+                                        ? (slotsInfo.paid || 0) / slotsInfo.total * 100
+                                        : 0
+                                      }%`
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="group-period">
+                              <div className="period-info">
+                                <span>Period:</span>
+                                <span>
+                                  {formatDateRange(group.startDate, group.endDate)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Main Action Button - Only show for admins */}
+                            {isAdmin && (
+                              <div className="group-actions-main">
+                                <button 
+                                  className="btn btn-secondary"
+                                  onClick={() => navigateToGroupDetails(group.id)}
+                                >
+                                  View Details
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
-                    <div className="stat-row">
-                      <div className="stat-item">
-                        <DollarSign size={16} />
-                        <span>SRD {group.monthlyAmount.toLocaleString()}/month</span>
-                      </div>
-                      <div className="stat-item">
-                        <CheckCircle size={16} />
-                        <span>
-                          Slots Paid: {slotsInfo.paid || 0} / {slotsInfo.total || 0}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="stat-row">
-                      <div className="stat-item">
-                        <Calendar size={16} />
-                        <span>Due: {group.paymentDeadlineDay}th</span>
-                      </div>
-                      <div className="stat-item">
-                        <span className="fine-info">
-                          {group.lateFineFixedAmount > 0 
-                            ? `Fine: SRD ${group.lateFineFixedAmount}`
-                            : `Fine: ${group.lateFinePercentage}%`
-                          }
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Payment Progress Bar */}
-                    <div className="payment-progress">
-                      <div className="progress-header">
-                        <span className="progress-label">Payment Progress</span>
-                        <span className="progress-percentage">
-                          {slotsInfo.total > 0 
-                            ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
-                            : 0
-                          }%
-                        </span>
-                      </div>
-                      <div className="progress-bar">
-                        <div 
-                          className="progress-fill"
-                          style={{
-                            width: `${slotsInfo.total > 0 
-                              ? (slotsInfo.paid || 0) / slotsInfo.total * 100
+                  ) : (
+                    /* Active Groups Table */
+                    <div className="groups-table-container">
+                      <table className="groups-table">
+                        <thead>
+                          <tr>
+                            <th>Group Name</th>
+                            <th>Members</th>
+                            <th>Monthly Amount</th>
+                            <th>Duration</th>
+                            <th>Payment Deadline</th>
+                            <th>Progress</th>
+                            {isAdmin && <th>Actions</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedActiveGroups.map((group) => {
+                            const memberCount = group.members?.length || 0
+                            const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
+                            const progressPercentage = slotsInfo.total > 0 
+                              ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
                               : 0
-                            }%`
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="group-period">
-                    <div className="period-info">
-                      <span>Period:</span>
-                      <span>
-                        {formatDateRange(group.startDate, group.endDate)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Main Action Button - Only show for admins */}
-                  {isAdmin && (
-                    <div className="group-actions-main">
-                      <button 
-                        className="btn btn-secondary"
-                        onClick={() => navigateToGroupDetails(group.id)}
-                      >
-                        View Details
-                      </button>
+                            
+                            return (
+                              <tr key={group.id}>
+                                <td className="group-name-cell">
+                                  <div className="group-name-info">
+                                    <h4 className="group-name">{group.name}</h4>
+                                  </div>
+                                </td>
+                                <td className="group-members-cell">
+                                  <div className="members-info">
+                                    <Users size={16} />
+                                    <span>{memberCount} / {group.maxMembers}</span>
+                                  </div>
+                                </td>
+                                <td className="group-amount-cell">
+                                  <div className="amount-info">
+                                    <DollarSign size={16} />
+                                    <span>SRD {group.monthlyAmount.toLocaleString()}</span>
+                                  </div>
+                                </td>
+                                <td className="group-duration-cell">
+                                  <div className="duration-info">
+                                    <Calendar size={16} />
+                                    <span>
+                                      {group.startDate && group.endDate ? 
+                                        `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
+                                        : 'N/A'
+                                      }
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="group-deadline-cell">
+                                  <div className="deadline-info">
+                                    <Calendar size={16} />
+                                    <span>{group.paymentDeadlineDay}th</span>
+                                  </div>
+                                </td>
+                                <td className="group-progress-cell">
+                                  <div className="progress-info">
+                                    <div className="progress-bar-table">
+                                      <div 
+                                        className="progress-fill-table"
+                                        style={{ width: `${progressPercentage}%` }}
+                                      ></div>
+                                    </div>
+                                    <span className="progress-text">{progressPercentage}%</span>
+                                  </div>
+                                </td>
+                                {isAdmin && (
+                                  <td className="groups-table-actions-cell">
+                                    <div className="groups-table-actions">
+                                      <button 
+                                        className="groups-action-btn groups-view-btn"
+                                        onClick={() => navigateToGroupDetails(group.id)}
+                                        title="View Details"
+                                      >
+                                        <Eye size={16} />
+                                      </button>
+                                      <button 
+                                        className="groups-action-btn groups-edit-btn"
+                                        onClick={() => openEditModal(group)}
+                                        title="Edit Group"
+                                      >
+                                        <Edit size={16} />
+                                      </button>
+                                      <button 
+                                        className="groups-action-btn groups-delete-btn"
+                                        onClick={() => openDeleteModal(group)}
+                                        title="Delete Group"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
-              )
-            })}
-          </div>
-        ) : (
-          /* Groups Table */
-          <div className="groups-table-container">
-            <table className="groups-table">
-              <thead>
-                <tr>
-                  <th>Group Name</th>
-                  <th>Members</th>
-                  <th>Monthly Amount</th>
-                  <th>Duration</th>
-                  <th>Payment Deadline</th>
-                  <th>Progress</th>
-                  {isAdmin && <th>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {getSortedGroups().map((group) => {
-                  const memberCount = group.members?.length || 0
-                  const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
-                  const progressPercentage = slotsInfo.total > 0 
-                    ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
-                    : 0
-                  
-                  return (
-                    <tr key={group.id}>
-                      <td className="group-name-cell">
-                        <div className="group-name-info">
-                          <h4 className="group-name">{group.name}</h4>
-                        </div>
-                      </td>
-                      <td className="group-members-cell">
-                        <div className="members-info">
-                          <Users size={16} />
-                          <span>{memberCount} / {group.maxMembers}</span>
-                        </div>
-                      </td>
-                      <td className="group-amount-cell">
-                        <div className="amount-info">
-                          <DollarSign size={16} />
-                          <span>SRD {group.monthlyAmount.toLocaleString()}</span>
-                        </div>
-                      </td>
-                      <td className="group-duration-cell">
-                        <div className="duration-info">
-                          <Calendar size={16} />
-                          <span>
-                            {group.startDate && group.endDate ? 
-                              `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
-                              : 'N/A'
-                            }
-                          </span>
-                        </div>
-                      </td>
-                      <td className="group-deadline-cell">
-                        <div className="deadline-info">
-                          <Calendar size={16} />
-                          <span>{group.paymentDeadlineDay}th</span>
-                        </div>
-                      </td>
-                      <td className="group-progress-cell">
-                        <div className="progress-info">
-                          <div className="progress-bar-table">
-                            <div 
-                              className="progress-fill-table"
-                              style={{ width: `${progressPercentage}%` }}
-                            ></div>
-                          </div>
-                          <span className="progress-text">{progressPercentage}%</span>
-                        </div>
-                      </td>
-                      {isAdmin && (
-                        <td className="groups-table-actions-cell">
-                          <div className="groups-table-actions">
-                            <button 
-                              className="groups-action-btn groups-view-btn"
-                              onClick={() => navigateToGroupDetails(group.id)}
-                              title="View Details"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button 
-                              className="groups-action-btn groups-edit-btn"
-                              onClick={() => openEditModal(group)}
-                              title="Edit Group"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button 
-                              className="groups-action-btn groups-delete-btn"
-                              onClick={() => openDeleteModal(group)}
-                              title="Delete Group"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+              )}
 
-        {/* Empty State */}
-        {groups.length === 0 && (
-          <div className="empty-state">
-            <Users size={64} className="empty-icon" />
-            <h3>{t('groups.noGroupsTitle')}</h3>
-            <p>
-              {isAdmin ? t('groups.noGroupsAdmin') : t('groups.noGroupsUser')}
-            </p>
-            {isAdmin && (
-              <button className="groups-btn groups-btn-primary" onClick={() => setShowCreateModal(true)}>
-                Create Group
-              </button>
-            )}
-          </div>
-        )}
+              {/* Inactive Groups Section */}
+              {sortedInactiveGroups.length > 0 && (
+                <div className="groups-section groups-section-inactive">
+                  <div className="groups-section-header">
+                    <h2 className="groups-section-title">Inactive Groups</h2>
+                    <span className="groups-section-count">{sortedInactiveGroups.length} group{sortedInactiveGroups.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  {viewMode === 'card' ? (
+                    <div className="groups-grid">
+                      {sortedInactiveGroups.map((group) => {
+                        const memberCount = group.members?.length || 0
+                        const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
+                        return (
+                          <div key={group.id} className="group-card group-card-inactive">
+                            <div className="group-header">
+                              <div className="group-info">
+                                <h3 className="group-name">{group.name}</h3>
+                                {group.description && (
+                                  <p className="group-description">{group.description}</p>
+                                )}
+                              </div>
+                              <div className="group-actions">
+                                {isAdmin && (
+                                  <>
+                                    <button 
+                                      className="groups-card-action-btn groups-card-view-btn"
+                                      onClick={() => navigateToGroupDetails(group.id)}
+                                      title="View Details"
+                                    >
+                                      <Eye size={16} />
+                                    </button>
+                                    <button 
+                                      className="groups-card-action-btn groups-card-edit-btn"
+                                      onClick={() => openEditModal(group)}
+                                      title="Edit Group"
+                                    >
+                                      <Edit size={16} />
+                                    </button>
+                                    <button 
+                                      className="groups-card-action-btn groups-card-delete-btn"
+                                      onClick={() => openDeleteModal(group)}
+                                      title="Delete Group"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="group-stats">
+                              <div className="stat-row">
+                                <div className="stat-item">
+                                  <Users size={16} />
+                                  <span>{memberCount} / {group.maxMembers} members</span>
+                                </div>
+                                <div className="stat-item">
+                                  <Calendar size={16} />
+                                  <span>
+                                    {group.startDate && group.endDate ? 
+                                      `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
+                                      : 'N/A'
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="stat-row">
+                                <div className="stat-item">
+                                  <DollarSign size={16} />
+                                  <span>SRD {group.monthlyAmount.toLocaleString()}/month</span>
+                                </div>
+                                <div className="stat-item">
+                                  <CheckCircle size={16} />
+                                  <span>
+                                    Slots Paid: {slotsInfo.paid || 0} / {slotsInfo.total || 0}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="stat-row">
+                                <div className="stat-item">
+                                  <Calendar size={16} />
+                                  <span>Due: {group.paymentDeadlineDay}th</span>
+                                </div>
+                                <div className="stat-item">
+                                  <span className="fine-info">
+                                    {group.lateFineFixedAmount > 0 
+                                      ? `Fine: SRD ${group.lateFineFixedAmount}`
+                                      : `Fine: ${group.lateFinePercentage}%`
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Payment Progress Bar */}
+                              <div className="payment-progress">
+                                <div className="progress-header">
+                                  <span className="progress-label">Payment Progress</span>
+                                  <span className="progress-percentage">
+                                    {slotsInfo.total > 0 
+                                      ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
+                                      : 0
+                                    }%
+                                  </span>
+                                </div>
+                                <div className="progress-bar">
+                                  <div 
+                                    className="progress-fill"
+                                    style={{
+                                      width: `${slotsInfo.total > 0 
+                                        ? (slotsInfo.paid || 0) / slotsInfo.total * 100
+                                        : 0
+                                      }%`
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="group-period">
+                              <div className="period-info">
+                                <span>Period:</span>
+                                <span>
+                                  {formatDateRange(group.startDate, group.endDate)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Main Action Button - Only show for admins */}
+                            {isAdmin && (
+                              <div className="group-actions-main">
+                                <button 
+                                  className="btn btn-secondary"
+                                  onClick={() => navigateToGroupDetails(group.id)}
+                                >
+                                  View Details
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    /* Inactive Groups Table */
+                    <div className="groups-table-container groups-table-container-inactive">
+                      <table className="groups-table groups-table-inactive">
+                        <thead>
+                          <tr>
+                            <th>Group Name</th>
+                            <th>Members</th>
+                            <th>Monthly Amount</th>
+                            <th>Duration</th>
+                            <th>Payment Deadline</th>
+                            <th>Progress</th>
+                            {isAdmin && <th>Actions</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedInactiveGroups.map((group) => {
+                            const memberCount = group.members?.length || 0
+                            const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
+                            const progressPercentage = slotsInfo.total > 0 
+                              ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
+                              : 0
+                            
+                            return (
+                              <tr key={group.id} className="group-row-inactive">
+                                <td className="group-name-cell">
+                                  <div className="group-name-info">
+                                    <h4 className="group-name">{group.name}</h4>
+                                  </div>
+                                </td>
+                                <td className="group-members-cell">
+                                  <div className="members-info">
+                                    <Users size={16} />
+                                    <span>{memberCount} / {group.maxMembers}</span>
+                                  </div>
+                                </td>
+                                <td className="group-amount-cell">
+                                  <div className="amount-info">
+                                    <DollarSign size={16} />
+                                    <span>SRD {group.monthlyAmount.toLocaleString()}</span>
+                                  </div>
+                                </td>
+                                <td className="group-duration-cell">
+                                  <div className="duration-info">
+                                    <Calendar size={16} />
+                                    <span>
+                                      {group.startDate && group.endDate ? 
+                                        `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
+                                        : 'N/A'
+                                      }
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="group-deadline-cell">
+                                  <div className="deadline-info">
+                                    <Calendar size={16} />
+                                    <span>{group.paymentDeadlineDay}th</span>
+                                  </div>
+                                </td>
+                                <td className="group-progress-cell">
+                                  <div className="progress-info">
+                                    <div className="progress-bar-table">
+                                      <div 
+                                        className="progress-fill-table"
+                                        style={{ width: `${progressPercentage}%` }}
+                                      ></div>
+                                    </div>
+                                    <span className="progress-text">{progressPercentage}%</span>
+                                  </div>
+                                </td>
+                                {isAdmin && (
+                                  <td className="groups-table-actions-cell">
+                                    <div className="groups-table-actions">
+                                      <button 
+                                        className="groups-action-btn groups-view-btn"
+                                        onClick={() => navigateToGroupDetails(group.id)}
+                                        title="View Details"
+                                      >
+                                        <Eye size={16} />
+                                      </button>
+                                      <button 
+                                        className="groups-action-btn groups-edit-btn"
+                                        onClick={() => openEditModal(group)}
+                                        title="Edit Group"
+                                      >
+                                        <Edit size={16} />
+                                      </button>
+                                      <button 
+                                        className="groups-action-btn groups-delete-btn"
+                                        onClick={() => openDeleteModal(group)}
+                                        title="Delete Group"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Empty State - Only show when there are no groups at all */}
+              {groups.length === 0 && (
+                <div className="empty-state">
+                  <Users size={64} className="empty-icon" />
+                  <h3>{t('groups.noGroupsTitle')}</h3>
+                  <p>
+                    {isAdmin ? t('groups.noGroupsAdmin') : t('groups.noGroupsUser')}
+                  </p>
+                  {isAdmin && (
+                    <button className="groups-btn groups-btn-primary" onClick={() => setShowCreateModal(true)}>
+                      Create Group
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
 
       {/* Modals */}

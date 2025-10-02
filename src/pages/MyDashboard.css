@@ -102,7 +102,18 @@
 
 .my-dashboard .my-dashboard-btn-secondary:disabled {
   opacity: 0.6;
-  cursor: not-allowed;
+}
+
+/* Month Filter Container */
+.my-dashboard-month-filter-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+  padding: 0 1rem;
+}
+
+.my-dashboard-month-filter {
+  /* Inherits styles from MonthFilter.css */
 }
 
 /* Stats Grid */

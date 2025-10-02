@@ -9,7 +9,7 @@ export interface Payout {
   totalAmount: number
   duration: number
   receiveMonth: string
-  status: 'completed' | 'pending' | 'processing' | 'failed'
+  status: 'completed' | 'pending' | 'processing' | 'failed' | string
   paymentDate?: string
   bankName: string
   accountNumber: string
@@ -17,6 +17,10 @@ export interface Payout {
   lastSlot?: boolean
   administrationFee?: boolean
   payout?: boolean
+  additionalCost?: number
+  settledDeduction?: number
+  calculatedTotalAmount?: number
+  settledDeductionEnabled?: boolean
 }
 
 // New interface for payout details modal data
@@ -43,6 +47,6 @@ export interface PayoutDetails {
 
 export type FilterType = 'all' | 'memberName' | 'groupName' | 'bankName'
 export type StatusFilter = 'all' | 'completed' | 'pending' | 'processing' | 'failed'
-export type SortField = 'memberName' | 'groupName' | 'totalAmount' | 'status' | 'receiveMonth'
+export type SortField = 'memberName' | 'groupName' | 'totalAmount' | 'toReceive' | 'status' | 'receiveMonth'
 export type SortDirection = 'asc' | 'desc'
 

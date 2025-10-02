@@ -3,6 +3,8 @@ import { Plus, Users, UserPlus, TrendingUp, DollarSign, Clock, CheckCircle, XCir
 import { useCachedDashboard } from '../hooks/useCachedQueries'
 import { useLanguage } from '../contexts/LanguageContext'
 import { dashboardService } from '../services/dashboardService'
+import { useMonthFilter } from '../hooks/useMonthFilter'
+import MonthFilter from '../components/MonthFilter'
 import './Dashboard.css'
 
 // Dashboard Skeleton Component
@@ -71,6 +73,7 @@ const DashboardSkeleton = () => (
 const Dashboard = () => {
   const navigate = useNavigate()
   const { t } = useLanguage()
+  const { selectedMonth, updateMonth } = useMonthFilter('dashboard')
   
   // Navigation handlers
   const handleAddPayment = () => {
@@ -88,7 +91,7 @@ const Dashboard = () => {
   // }
 
   // Use cached dashboard data with React Query
-  const { data: dashboardData, isLoading, error, refetch, isFetching } = useCachedDashboard()
+  const { data: dashboardData, isLoading, error, refetch, isFetching } = useCachedDashboard(selectedMonth)
 
   // Show skeleton while loading
   if (isLoading) {
@@ -306,6 +309,15 @@ const Dashboard = () => {
       </div>
 
       <div className="container">
+        {/* Month Filter */}
+        <div className="dashboard-month-filter-container">
+          <MonthFilter 
+            selectedMonth={selectedMonth}
+            onMonthChange={updateMonth}
+            className="dashboard-month-filter"
+          />
+        </div>
+
         {/* Stats Cards */}
         <div className="dashboard-stats-grid">
           {stats.map((stat, index) => {
@@ -328,6 +340,7 @@ const Dashboard = () => {
         {/* Groups Table */}
         <div className="dashboard-groups-section">
           <h2>{t('dashboard.groups.all')}</h2>
+          <p className="dashboard-groups-note">Only active groups are displayed. Groups past their end date are automatically hidden.</p>
           <div className="dashboard-groups-table">
             <div className="dashboard-table-header">
               <div className="dashboard-header-cell">{t('dashboard.groups.headers.name')}</div>

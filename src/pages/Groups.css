@@ -481,6 +481,141 @@
   font-size: 1.125rem;
 }
 
+/* Month Filter Container */
+.groups-month-filter-container {
+  margin: 24px 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Groups Sections */
+.groups-section {
+  margin-bottom: 32px;
+}
+
+.groups-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.groups-section-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.groups-section-count {
+  background: #f3f4f6;
+  color: #6b7280;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.groups-section-inactive .groups-section-title {
+  color: #6b7280;
+}
+
+.groups-section-inactive .groups-section-count {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Inactive Group Cards */
+.group-card-inactive {
+  opacity: 0.7;
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.group-card-inactive:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.1);
+}
+
+.group-card-inactive .group-name {
+  color: #6b7280;
+}
+
+.group-card-inactive .group-description {
+  color: #9ca3af;
+}
+
+.group-card-inactive .stat-item {
+  color: #9ca3af;
+}
+
+.group-card-inactive .stat-item svg {
+  color: #d1d5db;
+}
+
+.group-card-inactive .period-info span:last-child {
+  color: #9ca3af;
+}
+
+/* Inactive Groups Table */
+.groups-table-container-inactive {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.groups-table-inactive {
+  background: #f9fafb;
+}
+
+.groups-table-inactive th {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-bottom-color: #d1d5db;
+}
+
+.groups-table-inactive td {
+  border-bottom-color: #e5e7eb;
+}
+
+.groups-table-inactive tr:hover {
+  background: #f3f4f6;
+}
+
+/* Inactive Table Rows */
+.group-row-inactive {
+  opacity: 0.7;
+  background: #f9fafb;
+}
+
+.group-row-inactive:hover {
+  opacity: 0.8;
+  background: #f3f4f6;
+}
+
+.group-row-inactive .group-name {
+  color: #6b7280;
+}
+
+.group-row-inactive .members-info,
+.group-row-inactive .amount-info,
+.group-row-inactive .duration-info,
+.group-row-inactive .deadline-info {
+  color: #9ca3af;
+}
+
+.group-row-inactive .members-info svg,
+.group-row-inactive .amount-info svg,
+.group-row-inactive .duration-info svg,
+.group-row-inactive .deadline-info svg {
+  color: #d1d5db;
+}
+
 /* Groups Page Buttons */
 .groups-btn {
   display: inline-flex;

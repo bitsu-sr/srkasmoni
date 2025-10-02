@@ -37,7 +37,7 @@ export interface UserDashboardData {
 }
 
 export const userDashboardService = {
-  async getUserDashboardData(): Promise<UserDashboardData> {
+  async getUserDashboardData(selectedMonth?: string): Promise<UserDashboardData> {
     try {
       // First, get the current user's email from auth
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser()
@@ -92,7 +92,7 @@ export const userDashboardService = {
       if (slotsError) throw slotsError
 
       const now = new Date()
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      const currentMonth = selectedMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
       // Use the exact same logic as PaymentsDue to check payment status
       // First, get all payment_slots that match the criteria
@@ -220,7 +220,7 @@ export const userDashboardService = {
       const totalSlots = userSlots.length
       const totalMonthlyAmount = userSlots.reduce((sum: number, slot: any) => sum + slot.monthlyAmount, 0)
       const nextReceiveMonth = userSlots.find((slot: any) => slot.isFuture)?.assignedMonthFormatted || null
-      const activeGroups = new Set(userSlots.map((slot: any) => slot.groupId)).size
+      const activeGroupsCount = new Set(userSlots.map((slot: any) => slot.groupId)).size
 
       // Get user's recent payments
       const { data: paymentsData, error: paymentsError } = await supabase
@@ -264,6 +264,28 @@ export const userDashboardService = {
 
       if (groupsError) throw groupsError
 
+      // Filter out inactive groups (groups past their end date or before their start date)
+      const activeGroups = (groupsData || []).filter((group: any) => {
+        // Check if group has started (start date check)
+        if (group.start_date) {
+          const startMonth = group.start_date.substring(0, 7) // Extract YYYY-MM format
+          if (currentMonth < startMonth) {
+            return false // Group hasn't started yet
+          }
+        }
+        
+        // Check if group has ended (end date check)
+        if (group.end_date) {
+          const endMonth = group.end_date.substring(0, 7) // Extract YYYY-MM format
+          
+          // Group is active if selected month is before or equal to end month
+          return currentMonth <= endMonth
+        }
+        
+        // Groups without end date are considered active (if they've started)
+        return true
+      })
+
       // Get all group members to calculate slots progress
       const { data: allGroupMembers, error: membersError } = await supabase
         .from('group_members')
@@ -292,7 +314,7 @@ export const userDashboardService = {
       }
 
       // Calculate slots progress for each group (same logic as main dashboard)
-      const groups = (groupsData || []).map((group: any) => {
+      const groups = activeGroups.map((group: any) => {
         const groupMembers = allGroupMembers?.filter((member: any) => member.group_id === group.id) || []
         const slotsTotal = groupMembers.length
         
@@ -332,7 +354,7 @@ export const userDashboardService = {
           nextReceiveMonth,
           totalReceived,
           totalExpected,
-          activeGroups
+          activeGroups: activeGroupsCount
         },
         userSlots,
         recentPayments,

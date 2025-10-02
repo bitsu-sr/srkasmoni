@@ -79,6 +79,7 @@ const Payouts: React.FC = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [lastSlotPaid, setLastSlotPaid] = useState(false)
   const [adminFeePaid, setAdminFeePaid] = useState(false)
+  const [settledDeductionEnabled, setSettledDeductionEnabled] = useState(true)
   const [settledDeductionAmount, setSettledDeductionAmount] = useState(0)
   const [showPdfSuccess, setShowPdfSuccess] = useState(false)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
@@ -106,11 +107,62 @@ const Payouts: React.FC = () => {
   const [notes, setNotes] = useState('')
   const [paymentError, setPaymentError] = useState<string | null>(null)
 
+  // Calculate "To Receive" amount for a payout (final amount after all deductions)
+  const calculateToReceiveAmount = (payout: Payout) => {
+    // Use stored calculated amount if available, otherwise calculate on the fly
+    if (payout.calculatedTotalAmount && payout.calculatedTotalAmount > 0) {
+      return payout.calculatedTotalAmount
+    }
+    
+    // Fallback calculation for payouts without stored calculated amount
+    const baseAmount = payout.monthlyAmount * payout.duration
+    
+    // Use current modal state if this is the selected payout, otherwise use payout object values
+    const isSelectedPayout = selectedPayout && selectedPayout.id === payout.id
+    
+    const lastSlotDeduction = isSelectedPayout 
+      ? (lastSlotPaid ? 0 : payout.monthlyAmount)
+      : (payout.lastSlot ? 0 : payout.monthlyAmount)
+    
+    const adminFeeDeduction = isSelectedPayout 
+      ? (adminFeePaid ? 0 : 200)
+      : (payout.administrationFee ? 0 : 200)
+    
+    const settledDeduction = isSelectedPayout 
+      ? (settledDeductionEnabled ? settledDeductionAmount : 0)
+      : (payout.settledDeduction || 0) // Use persistent data from payout object
+    
+    const additionalCostAmount = isSelectedPayout 
+      ? additionalCost 
+      : (payout.additionalCost || 0) // Use persistent data from payout object
+    
+    // Calculate sub-total after main deductions
+    const subTotal = baseAmount - settledDeduction - lastSlotDeduction - adminFeeDeduction
+    
+    // Subtract additional cost from sub-total
+    return subTotal - additionalCostAmount
+  }
+
   // Calculate summary statistics
   const totalPayouts = filteredPayouts.length
-  const totalAmount = filteredPayouts.reduce((sum, payout) => sum + (payout.totalAmount || 0), 0)
-  const completedPayouts = filteredPayouts.filter(p => p.status === 'completed').length
-  const pendingPayouts = filteredPayouts.filter(p => p.status === 'pending').length
+  const totalToReceiveAmount = filteredPayouts.reduce((sum, payout) => sum + calculateToReceiveAmount(payout), 0) // Sum of "To Receive" amounts
+  
+  // Calculate completed and pending payouts based on new status format
+  const completedPayouts = filteredPayouts.filter(p => {
+    if (p.status.includes('/')) {
+      const [received, total] = p.status.split('/').map(Number)
+      return received === total && total > 0
+    }
+    return p.status === 'completed'
+  }).length
+  
+  const pendingPayouts = filteredPayouts.filter(p => {
+    if (p.status.includes('/')) {
+      const [received, total] = p.status.split('/').map(Number)
+      return received < total || total === 0
+    }
+    return p.status === 'pending'
+  }).length
   
   // Get selected month for display (avoid timezone issues)
   const selectedMonthDisplay = (() => {
@@ -206,7 +258,26 @@ const Payouts: React.FC = () => {
 
     // Apply status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(payout => payout.status === statusFilter)
+      filtered = filtered.filter(payout => {
+        if (payout.status.includes('/')) {
+          const [received, total] = payout.status.split('/').map(Number)
+          const percentage = total > 0 ? (received / total) * 100 : 0
+          
+          switch (statusFilter) {
+            case 'completed':
+              return percentage === 100
+            case 'pending':
+              return percentage < 100 && percentage > 0
+            case 'processing':
+              return percentage >= 50 && percentage < 100
+            case 'failed':
+              return percentage === 0
+            default:
+              return true
+          }
+        }
+        return payout.status === statusFilter
+      })
     }
 
 
@@ -229,10 +300,23 @@ const Payouts: React.FC = () => {
           aValue = a.totalAmount
           bValue = b.totalAmount
           break
-
+        case 'toReceive':
+          aValue = calculateToReceiveAmount(a)
+          bValue = calculateToReceiveAmount(b)
+          break
         case 'status':
-          aValue = a.status
-          bValue = b.status
+          // Handle fraction format for sorting
+          if (a.status.includes('/') && b.status.includes('/')) {
+            const [aReceived, aTotal] = a.status.split('/').map(Number)
+            const [bReceived, bTotal] = b.status.split('/').map(Number)
+            const aPercentage = aTotal > 0 ? (aReceived / aTotal) * 100 : 0
+            const bPercentage = bTotal > 0 ? (bReceived / bTotal) * 100 : 0
+            aValue = aPercentage
+            bValue = bPercentage
+          } else {
+            aValue = a.status
+            bValue = b.status
+          }
           break
         default:
           return 0
@@ -245,12 +329,64 @@ const Payouts: React.FC = () => {
 
     setFilteredPayouts(filtered)
     setCurrentPage(1)
-  }, [payouts, filterType, filterValue, statusFilter, sortField, sortDirection])
+  }, [payouts, filterType, filterValue, statusFilter, sortField, sortDirection, selectedPayout, lastSlotPaid, adminFeePaid, settledDeductionEnabled, settledDeductionAmount, additionalCost])
 
   // Handle filter changes
   useEffect(() => {
     applyFilters()
   }, [applyFilters])
+
+  // Save calculated amount to database
+  const saveCalculatedAmountToDatabase = async (calculatedAmount: number, settledDeductionEnabled: boolean) => {
+    if (!selectedPayout) return
+
+    try {
+      const success = await payoutService.updatePayoutCalculatedAmount(
+        selectedPayout.groupId,
+        selectedPayout.memberId,
+        calculatedAmount,
+        settledDeductionEnabled
+      )
+
+      if (success) {
+        // Update the payouts array with the new calculated amount
+        setPayouts(prevPayouts => 
+          prevPayouts.map(payout => 
+            payout.id === selectedPayout.id 
+              ? { 
+                  ...payout, 
+                  calculatedTotalAmount: calculatedAmount,
+                  settledDeductionEnabled: settledDeductionEnabled
+                }
+              : payout
+          )
+        )
+      }
+    } catch (error) {
+      console.error('Error saving calculated amount to database:', error)
+    }
+  }
+
+  // Update payouts array when additional cost changes for selected payout
+  useEffect(() => {
+    if (selectedPayout) {
+      setPayouts(prevPayouts => 
+        prevPayouts.map(payout => 
+          payout.id === selectedPayout.id 
+            ? { ...payout, additionalCost: additionalCost }
+            : payout
+        )
+      )
+    }
+  }, [additionalCost, selectedPayout])
+
+  // Save calculated amount to database when calculation changes
+  useEffect(() => {
+    if (selectedPayout && isDetailsModalOpen) {
+      const calculatedAmount = calculateTotalAmount()
+      saveCalculatedAmountToDatabase(calculatedAmount, settledDeductionEnabled)
+    }
+  }, [selectedPayout, isDetailsModalOpen, lastSlotPaid, adminFeePaid, settledDeductionEnabled, settledDeductionAmount, additionalCost])
 
   // Load data on component mount
   useEffect(() => {
@@ -299,6 +435,31 @@ const Payouts: React.FC = () => {
 
   // Get status badge
   const getStatusBadge = (status: string) => {
+    // Check if status is in fraction format (e.g., "7/12")
+    if (status.includes('/')) {
+      const [received, total] = status.split('/').map(Number)
+      const percentage = total > 0 ? (received / total) * 100 : 0
+      
+      // Determine status class based on completion percentage
+      let statusClass = 'payout-status-pending'
+      if (percentage === 100) {
+        statusClass = 'payout-status-completed'
+      } else if (percentage >= 50) {
+        statusClass = 'payout-status-processing'
+      } else if (percentage > 0) {
+        statusClass = 'payout-status-pending'
+      } else {
+        statusClass = 'payout-status-failed'
+      }
+      
+      return (
+        <span className={`payouts-status-badge ${statusClass} fraction-format`}>
+          {status}
+        </span>
+      )
+    }
+    
+    // Fallback for old status format
     const statusClasses = {
       'completed': 'payout-status-completed',
       'pending': 'payout-status-pending',
@@ -314,8 +475,8 @@ const Payouts: React.FC = () => {
     }
     
     return (
-      <span className={`payout-status-badge ${statusClasses[status as keyof typeof statusClasses]}`}>
-        {statusLabels[status as keyof typeof statusLabels]}
+      <span className={`payouts-status-badge ${statusClasses[status as keyof typeof statusClasses] || 'payout-status-pending'}`}>
+        {statusLabels[status as keyof typeof statusLabels] || status}
       </span>
     )
   }
@@ -327,9 +488,10 @@ const Payouts: React.FC = () => {
     const baseAmount = selectedPayout.monthlyAmount * selectedPayout.duration
     const lastSlotDeduction = lastSlotPaid ? 0 : selectedPayout.monthlyAmount
     const adminFeeDeduction = adminFeePaid ? 0 : 200
+    const settledDeduction = settledDeductionEnabled ? settledDeductionAmount : 0
     
     // Calculate sub-total after main deductions
-    const subTotal = baseAmount - settledDeductionAmount - lastSlotDeduction - adminFeeDeduction
+    const subTotal = baseAmount - settledDeduction - lastSlotDeduction - adminFeeDeduction
     
     // Subtract additional cost from sub-total
     return subTotal - additionalCost
@@ -342,8 +504,9 @@ const Payouts: React.FC = () => {
     const baseAmount = selectedPayout.monthlyAmount * selectedPayout.duration
     const lastSlotDeduction = lastSlotPaid ? 0 : selectedPayout.monthlyAmount
     const adminFeeDeduction = adminFeePaid ? 0 : 200
+    const settledDeduction = settledDeductionEnabled ? settledDeductionAmount : 0
     
-    return baseAmount - settledDeductionAmount - lastSlotDeduction - adminFeeDeduction
+    return baseAmount - settledDeduction - lastSlotDeduction - adminFeeDeduction
   }
 
   // Fetch settled payments for the selected member
@@ -363,6 +526,20 @@ const Payouts: React.FC = () => {
 
       const totalSettledAmount = payments?.reduce((sum: number, payment: { amount: number }) => sum + payment.amount, 0) || 0
       setSettledDeductionAmount(totalSettledAmount)
+      
+      // Update the selected payout object with the settled deduction amount
+      if (selectedPayout) {
+        setSelectedPayout(prev => prev ? { ...prev, settledDeduction: totalSettledAmount } : null)
+        
+        // Also update the main payouts array so it persists in the table
+        setPayouts(prevPayouts => 
+          prevPayouts.map(payout => 
+            payout.id === selectedPayout.id 
+              ? { ...payout, settledDeduction: totalSettledAmount }
+              : payout
+          )
+        )
+      }
     } catch (error) {
       console.error('Error fetching settled payments:', error)
       setSettledDeductionAmount(0)
@@ -422,6 +599,7 @@ const Payouts: React.FC = () => {
         setPayoutDetails(existingDetails)
         setLastSlotPaid(existingDetails.lastSlot)
         setAdminFeePaid(existingDetails.administrationFee)
+        setSettledDeductionEnabled(payout.settledDeductionEnabled ?? true) // Use stored state or default to enabled
         setAdditionalCost(existingDetails.additionalCost)
         setPayoutDate(existingDetails.payoutDate)
         setIsPayoutPaid(existingDetails.payout)
@@ -454,6 +632,7 @@ const Payouts: React.FC = () => {
         setPayoutDetails(newPayoutDetails)
         setLastSlotPaid(false)
         setAdminFeePaid(false)
+        setSettledDeductionEnabled(payout.settledDeductionEnabled ?? true) // Use stored state or default to enabled
         setAdditionalCost(0)
         setPayoutDate(new Date().toISOString().split('T')[0])
         setIsPayoutPaid(false)
@@ -486,6 +665,7 @@ const Payouts: React.FC = () => {
       })
       setLastSlotPaid(false)
       setAdminFeePaid(false)
+      setSettledDeductionEnabled(true) // Default to enabled
       setAdditionalCost(0)
       setPayoutDate(new Date().toISOString().split('T')[0])
       setIsPayoutPaid(false)
@@ -727,7 +907,7 @@ const Payouts: React.FC = () => {
             <DollarSign className="payouts-summary-icon-svg" />
           </div>
           <div className="payouts-summary-content">
-            <h3 className="payouts-summary-value">SRD {totalAmount.toLocaleString()}</h3>
+            <h3 className="payouts-summary-value">SRD {totalToReceiveAmount.toLocaleString()}</h3>
             <p className="payouts-summary-label">
               {selectedMonth === currentMonth 
                 ? t('payouts.summary.amount.current') 
@@ -879,7 +1059,17 @@ const Payouts: React.FC = () => {
                   </span>
                 )}
               </th>
-
+              <th 
+                className="payouts-table-header-cell sortable col-to-receive"
+                onClick={() => handleSort('toReceive')}
+              >
+                To Receive
+                {sortField === 'toReceive' && (
+                  <span className="payouts-sort-indicator">
+                    {sortDirection === 'asc' ? '↑' : '↓'}
+                  </span>
+                )}
+              </th>
               <th 
                 className="payouts-table-header-cell sortable col-status"
                 onClick={() => handleSort('status')}
@@ -898,7 +1088,7 @@ const Payouts: React.FC = () => {
           <tbody className="payouts-table-body">
             {currentPayouts.length === 0 ? (
               <tr className="payouts-table-empty-row">
-                <td colSpan={6} className="payouts-table-empty-cell">
+                <td colSpan={7} className="payouts-table-empty-cell">
                   <div className="payouts-empty-state">
                     <p>{t('payouts.empty.title').replace('{month}', selectedMonthDisplay)}</p>
                     <p>{t('payouts.empty.desc')}</p>
@@ -928,7 +1118,11 @@ const Payouts: React.FC = () => {
                       </span>
                     </div>
                   </td>
-
+                  <td className="payouts-table-cell col-to-receive">
+                    <div className="payouts-amount-info">
+                      <span className="payouts-to-receive-amount">SRD {calculateToReceiveAmount(payout).toLocaleString()}</span>
+                    </div>
+                  </td>
                   <td className="payouts-table-cell col-status">
                     {getStatusBadge(payout.status)}
                   </td>
@@ -1178,6 +1372,19 @@ const Payouts: React.FC = () => {
                 <h3 className="payouts-details-section-title">Deductions</h3>
                 <div className="payouts-payment-status">
                   <div className="payouts-status-toggle">
+                    <span className="payouts-status-label">Settled Deduction</span>
+                    <div className="payouts-toggle-switch">
+                      <input 
+                        type="checkbox" 
+                        id="settledDeductionToggle" 
+                        className="payouts-toggle-input"
+                        checked={settledDeductionEnabled}
+                        onChange={(e) => setSettledDeductionEnabled(e.target.checked)}
+                      />
+                      <label htmlFor="settledDeductionToggle" className="payouts-toggle-label"></label>
+                    </div>
+                  </div>
+                  <div className="payouts-status-toggle">
                     <span className="payouts-status-label">Last Slot</span>
                     <div className="payouts-toggle-switch">
                       <input 
@@ -1230,8 +1437,8 @@ const Payouts: React.FC = () => {
                   </div>
                   <div className="payouts-calculation-row">
                     <span className="payouts-calculation-label">Settled Deduction</span>
-                    <span className="payouts-calculation-value deduction">
-                      -SRD {settledDeductionAmount.toLocaleString()}.00
+                    <span className={`payouts-calculation-value ${settledDeductionEnabled && settledDeductionAmount > 0 ? 'deduction' : 'no-deduction'}`}>
+                      {settledDeductionEnabled && settledDeductionAmount > 0 ? `-SRD ${settledDeductionAmount.toLocaleString()}.00` : 'SRD 0.00'}
                     </span>
                   </div>
                   <div className="payouts-calculation-row">
