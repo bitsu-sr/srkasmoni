@@ -296,6 +296,7 @@ export const dashboardService = {
           last_slot,
           administration_fee,
           additional_cost,
+          settled_deduction_enabled,
           member_id
         `)
         .eq('payout_month', targetMonth)
@@ -309,7 +310,7 @@ export const dashboardService = {
         return 0
       }
 
-      // Get all settled payments for all members in this month's payouts
+      // Get all settled payments for members in this month's payouts to calculate settled deduction
       const memberIds = payoutsData.map((p: any) => p.member_id)
       const { data: settledPayments, error: paymentsError } = await supabase
         .from('payments')
@@ -318,8 +319,7 @@ export const dashboardService = {
         .eq('status', 'settled')
 
       if (paymentsError) {
-        console.error('Error fetching settled payments:', paymentsError)
-        // Continue without settled deductions if we can't fetch them
+        console.warn('Error fetching settled payments:', paymentsError)
       }
 
       // Create a map of settled amounts by member ID
@@ -333,17 +333,24 @@ export const dashboardService = {
 
       // Calculate total using the same logic as payouts page
       const totalPayouts = payoutsData.reduce((sum: number, payout: any) => {
-        // Use stored calculated amount if available, otherwise calculate on the fly
+        // Use stored calculated amount if available
         if (payout.calculated_total_amount && payout.calculated_total_amount > 0) {
           return sum + parseFloat(payout.calculated_total_amount)
         }
         
         // Fallback calculation for payouts without stored calculated amount
+        // This matches the calculateToReceiveAmount logic in Payouts.tsx
         const baseAmount = parseFloat(payout.monthly_amount) * payout.duration
         
         const lastSlotDeduction = payout.last_slot ? 0 : parseFloat(payout.monthly_amount)
         const adminFeeDeduction = payout.administration_fee ? 0 : 200
-        const settledDeduction = settledAmountsByMember.get(payout.member_id) || 0
+        
+        // Calculate settled deduction: only apply if enabled (default is true)
+        const settledDeductionEnabled = payout.settled_deduction_enabled ?? true
+        const settledDeduction = settledDeductionEnabled 
+          ? (settledAmountsByMember.get(payout.member_id) || 0)
+          : 0
+        
         const additionalCostAmount = parseFloat(payout.additional_cost || 0)
         
         // Calculate sub-total after main deductions
