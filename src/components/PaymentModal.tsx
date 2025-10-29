@@ -53,6 +53,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [duplicateWarning, setDuplicateWarning] = useState<string>('')
   
+  // Filtered data based on active groups/members
+  const [activeGroups, setActiveGroups] = useState<Group[]>([])
+  const [activeGroupIds, setActiveGroupIds] = useState<Set<number>>(new Set())
+  
   // Member-first workflow state
   const [allMembers, setAllMembers] = useState<any[]>([])
   const [memberGroups, setMemberGroups] = useState<Group[]>([])
@@ -89,32 +93,67 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
     notes: ''
   })
 
+  // Helper function to check if a group is active for a given payment month
+  const isGroupActiveForMonth = (group: Group, paymentMonth: string): boolean => {
+    let isActive = true
+    
+    // Check if group has started
+    if (group.startDate) {
+      const startMonth = group.startDate.substring(0, 7)
+      if (paymentMonth < startMonth) {
+        isActive = false
+      }
+    }
+    
+    // Check if group has ended
+    if (isActive && group.endDate) {
+      const endMonth = group.endDate.substring(0, 7)
+      if (paymentMonth > endMonth) {
+        isActive = false
+      }
+    }
+    
+    return isActive
+  }
+
+  // Filter groups based on payment month
+  const filterActiveGroups = (groupsData: Group[], paymentMonth: string) => {
+    const filtered = groupsData.filter(group => isGroupActiveForMonth(group, paymentMonth))
+    const activeIds = new Set(filtered.map(g => g.id))
+    setActiveGroups(filtered)
+    setActiveGroupIds(activeIds)
+    return filtered
+  }
+
      // Load initial data
    useEffect(() => {
      if (isOpen) {
        setIsInitialLoading(true)
        
-       const loadInitialData = async () => {
-         try {
-           // Load groups and banks in parallel
-           const [groupsData, banksData] = await Promise.all([
-             groupService.getAllGroups(),
-             bankService.getAllBanks()
-           ])
-           
-           setGroups(groupsData)
-           setBanks(banksData)
-           
-           // Load all members for member-first and multi-group workflows
-           if (workflow === 'member-first' || workflow === 'multi-group') {
-             await loadAllMembersWithGroups(groupsData)
-           }
-         } catch (error) {
-           console.error('Failed to load initial data:', error)
-         } finally {
-           setIsInitialLoading(false)
-         }
-       }
+      const loadInitialData = async () => {
+        try {
+          // Load groups and banks in parallel
+          const [groupsData, banksData] = await Promise.all([
+            groupService.getAllGroups(),
+            bankService.getAllBanks()
+          ])
+          
+          setGroups(groupsData)
+          setBanks(banksData)
+          
+          // Filter active groups based on payment month
+          const filtered = filterActiveGroups(groupsData, formData.paymentMonth)
+          
+          // Load all members for member-first and multi-group workflows
+          if (workflow === 'member-first' || workflow === 'multi-group') {
+            await loadAllMembersWithGroups(filtered)
+          }
+        } catch (error) {
+          console.error('Failed to load initial data:', error)
+        } finally {
+          setIsInitialLoading(false)
+        }
+      }
        
        loadInitialData()
        
@@ -208,12 +247,38 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      }
    }, [isOpen, payment, isEditing, prefillData, workflow])
 
-   // Load all members after groups are loaded for member-first workflow
-   useEffect(() => {
-     if (workflow === 'member-first' && groups.length > 0) {
-       loadAllMembers()
-     }
-   }, [groups, workflow])
+  // Re-filter groups and members when payment month changes
+  useEffect(() => {
+    if (groups.length > 0 && formData.paymentMonth) {
+      const filtered = filterActiveGroups(groups, formData.paymentMonth)
+      
+      // Reload members for member-first and multi-group workflows with active groups
+      if (workflow === 'member-first' || workflow === 'multi-group') {
+        loadAllMembersWithGroups(filtered)
+      }
+    }
+  }, [formData.paymentMonth])
+
+  // Re-filter for multi-group workflow when its payment month changes
+  useEffect(() => {
+    if (workflow === 'multi-group' && groups.length > 0 && multiGroupPaymentInfo.paymentMonth) {
+      filterActiveGroups(groups, multiGroupPaymentInfo.paymentMonth)
+      
+      // Reload member data if a member is already selected
+      if (selectedMemberForMulti) {
+        loadMemberForMulti(selectedMemberForMulti.memberId)
+      }
+    }
+  }, [multiGroupPaymentInfo.paymentMonth])
+
+  // Load all members after groups are loaded for member-first workflow
+  // This useEffect is now handled by the initial data loading and paymentMonth change effect
+  // which properly filters to only active groups
+  useEffect(() => {
+    if (workflow === 'member-first' && activeGroups.length > 0 && allMembers.length === 0) {
+      loadAllMembersWithGroups(activeGroups)
+    }
+  }, [activeGroups, workflow])
 
    // Ensure amount is loaded whenever groupId changes
    useEffect(() => {
@@ -266,22 +331,28 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
 
 
      const loadGroupMembers = async (groupId: number) => {
-     if (!groupId) return
-     try {
-       const members = await paymentSlotService.getGroupMembers(groupId)
-       setGroupMembers(members)
-       // Clear member and slot selections when group changes
-       setFormData(prev => ({
-         ...prev,
-         memberId: 0,
-         slotId: '',
-         amount: 0
-       }))
-       setMemberSlots([])
-     } catch (error) {
-       console.error('Failed to load group members:', error)
-     }
-   }
+    if (!groupId) return
+    try {
+      // Only load members if the group is active for the payment month
+      if (!activeGroupIds.has(groupId)) {
+        setGroupMembers([])
+        return
+      }
+      
+      const members = await paymentSlotService.getGroupMembers(groupId)
+      setGroupMembers(members)
+      // Clear member and slot selections when group changes
+      setFormData(prev => ({
+        ...prev,
+        memberId: 0,
+        slotId: '',
+        amount: 0
+      }))
+      setMemberSlots([])
+    } catch (error) {
+      console.error('Failed to load group members:', error)
+    }
+  }
 
   const loadMemberSlots = async (memberId: number, groupId: number) => {
     if (!memberId || !groupId) return
@@ -329,38 +400,55 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
    }
 
   // Member-first workflow functions
-  const loadAllMembers = async () => {
-    try {
-      const allMembersData = []
-      
-      for (const group of groups) {
-        const members = await paymentSlotService.getGroupMembers(group.id)
-        
-        const membersWithGroup = members.map(member => ({
-          ...member,
-          group: group
-        }))
-        allMembersData.push(...membersWithGroup)
-      }
-      setAllMembers(allMembersData)
-    } catch (error) {
-      console.error('Failed to load all members:', error)
-    }
-  }
-
   const loadAllMembersWithGroups = async (groupsData: Group[]) => {
     try {
-      const allMembersData = []
+      // Process all groups in parallel for better performance
+      const groupPromises = groupsData.map(async (group) => {
+        try {
+          const members = await paymentSlotService.getGroupMembers(group.id)
+          
+          // Batch check: Get all member IDs and query their assignments in one go
+          const memberIds = members.map(m => m.memberId)
+          
+          // Query all assignments for all members in this group at once
+          const { data: assignmentsData, error: assignmentsError } = await supabase
+            .from('group_members')
+            .select('member_id, assigned_month_date')
+            .eq('group_id', group.id)
+            .in('member_id', memberIds)
+          
+          if (assignmentsError) {
+            console.error(`Failed to fetch assignments for group ${group.id}:`, assignmentsError)
+            return []
+          }
+          
+          // Create a map of member_id to whether they have assignments
+          const memberHasSlots = new Map<number, boolean>()
+          assignmentsData?.forEach((assignment: any) => {
+            if (assignment.assigned_month_date) {
+              memberHasSlots.set(assignment.member_id, true)
+            }
+          })
+          
+          // Filter members who have at least one assignment
+          const validMembers = members
+            .filter(member => memberHasSlots.get(member.memberId))
+            .map(member => ({
+              ...member,
+              group: group,
+              hasSlots: true
+            }))
+          
+          return validMembers
+        } catch (error) {
+          console.error(`Failed to load members for group ${group.id}:`, error)
+          return []
+        }
+      })
       
-      for (const group of groupsData) {
-        const members = await paymentSlotService.getGroupMembers(group.id)
-        
-        const membersWithGroup = members.map(member => ({
-          ...member,
-          group: group
-        }))
-        allMembersData.push(...membersWithGroup)
-      }
+      const allGroupMembers = await Promise.all(groupPromises)
+      const allMembersData = allGroupMembers.flat()
+      
       setAllMembers(allMembersData)
     } catch (error) {
       console.error('Failed to load all members:', error)
@@ -384,7 +472,12 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
       })
       const uniqueGroups = Array.from(groupMap.values())
       
-      setMemberGroups(uniqueGroups)
+      // Filter to only show active groups for the payment month
+      const activeGroupsForMember = uniqueGroups.filter(group => 
+        isGroupActiveForMonth(group, formData.paymentMonth)
+      )
+      
+      setMemberGroups(activeGroupsForMember)
       setFormData(prev => ({
         ...prev,
         groupId: 0,
@@ -477,10 +570,15 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
       })
       const uniqueGroups = Array.from(groupMap.values())
       
+      // Filter to only show active groups for the payment month
+      const activeGroupsForMember = uniqueGroups.filter(group => 
+        isGroupActiveForMonth(group, multiGroupPaymentInfo.paymentMonth)
+      )
+      
       setSelectedMemberForMulti(memberEntries[0]) // Use first entry for member info
       
-      // Load slots and amounts for each group
-      const slotsPromises = uniqueGroups.map(async (group) => {
+      // Load slots and amounts for each active group
+      const slotsPromises = activeGroupsForMember.map(async (group) => {
         try {
           const slots = await paymentSlotService.getAvailableMonthAssignments(memberId, group.id)
           const amount = await paymentSlotService.getGroupMonthlyAmount(group.id)
@@ -554,6 +652,35 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
       checkExistingPayment(selectedMemberForMulti.memberId, combination.groupId, combination.slotId)
     }
     setSelectedCombinations(newSelectedCombinations)
+  }
+
+  const handleSelectAllCombinations = () => {
+    if (!selectedMemberForMulti) return
+    
+    // Get all combinations that don't have existing payments
+    const availableCombinations = groupSlotCombinations.filter(combination => {
+      const paymentKey = `${selectedMemberForMulti.memberId}-${combination.groupId}-${combination.slotId}`
+      return !existingPayments[paymentKey]
+    })
+    
+    // Check if all available combinations are already selected
+    const allSelected = availableCombinations.every(combination => 
+      selectedCombinations.has(combination.combinationKey)
+    )
+    
+    if (allSelected) {
+      // Deselect all
+      setSelectedCombinations(new Set())
+    } else {
+      // Select all available combinations
+      const newSelectedCombinations = new Set<string>()
+      availableCombinations.forEach(combination => {
+        newSelectedCombinations.add(combination.combinationKey)
+        // Check for existing payment
+        checkExistingPayment(selectedMemberForMulti.memberId, combination.groupId, combination.slotId)
+      })
+      setSelectedCombinations(newSelectedCombinations)
+    }
   }
 
   const checkExistingPayment = async (memberId: number, groupId: number, slotId: string) => {
@@ -1031,13 +1158,16 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               className={errors.groupId ? 'error' : ''}
             >
               <option value={0}>Select a group</option>
-              {groups.map(group => (
+              {activeGroups.map(group => (
                 <option key={group.id} value={group.id}>
                   {group.name}
                 </option>
               ))}
             </select>
             {errors.groupId && <span className="payment-modal-error-message">{errors.groupId}</span>}
+            <small className="payment-modal-form-help">
+              Showing only active groups for {formData.paymentMonth}
+            </small>
           </div>
 
                      {/* Member Selection */}
@@ -1150,7 +1280,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                 <small className="payment-modal-form-help">
                   {isLoadingMemberGroups 
                     ? 'Loading available groups...' 
-                    : `Available groups: ${memberGroups.length}`
+                    : `Showing only active groups for ${formData.paymentMonth} (${memberGroups.length} available)`
                   }
                 </small>
               </div>
@@ -1221,17 +1351,38 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                   )}
                 </div>
                 <small className="payment-modal-form-help">
-                  Select a member to see their groups
+                  Select a member to see their active groups for {multiGroupPaymentInfo.paymentMonth}
                 </small>
               </div>
 
               {/* Group/Slot Combinations for Multi-Group */}
               {selectedMemberForMulti && (
                 <div className="payment-modal-form-group full-width">
-                  <label>
-                    <Building2 size={16} />
-                    Select Group/Slot Combinations to Pay For *
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ margin: 0 }}>
+                      <Building2 size={16} />
+                      Select Group/Slot Combinations to Pay For *
+                    </label>
+                    {!isLoadingMemberGroups && groupSlotCombinations.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleSelectAllCombinations}
+                        className="payment-modal-btn payment-modal-btn-secondary"
+                        style={{ 
+                          padding: '6px 12px', 
+                          fontSize: '13px',
+                          marginLeft: '10px'
+                        }}
+                      >
+                        {groupSlotCombinations.filter(combination => {
+                          const paymentKey = selectedMemberForMulti ? `${selectedMemberForMulti.memberId}-${combination.groupId}-${combination.slotId}` : ''
+                          return !existingPayments[paymentKey]
+                        }).every(combination => selectedCombinations.has(combination.combinationKey))
+                          ? 'Deselect All'
+                          : 'Select All'}
+                      </button>
+                    )}
+                  </div>
                   {isLoadingMemberGroups ? (
                     <div className="payment-modal-loading">Loading combinations...</div>
                   ) : (
@@ -1340,8 +1491,14 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
             <input
               type="date"
               id="paymentDate"
-              value={formData.paymentDate}
-              onChange={(e) => handleInputChange('paymentDate', e.target.value)}
+              value={workflow === 'multi-group' ? multiGroupPaymentInfo.paymentDate : formData.paymentDate}
+              onChange={(e) => {
+                if (workflow === 'multi-group') {
+                  setMultiGroupPaymentInfo(prev => ({ ...prev, paymentDate: e.target.value }))
+                } else {
+                  handleInputChange('paymentDate', e.target.value)
+                }
+              }}
               max={new Date().toISOString().split('T')[0]}
               className={errors.paymentDate ? 'error' : ''}
             />
@@ -1357,10 +1514,20 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
             <input
               type="month"
               id="paymentMonth"
-              value={formData.paymentMonth}
-              onChange={(e) => handleInputChange('paymentMonth', e.target.value)}
+              value={workflow === 'multi-group' ? multiGroupPaymentInfo.paymentMonth : formData.paymentMonth}
+              onChange={(e) => {
+                if (workflow === 'multi-group') {
+                  setMultiGroupPaymentInfo(prev => ({ ...prev, paymentMonth: e.target.value }))
+                } else {
+                  handleInputChange('paymentMonth', e.target.value)
+                }
+              }}
             />
-            <small className="payment-modal-form-help">Defaults to current month. Editable.</small>
+            <small className="payment-modal-form-help">
+              {workflow === 'multi-group' 
+                ? 'Changes will filter available groups and members' 
+                : 'Defaults to current month. Editable.'}
+            </small>
           </div>
 
           {/* Payment Method Toggle */}

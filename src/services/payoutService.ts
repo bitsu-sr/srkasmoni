@@ -15,6 +15,7 @@ export const payoutService = {
           .select(`
             *,
             group_members!inner(
+              id,
               member_id,
               assigned_month_date,
               members!inner(
@@ -48,11 +49,11 @@ export const payoutService = {
         console.warn('Error fetching payout details:', payoutDetailsResult.error)
       }
 
-      // Create a map of payout details for quick lookup
+      // Create a map of payout details for quick lookup by slot_id
       const payoutDetailsMap = new Map()
       payoutDetails?.forEach((detail: any) => {
-        const key = `${detail.group_id}-${detail.member_id}`
-        payoutDetailsMap.set(key, detail)
+        // Use slot_id as the key since each slot should have its own payout record
+        payoutDetailsMap.set(detail.slot_id, detail)
       })
 
       // Transform the data into Payout objects
@@ -62,14 +63,15 @@ export const payoutService = {
         group.group_members?.forEach((memberSlot: any) => {
           if (memberSlot.assigned_month_date === targetMonth && memberSlot.members) {
             const member = memberSlot.members
-            const payoutKey = `${group.id}-${member.id}`
-            const payoutDetail = payoutDetailsMap.get(payoutKey)
+            const slotId = memberSlot.id
+            const payoutDetail = payoutDetailsMap.get(slotId)
             
             // Get payment count for this group
             const paymentCount = groupPaymentCounts.get(group.id) || { received: 0, total: 0 }
             
             const payout: Payout = {
-              id: memberSlot.id || Math.random(), // Use slot ID or generate random
+              id: payoutDetail?.id || 0, // Use payout record ID if it exists
+              slotId: slotId, // The slot ID from group_members table
               memberName: `${member.first_name} ${member.last_name}`,
               memberId: member.id,
               nationalId: member.national_id,
@@ -250,8 +252,7 @@ export const payoutService = {
 
   // Update calculated total amount and settled deduction toggle for a payout
   async updatePayoutCalculatedAmount(
-    groupId: number, 
-    memberId: number, 
+    slotId: number, 
     calculatedTotalAmount: number, 
     settledDeductionEnabled: boolean
   ): Promise<boolean> {
@@ -263,8 +264,7 @@ export const payoutService = {
           settled_deduction_enabled: settledDeductionEnabled,
           updated_at: new Date().toISOString()
         })
-        .eq('group_id', groupId)
-        .eq('member_id', memberId)
+        .eq('slot_id', slotId)
 
       if (error) {
         console.error('Error updating payout calculated amount:', error)

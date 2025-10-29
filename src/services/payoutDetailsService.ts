@@ -2,19 +2,16 @@ import { supabase } from '../lib/supabase'
 import { PayoutDetails } from '../types/payout'
 
 export const payoutDetailsService = {
-  // Get payout details for a specific group-member combination
-  async getPayoutDetails(groupId: number, memberId: number): Promise<PayoutDetails | null> {
+  // Get payout details for a specific slot
+  async getPayoutDetails(slotId: number): Promise<PayoutDetails | null> {
     try {
       const { data, error } = await supabase
         .from('payouts')
         .select('*')
-        .eq('group_id', groupId)
-        .eq('member_id', memberId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
+        .eq('slot_id', slotId)
+        .maybeSingle()
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      if (error) {
         throw error
       }
 
@@ -25,6 +22,7 @@ export const payoutDetailsService = {
       // Transform database data to PayoutDetails interface
       return {
         id: data.id,
+        slotId: data.slot_id,
         groupId: data.group_id,
         memberId: data.member_id,
         monthlyAmount: parseFloat(data.monthly_amount),
@@ -77,13 +75,15 @@ export const payoutDetailsService = {
 
         return {
           ...payoutDetails,
-          id: data.id
+          id: data.id,
+          slotId: data.slot_id
         }
       } else {
         // Insert new record
         const { data, error } = await supabase
           .from('payouts')
           .insert({
+            slot_id: payoutDetails.slotId,
             group_id: payoutDetails.groupId,
             member_id: payoutDetails.memberId,
             monthly_amount: payoutDetails.monthlyAmount,
@@ -106,7 +106,8 @@ export const payoutDetailsService = {
 
         return {
           ...payoutDetails,
-          id: data.id
+          id: data.id,
+          slotId: data.slot_id
         }
       }
     } catch (error) {
@@ -115,14 +116,13 @@ export const payoutDetailsService = {
     }
   },
 
-  // Check if payout details exist for a group-member combination
-  async payoutDetailsExist(groupId: number, memberId: number): Promise<boolean> {
+  // Check if payout details exist for a specific slot
+  async payoutDetailsExist(slotId: number): Promise<boolean> {
     try {
       const { count, error } = await supabase
         .from('payouts')
         .select('*', { count: 'exact', head: true })
-        .eq('group_id', groupId)
-        .eq('member_id', memberId)
+        .eq('slot_id', slotId)
 
       if (error) throw error
 

@@ -852,6 +852,34 @@
     width: 12px;
     height: 12px;
   }
+
+  /* Hide specific columns on mobile for Members table */
+  .members-table th:nth-child(2), /* Status */
+  .members-table td:nth-child(2),
+  .members-table th:nth-child(3), /* National ID */
+  .members-table td:nth-child(3),
+  .members-table th:nth-child(4), /* Phone */
+  .members-table td:nth-child(4),
+  .members-table th:nth-child(5), /* City */
+  .members-table td:nth-child(5),
+  .members-table th:nth-child(8), /* Next Receive */
+  .members-table td:nth-child(8) {
+    display: none;
+  }
+
+  /* Adjust table layout for remaining columns */
+  .members-table {
+    font-size: 0.75rem;
+  }
+
+  .members-table th,
+  .members-table td {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .members-member-name-cell {
+    min-width: 100px;
+  }
 }
 
 /* Month Filter Container */

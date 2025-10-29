@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   Search, 
   Download, 
@@ -63,7 +63,7 @@ const Payouts: React.FC = () => {
 
   
   // Sorting state
-  const [sortField, setSortField] = useState<SortField>('receiveMonth')
+  const [sortField, setSortField] = useState<SortField>('groupName')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   
   // Pagination state
@@ -106,6 +106,7 @@ const Payouts: React.FC = () => {
   const [receiverBankId, setReceiverBankId] = useState<number | null>(null)
   const [notes, setNotes] = useState('')
   const [paymentError, setPaymentError] = useState<string | null>(null)
+  const paymentErrorRef = useRef<HTMLDivElement>(null)
 
   // Calculate "To Receive" amount for a payout (final amount after all deductions)
   const calculateToReceiveAmount = (payout: Payout) => {
@@ -147,22 +148,18 @@ const Payouts: React.FC = () => {
   const totalPayouts = filteredPayouts.length
   const totalToReceiveAmount = filteredPayouts.reduce((sum, payout) => sum + calculateToReceiveAmount(payout), 0) // Sum of "To Receive" amounts
   
-  // Calculate completed and pending payouts based on new status format
-  const completedPayouts = filteredPayouts.filter(p => {
-    if (p.status.includes('/')) {
-      const [received, total] = p.status.split('/').map(Number)
-      return received === total && total > 0
-    }
-    return p.status === 'completed'
-  }).length
+  // Calculate completed and pending payouts based on payout status (whether marked as paid)
+  const completedPayouts = filteredPayouts.filter(p => p.payout === true).length
   
-  const pendingPayouts = filteredPayouts.filter(p => {
-    if (p.status.includes('/')) {
-      const [received, total] = p.status.split('/').map(Number)
-      return received < total || total === 0
-    }
-    return p.status === 'pending'
-  }).length
+  const pendingPayouts = filteredPayouts.filter(p => p.payout !== true).length
+  
+  // Calculate Total Paid (sum of "To Receive" amounts where payout = true)
+  const totalPaid = filteredPayouts
+    .filter(p => p.payout === true)
+    .reduce((sum, payout) => sum + calculateToReceiveAmount(payout), 0)
+  
+  // Calculate Outstanding (total to receive minus total paid)
+  const outstanding = totalToReceiveAmount - totalPaid
   
   // Get selected month for display (avoid timezone issues)
   const selectedMonthDisplay = (() => {
@@ -227,7 +224,7 @@ const Payouts: React.FC = () => {
       }
       
       setPayouts(payoutsData)
-      setFilteredPayouts(payoutsData)
+      // Don't set filteredPayouts here - let applyFilters handle it with proper sorting
     } catch (err) {
       setError('Failed to load payouts')
     } finally {
@@ -293,8 +290,11 @@ const Payouts: React.FC = () => {
           bValue = b.memberName.toLowerCase()
           break
         case 'groupName':
-          aValue = a.groupName.toLowerCase()
-          bValue = b.groupName.toLowerCase()
+          // Extract numeric part from group name for proper numerical sorting
+          const aGroupNumber = parseInt(a.groupName.replace(/\D/g, '')) || 0
+          const bGroupNumber = parseInt(b.groupName.replace(/\D/g, '')) || 0
+          aValue = aGroupNumber
+          bValue = bGroupNumber
           break
         case 'totalAmount':
           aValue = a.totalAmount
@@ -342,8 +342,7 @@ const Payouts: React.FC = () => {
 
     try {
       const success = await payoutService.updatePayoutCalculatedAmount(
-        selectedPayout.groupId,
-        selectedPayout.memberId,
+        selectedPayout.slotId,
         calculatedAmount,
         settledDeductionEnabled
       )
@@ -352,7 +351,7 @@ const Payouts: React.FC = () => {
         // Update the payouts array with the new calculated amount
         setPayouts(prevPayouts => 
           prevPayouts.map(payout => 
-            payout.id === selectedPayout.id 
+            payout.slotId === selectedPayout.slotId 
               ? { 
                   ...payout, 
                   calculatedTotalAmount: calculatedAmount,
@@ -509,14 +508,15 @@ const Payouts: React.FC = () => {
     return baseAmount - settledDeduction - lastSlotDeduction - adminFeeDeduction
   }
 
-  // Fetch settled payments for the selected member
-  const fetchSettledPayments = async (memberId: number) => {
+  // Fetch settled payments for the selected member for a specific month
+  const fetchSettledPayments = async (memberId: number, payoutMonth: string) => {
     try {
       const { data: payments, error } = await supabase
         .from('payments')
         .select('amount')
         .eq('member_id', memberId)
         .eq('status', 'settled')
+        .eq('payment_month', payoutMonth) // Filter by payment month to get month-specific settled deductions
 
       if (error) {
         console.error('Error fetching settled payments:', error)
@@ -534,7 +534,7 @@ const Payouts: React.FC = () => {
         // Also update the main payouts array so it persists in the table
         setPayouts(prevPayouts => 
           prevPayouts.map(payout => 
-            payout.id === selectedPayout.id 
+            payout.slotId === selectedPayout.slotId 
               ? { ...payout, settledDeduction: totalSettledAmount }
               : payout
           )
@@ -592,8 +592,8 @@ const Payouts: React.FC = () => {
       const banksData = await bankService.getAllBanks()
       setBanks(banksData)
 
-      // Load existing payout details if they exist
-      const existingDetails = await payoutDetailsService.getPayoutDetails(payout.groupId, payout.memberId)
+      // Load existing payout details if they exist (using slot_id)
+      const existingDetails = await payoutDetailsService.getPayoutDetails(payout.slotId)
       
       if (existingDetails) {
         setPayoutDetails(existingDetails)
@@ -612,6 +612,7 @@ const Payouts: React.FC = () => {
       } else {
         // Create new payout details object
         const newPayoutDetails: PayoutDetails = {
+          slotId: payout.slotId,
           groupId: payout.groupId,
           memberId: payout.memberId,
           monthlyAmount: payout.monthlyAmount,
@@ -646,6 +647,7 @@ const Payouts: React.FC = () => {
       console.error('Error loading payout details:', error)
       // Set default values on error
       setPayoutDetails({
+        slotId: payout.slotId,
         groupId: payout.groupId,
         memberId: payout.memberId,
         monthlyAmount: payout.monthlyAmount,
@@ -676,8 +678,8 @@ const Payouts: React.FC = () => {
       setNotes('')
     }
     
-    // Fetch settled payments for the selected member
-    fetchSettledPayments(payout.memberId)
+    // Fetch settled payments for the selected member for this specific payout month
+    fetchSettledPayments(payout.memberId, payout.receiveMonth)
   }
 
   // Handle download
@@ -720,6 +722,21 @@ const Payouts: React.FC = () => {
       // Update local state
       setPayoutDetails(savedDetails)
       setPayoutDetailsExist(true)
+      
+      // Update the payouts list to reflect the changes
+      setPayouts(prevPayouts => 
+        prevPayouts.map(p => 
+          p.slotId === selectedPayout.slotId 
+            ? { 
+                ...p, 
+                lastSlot: lastSlotPaid,
+                administrationFee: adminFeePaid,
+                additionalCost: additionalCost,
+                payout: savedDetails.payout // Update payout status to reflect if it was marked as paid
+              }
+            : p
+        )
+      )
       
       // Show success message (you can implement a toast notification here)
       console.log('Payout details saved successfully')
@@ -772,6 +789,17 @@ const Payouts: React.FC = () => {
   const handlePayoutStatusChange = async () => {
     if (!payoutDetails || !selectedPayout) return
     
+    // Check if payout details have been saved first (has an id)
+    if (!payoutDetails.id) {
+      setPaymentError('Please save the payout details first before marking as paid.')
+      // Scroll to error message after a brief delay to ensure it's rendered
+      setTimeout(() => {
+        paymentErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+      setTimeout(() => setPaymentError(null), 5000) // Clear error after 5 seconds
+      return
+    }
+    
     setIsProcessingPayout(true)
     
     try {
@@ -793,7 +821,7 @@ const Payouts: React.FC = () => {
       // Update the payouts list to reflect the change
       setPayouts(prevPayouts => 
         prevPayouts.map(p => 
-          p.id === selectedPayout.id 
+          p.slotId === selectedPayout.slotId 
             ? { ...p, payout: newPayoutStatus }
             : p
         )
@@ -803,6 +831,12 @@ const Payouts: React.FC = () => {
       
     } catch (error) {
       console.error('Error updating payout status:', error)
+      setPaymentError('Failed to update payout status. Please try again.')
+      // Scroll to error message after a brief delay to ensure it's rendered
+      setTimeout(() => {
+        paymentErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+      setTimeout(() => setPaymentError(null), 5000)
     } finally {
       setIsProcessingPayout(false)
     }
@@ -889,31 +923,16 @@ const Payouts: React.FC = () => {
       <div className="payouts-summary">
         <div className="payouts-summary-card">
           <div className="payouts-summary-icon">
-            <Users className="payouts-summary-icon-svg" />
-          </div>
-          <div className="payouts-summary-content">
-            <h3 className="payouts-summary-value">{totalPayouts}</h3>
-            <p className="payouts-summary-label">
-              {selectedMonth === currentMonth 
-                ? t('payouts.summary.count.current') 
-                : t('payouts.summary.count.other').replace('{month}', selectedMonthDisplay)
-              }
-            </p>
-          </div>
-        </div>
-        
-        <div className="payouts-summary-card">
-          <div className="payouts-summary-icon">
             <DollarSign className="payouts-summary-icon-svg" />
           </div>
           <div className="payouts-summary-content">
-            <h3 className="payouts-summary-value">SRD {totalToReceiveAmount.toLocaleString()}</h3>
-            <p className="payouts-summary-label">
+            <h3>
               {selectedMonth === currentMonth 
                 ? t('payouts.summary.amount.current') 
                 : t('payouts.summary.amount.other').replace('{month}', selectedMonthDisplay)
               }
-            </p>
+            </h3>
+            <div className="payouts-summary-value">SRD {totalToReceiveAmount.toLocaleString()}</div>
           </div>
         </div>
         
@@ -922,8 +941,43 @@ const Payouts: React.FC = () => {
             <CheckCircle className="payouts-summary-icon-svg" />
           </div>
           <div className="payouts-summary-content">
-            <h3 className="payouts-summary-value">{completedPayouts}</h3>
-            <p className="payouts-summary-label">{t('payouts.summary.completed')}</p>
+            <h3>Total Paid</h3>
+            <div className="payouts-summary-value">SRD {totalPaid.toLocaleString()}</div>
+          </div>
+        </div>
+        
+        <div className="payouts-summary-card">
+          <div className="payouts-summary-icon">
+            <AlertCircle className="payouts-summary-icon-svg" />
+          </div>
+          <div className="payouts-summary-content">
+            <h3>Outstanding</h3>
+            <div className="payouts-summary-value">SRD {outstanding.toLocaleString()}</div>
+          </div>
+        </div>
+        
+        <div className="payouts-summary-card">
+          <div className="payouts-summary-icon">
+            <Users className="payouts-summary-icon-svg" />
+          </div>
+          <div className="payouts-summary-content">
+            <h3>
+              {selectedMonth === currentMonth 
+                ? t('payouts.summary.count.current') 
+                : t('payouts.summary.count.other').replace('{month}', selectedMonthDisplay)
+              }
+            </h3>
+            <div className="payouts-summary-value">{totalPayouts}</div>
+          </div>
+        </div>
+        
+        <div className="payouts-summary-card">
+          <div className="payouts-summary-icon">
+            <CheckCircle className="payouts-summary-icon-svg" />
+          </div>
+          <div className="payouts-summary-content">
+            <h3>{t('payouts.summary.completed')}</h3>
+            <div className="payouts-summary-value">{completedPayouts}</div>
           </div>
         </div>
         
@@ -932,8 +986,8 @@ const Payouts: React.FC = () => {
             <Clock className="payouts-summary-icon-svg" />
           </div>
           <div className="payouts-summary-content">
-            <h3 className="payouts-summary-value">{pendingPayouts}</h3>
-            <p className="payouts-summary-label">{t('payouts.summary.pending')}</p>
+            <h3>{t('payouts.summary.pending')}</h3>
+            <div className="payouts-summary-value">{pendingPayouts}</div>
           </div>
         </div>
       </div>
@@ -1100,7 +1154,7 @@ const Payouts: React.FC = () => {
               </tr>
             ) : (
               currentPayouts.map((payout) => (
-                <tr key={payout.id} className={`payouts-table-row ${payout.payout ? 'payouts-table-row-paid' : ''}`}>
+                <tr key={payout.slotId} className={`payouts-table-row ${payout.payout ? 'payouts-table-row-paid' : ''}`}>
                   <td className="payouts-table-cell col-member">
                     <div className="payouts-member-info">
                       <span className="payouts-member-name">{payout.memberName}</span>
@@ -1360,7 +1414,7 @@ const Payouts: React.FC = () => {
                   </div>
 
                   {paymentError && (
-                    <div className="payouts-pdf-error" style={{ marginTop: 8 }}>
+                    <div ref={paymentErrorRef} className="payouts-pdf-error" style={{ marginTop: 8 }}>
                       <span>✗ {paymentError}</span>
                     </div>
                   )}

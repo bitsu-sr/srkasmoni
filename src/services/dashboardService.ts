@@ -9,6 +9,7 @@ export interface DashboardStats {
   totalPending: number
   totalOverdue: number
   totalAmountDue: number
+  totalPayouts: number
   activeGroups: number
   totalMembers: number
   activeMembers: number
@@ -111,6 +112,7 @@ export const dashboardService = {
         paymentsData,
         paymentStats,
         overduePayments,
+        totalPayouts,
         recentPayments,
         recentMembers,
         recentGroups
@@ -121,6 +123,8 @@ export const dashboardService = {
         this.getCurrentMonthPaymentStats(selectedMonth, activeGroupIds),
         // Get overdue payments for selected month (filtered by active groups)
         this.getCurrentMonthOverduePayments(selectedMonth, activeGroupIds),
+        // Get total payouts for selected month
+        this.getTotalPayouts(selectedMonth),
         // Get recent payments (limited to 5)
         this.getRecentPaymentsOptimized(5),
         // Get recent members (limited to 3)
@@ -130,7 +134,7 @@ export const dashboardService = {
       ])
 
       // Calculate dashboard stats (using only active groups)
-      const stats = await this.calculateDashboardStats(activeGroups, paymentStats, overduePayments, selectedMonth)
+      const stats = await this.calculateDashboardStats(activeGroups, paymentStats, overduePayments, selectedMonth, totalPayouts)
       
       // Transform groups data (using only active groups)
       const groups = this.transformDashboardGroups(activeGroups, paymentStats, paymentsData, selectedMonth)
@@ -171,6 +175,7 @@ export const dashboardService = {
               totalPending: pendingAmount,
               totalOverdue: 0,
               totalAmountDue: Math.max(0, totalAmount - totalAmount),
+              totalPayouts: 0,
               activeGroups: uniqueGroups.size,
               totalMembers: uniqueMembers.size,
               activeMembers: uniqueMembers.size
@@ -190,6 +195,7 @@ export const dashboardService = {
           totalPending: 0,
           totalOverdue: 0,
           totalAmountDue: 0,
+          totalPayouts: 0,
           activeGroups: 0,
           totalMembers: 0,
           activeMembers: 0
@@ -225,6 +231,7 @@ export const dashboardService = {
           totalPending: 0,
           totalOverdue: 0,
           totalAmountDue: 0,
+          totalPayouts: 0,
           activeGroups: 0,
           totalMembers: 0,
           activeMembers: 0
@@ -272,6 +279,87 @@ export const dashboardService = {
     }
     
     return overduePayments
+  },
+
+  // Get total payouts for a specific month using the same logic as payouts page
+  async getTotalPayouts(selectedMonth?: string): Promise<number> {
+    try {
+      const targetMonth = selectedMonth || new Date().toISOString().split('T')[0].substring(0, 7)
+      
+      // Get all payouts for the selected month with all necessary fields
+      const { data: payoutsData, error: payoutsError } = await supabase
+        .from('payouts')
+        .select(`
+          calculated_total_amount,
+          monthly_amount,
+          duration,
+          last_slot,
+          administration_fee,
+          additional_cost,
+          member_id
+        `)
+        .eq('payout_month', targetMonth)
+
+      if (payoutsError) {
+        console.error('Error fetching total payouts:', payoutsError)
+        return 0
+      }
+
+      if (!payoutsData || payoutsData.length === 0) {
+        return 0
+      }
+
+      // Get all settled payments for all members in this month's payouts
+      const memberIds = payoutsData.map((p: any) => p.member_id)
+      const { data: settledPayments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('member_id, amount')
+        .in('member_id', memberIds)
+        .eq('status', 'settled')
+
+      if (paymentsError) {
+        console.error('Error fetching settled payments:', paymentsError)
+        // Continue without settled deductions if we can't fetch them
+      }
+
+      // Create a map of settled amounts by member ID
+      const settledAmountsByMember = new Map<number, number>()
+      if (settledPayments) {
+        settledPayments.forEach((payment: any) => {
+          const currentAmount = settledAmountsByMember.get(payment.member_id) || 0
+          settledAmountsByMember.set(payment.member_id, currentAmount + payment.amount)
+        })
+      }
+
+      // Calculate total using the same logic as payouts page
+      const totalPayouts = payoutsData.reduce((sum: number, payout: any) => {
+        // Use stored calculated amount if available, otherwise calculate on the fly
+        if (payout.calculated_total_amount && payout.calculated_total_amount > 0) {
+          return sum + parseFloat(payout.calculated_total_amount)
+        }
+        
+        // Fallback calculation for payouts without stored calculated amount
+        const baseAmount = parseFloat(payout.monthly_amount) * payout.duration
+        
+        const lastSlotDeduction = payout.last_slot ? 0 : parseFloat(payout.monthly_amount)
+        const adminFeeDeduction = payout.administration_fee ? 0 : 200
+        const settledDeduction = settledAmountsByMember.get(payout.member_id) || 0
+        const additionalCostAmount = parseFloat(payout.additional_cost || 0)
+        
+        // Calculate sub-total after main deductions
+        const subTotal = baseAmount - settledDeduction - lastSlotDeduction - adminFeeDeduction
+        
+        // Subtract additional cost from sub-total
+        const calculatedAmount = subTotal - additionalCostAmount
+        
+        return sum + calculatedAmount
+      }, 0)
+
+      return totalPayouts
+    } catch (error) {
+      console.error('Error in getTotalPayouts:', error)
+      return 0
+    }
   },
 
   // Optimized method to get groups with members
@@ -359,7 +447,7 @@ export const dashboardService = {
   },
 
   // Calculate dashboard statistics
-  async calculateDashboardStats(groupsData: any[], paymentStats: any, overduePayments: any, selectedMonth?: string): Promise<DashboardStats> {
+  async calculateDashboardStats(groupsData: any[], paymentStats: any, overduePayments: any, selectedMonth?: string, totalPayouts?: number): Promise<DashboardStats> {
     try {
       let totalExpected = 0
       const uniqueMemberIds = new Set()
@@ -408,6 +496,7 @@ export const dashboardService = {
         totalPending,
         totalOverdue,
         totalAmountDue,
+        totalPayouts: totalPayouts || 0,
         activeGroups: groupsData?.length || 0,
         totalMembers,
         activeMembers
@@ -423,6 +512,7 @@ export const dashboardService = {
         totalPending: 0,
         totalOverdue: 0,
         totalAmountDue: 0,
+        totalPayouts: 0,
         activeGroups: 0,
         totalMembers: 0,
         activeMembers: 0

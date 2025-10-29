@@ -910,6 +910,39 @@
     width: 28px;
     height: 28px;
   }
+
+  /* Make groups page actions wrap on smaller screens */
+  .groups-page-actions {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .groups-csv-import-section {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .groups-create-group-section {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* Make sorting controls wrap on smaller screens */
+  .groups-sorting-controls {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .groups-sorting-controls-left {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .view-mode-toggle {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 480px) {
@@ -937,5 +970,60 @@
   .groups-action-btn svg {
     width: 14px;
     height: 14px;
+  }
+
+  /* Hide Members, Payment Deadline, and Progress columns in table view */
+  .groups-table th:nth-child(2),
+  .groups-table th:nth-child(5),
+  .groups-table th:nth-child(6),
+  .group-members-cell,
+  .group-deadline-cell,
+  .group-progress-cell {
+    display: none;
+  }
+
+  /* Make buttons in CSV section stack vertically on very small screens */
+  .groups-csv-import-section {
+    flex-direction: column;
+  }
+
+  .groups-csv-import-section .groups-btn,
+  .groups-create-group-section .groups-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Make sorting controls more compact on very small screens */
+  .groups-sorting-controls-left {
+    padding: 12px;
+  }
+
+  .groups-sort-label {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .groups-sort-btn {
+    flex: 1 1 auto;
+    min-width: fit-content;
+  }
+
+  .view-mode-toggle {
+    padding: 12px;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .groups-toggle-label {
+    text-align: center;
+  }
+
+  .groups-toggle-switch {
+    width: 100%;
+  }
+
+  .groups-toggle-btn {
+    flex: 1;
   }
 }

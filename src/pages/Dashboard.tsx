@@ -228,11 +228,11 @@ const Dashboard = () => {
       color: 'danger'
     },
     {
-      title: t('dashboard.stats.overduePayments'),
-      value: `SRD ${(dashboardData?.stats?.totalOverdue || 0).toLocaleString()}`,
-      change: (dashboardData?.stats?.totalOverdue || 0) > 0 ? `+${dashboardData?.stats?.totalOverdue || 0}` : '0',
-      icon: XCircle, // Changed from AlertTriangle to XCircle
-      color: 'warning'
+      title: t('dashboard.stats.totalPayouts'),
+      value: `SRD ${(dashboardData?.stats?.totalPayouts || 0).toLocaleString()}`,
+      change: (dashboardData?.stats?.totalPayouts || 0) > 0 ? `+${dashboardData?.stats?.totalPayouts || 0}` : '0',
+      icon: DollarSign, // Changed from XCircle to DollarSign for payouts
+      color: 'success'
     },
     {
       title: t('dashboard.stats.activeGroups'),

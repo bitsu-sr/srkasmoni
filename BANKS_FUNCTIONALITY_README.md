@@ -37,6 +37,29 @@ CREATE TABLE banks (
 );
 ```
 
+### Existing Banks
+1.	**Bank Name**: Cooperatieve Spaar- en Kredietbank GODO
+	- **Short Name**: GODO
+	- **Bank Address**: Keizerstraatno. 139 - 143, P.O.B. 2674, Paramaribo, Suriname
+2.	**Bank Name**: De Surinaamsche Bank
+	- **Short Name**: DSB
+	- **Bank Address**: Henck Arronstraat 26 - 30, Paramaribo, Suriname
+3.	**Bank Name**: Finabank
+	- **Short Name**: Finabank
+	- **Bank Address**: Dr. Sophie Redmondstraat 59 – 61, Paramaribo, Suriname
+4.	**Bank Name**: Hakrinbank
+	- **Short Name**: Hakrinbank
+	- **Bank Address**: Dr. Sophie Redmondstraat 11 - 13, Paramaribo, Suriname
+5.	**Bank Name**: Republic Bank
+	- **Short Name**: Republic
+	- **Bank Address**: Kerkplein 1, Paramaribo, Suriname
+6.	**Bank Name**: Surinaamse Postspaarbank
+	- **Short Name**: SPSB
+	- **Bank Address**: Knuffelsgracht 10 - 14, Paramaribo, Suriname
+7.	**Bank Name**: Suriname VolkscredietbankO
+	- **Short Name**: VCB
+	- **Bank Address**: Waterkant 104, Paramaribo, Suriname
+	
 ### Key Features
 - **Unique Constraints**: Both name and short_name are unique to prevent duplicates
 - **Automatic Timestamps**: created_at and updated_at are automatically managed

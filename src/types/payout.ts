@@ -1,5 +1,6 @@
 export interface Payout {
   id: number
+  slotId: number // References group_members.id - the actual slot
   memberName: string
   memberId: number
   nationalId: string
@@ -26,6 +27,7 @@ export interface Payout {
 // New interface for payout details modal data
 export interface PayoutDetails {
   id?: number
+  slotId: number // References group_members.id - the actual slot
   groupId: number
   memberId: number
   monthlyAmount: number
