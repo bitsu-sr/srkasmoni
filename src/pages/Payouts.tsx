@@ -1136,13 +1136,14 @@ const Payouts: React.FC = () => {
                 )}
               </th>
               <th className="payouts-table-header-cell col-bank">{t('payouts.table.bank')}</th>
+              <th className="payouts-table-header-cell col-saved">Saved</th>
               <th className="payouts-table-header-cell col-actions">{t('payouts.table.actions')}</th>
             </tr>
           </thead>
           <tbody className="payouts-table-body">
             {currentPayouts.length === 0 ? (
               <tr className="payouts-table-empty-row">
-                <td colSpan={7} className="payouts-table-empty-cell">
+                <td colSpan={8} className="payouts-table-empty-cell">
                   <div className="payouts-empty-state">
                     <p>{t('payouts.empty.title').replace('{month}', selectedMonthDisplay)}</p>
                     <p>{t('payouts.empty.desc')}</p>
@@ -1186,6 +1187,19 @@ const Payouts: React.FC = () => {
                       <span className="payouts-account-number">
                         ****{payout.accountNumber.slice(-4)}
                       </span>
+                    </div>
+                  </td>
+                  <td className="payouts-table-cell col-saved">
+                    <div className="payouts-save-status">
+                      {payout.id > 0 ? (
+                        <div className="payouts-save-indicator payouts-save-indicator-saved" title="Saved to database">
+                          <CheckCircle size={20} />
+                        </div>
+                      ) : (
+                        <div className="payouts-save-indicator payouts-save-indicator-unsaved" title="Not saved to database">
+                          <XCircle size={20} />
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="payouts-table-cell col-actions payment-table-actions">

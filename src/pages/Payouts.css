@@ -616,6 +616,28 @@
   font-family: monospace;
 }
 
+/* Save Status Indicators */
+.payouts-save-status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.payouts-save-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+}
+
+.payouts-save-indicator-saved {
+  color: #16a34a; /* Excel green */
+}
+
+.payouts-save-indicator-unsaved {
+  color: #dc2626; /* Red */
+}
+
 /* Actions */
 .payouts-actions {
   display: flex;
@@ -1419,10 +1441,12 @@
   .payouts-table-header .col-to-receive,
   .payouts-table-header .col-bank,
   .payouts-table-header .col-status,
+  .payouts-table-header .col-saved,
   .payouts-table-body .col-total,
   .payouts-table-body .col-to-receive,
   .payouts-table-body .col-bank,
-  .payouts-table-body .col-status {
+  .payouts-table-body .col-status,
+  .payouts-table-body .col-saved {
     display: none;
   }
   
