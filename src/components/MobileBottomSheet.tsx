@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, FileText, DollarSign, Shield, MessageSquare, X } from 'lucide-react'
+import { Home, Users, UserCheck, CreditCard, BarChart3, Settings, FileText, DollarSign, Shield, MessageSquare, X, Wallet } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import './MobileBottomSheet.css'
 
@@ -58,6 +58,7 @@ const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({ isOpen, onClose }
   // Add admin-only items
   if (isAdmin()) {
     secondaryItems.push(
+      { path: '/financial-management', label: 'Financial Management', icon: Wallet },
       { path: '/user-management', label: 'User Management', icon: Shield },
       { path: '/login-logs', label: 'Login Logs', icon: Shield },
       { path: '/settings', label: 'Settings', icon: Settings }
