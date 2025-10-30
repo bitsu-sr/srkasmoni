@@ -27,6 +27,7 @@ import UserProfile from './pages/UserProfile'
 import Messaging from './pages/Messaging'
 import LoginLogs from './pages/LoginLogs'
 import PaymentModalTest from './pages/PaymentModalTest'
+import FinancialManagement from './pages/FinancialManagement'
 
 import './App.css'
 
@@ -127,6 +128,11 @@ function App() {
                   <Route path="/payment-modal-test" element={
                     <ProtectedRoute requireAdmin={true}>
                       <PaymentModalTest />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/financial-management" element={
+                    <ProtectedRoute requireAdmin={true}>
+                      <FinancialManagement />
                     </ProtectedRoute>
                   } />
 

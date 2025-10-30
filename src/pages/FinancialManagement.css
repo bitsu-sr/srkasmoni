@@ -1,0 +1,680 @@
+/* Financial Management Page Styles */
+/* All classnames prefixed with financial-mgmt- to avoid conflicts */
+
+.financial-mgmt-page {
+  min-height: 100vh;
+}
+
+.financial-mgmt-page-header {
+  background: var(--secondary);
+  padding: 40px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.financial-mgmt-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.financial-mgmt-page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.financial-mgmt-page-subtitle {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.financial-mgmt-unauthorized {
+  max-width: 600px;
+  margin: 100px auto;
+  text-align: center;
+  padding: 40px;
+  background: var(--secondary);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.financial-mgmt-unauthorized h2 {
+  color: #ef4444;
+  margin-bottom: 16px;
+}
+
+.financial-mgmt-unauthorized p {
+  color: var(--text-secondary);
+}
+
+/* Month Filter Section */
+.financial-mgmt-month-filter-section {
+  margin: 30px 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.financial-mgmt-filter-note {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Stats Summary Cards - Matching Payments page styling */
+.financial-mgmt-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.financial-mgmt-summary-card {
+  background: var(--secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.financial-mgmt-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.financial-mgmt-summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--secondary);
+  flex-shrink: 0;
+}
+
+.financial-mgmt-summary-icon-total-assets {
+  background: #107c41; /* Excel green theme color */
+}
+
+.financial-mgmt-summary-icon-total-cash {
+  background: #10b981;
+}
+
+.financial-mgmt-summary-icon-bank1 {
+  background: #3b82f6;
+}
+
+.financial-mgmt-summary-icon-bank2 {
+  background: #8b5cf6;
+}
+
+.financial-mgmt-summary-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.financial-mgmt-summary-content h3 {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.financial-mgmt-summary-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.financial-mgmt-summary-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Section Styling */
+.financial-mgmt-section {
+  background: var(--secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px var(--shadow);
+  border: 1px solid var(--border);
+  margin-bottom: 30px;
+}
+
+.financial-mgmt-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.financial-mgmt-section-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.financial-mgmt-total-cash {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.financial-mgmt-total-amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #107c41; /* Excel green */
+  margin-left: 8px;
+}
+
+.financial-mgmt-month-badge {
+  background: #107c41;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Button Styling */
+.financial-mgmt-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.financial-mgmt-btn-save {
+  background: #107c41; /* Excel green */
+  color: white;
+}
+
+.financial-mgmt-btn-save:hover:not(:disabled) {
+  background: #0d5f32;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 124, 65, 0.3);
+}
+
+.financial-mgmt-btn-save:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Cash Table Styling - Matching screenshot design */
+.financial-mgmt-cash-table-wrapper {
+  overflow-x: auto;
+}
+
+.financial-mgmt-cash-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.financial-mgmt-cash-table thead {
+  background: var(--border);
+}
+
+.financial-mgmt-cash-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--border);
+}
+
+.financial-mgmt-cash-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s ease;
+}
+
+.financial-mgmt-cash-table tbody tr:hover {
+  background: rgba(16, 124, 65, 0.05);
+}
+
+.financial-mgmt-cash-table td {
+  padding: 16px;
+}
+
+.financial-mgmt-denomination-label {
+  display: inline-block;
+  background: #f97316; /* Orange color from screenshot */
+  color: white;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  min-width: 100px;
+  text-align: center;
+}
+
+.financial-mgmt-quantity-input {
+  width: 120px;
+  padding: 10px 16px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  background: var(--secondary);
+  color: var(--text);
+  transition: border-color 0.2s ease;
+}
+
+.financial-mgmt-quantity-input:focus {
+  outline: none;
+  border-color: #107c41;
+  box-shadow: 0 0 0 3px rgba(16, 124, 65, 0.1);
+}
+
+.financial-mgmt-quantity-input::-webkit-inner-spin-button,
+.financial-mgmt-quantity-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.financial-mgmt-subtotal {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #107c41; /* Excel green */
+}
+
+/* Bank Table Styling */
+.financial-mgmt-bank-table-wrapper {
+  overflow-x: auto;
+}
+
+.financial-mgmt-bank-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.financial-mgmt-bank-table thead {
+  background: var(--border);
+}
+
+.financial-mgmt-bank-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--border);
+}
+
+.financial-mgmt-bank-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s ease;
+}
+
+.financial-mgmt-bank-table tbody tr:hover {
+  background: rgba(16, 124, 65, 0.05);
+}
+
+.financial-mgmt-bank-table td {
+  padding: 16px;
+}
+
+.financial-mgmt-bank-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.financial-mgmt-bank-name svg {
+  color: #3b82f6;
+}
+
+.financial-mgmt-bank-amount {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #107c41; /* Excel green */
+}
+
+.financial-mgmt-bank-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Loading State */
+.financial-mgmt-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.financial-mgmt-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border);
+  border-top-color: #107c41;
+  border-radius: 50%;
+  animation: financial-mgmt-spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes financial-mgmt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Empty State */
+.financial-mgmt-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.financial-mgmt-empty-state svg {
+  color: var(--text-secondary);
+  opacity: 0.5;
+  margin-bottom: 16px;
+}
+
+.financial-mgmt-empty-state p {
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Outgoing Money Styles */
+.financial-mgmt-section-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 4px 0 0 0;
+}
+
+.financial-mgmt-outgoing-amount {
+  color: #ef4444 !important; /* Red for outgoing money */
+}
+
+/* Flow Cards */
+.financial-mgmt-flow-card {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.financial-mgmt-flow-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.financial-mgmt-outgoing-card {
+  border-left: 4px solid #ef4444;
+}
+
+.financial-mgmt-flow-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fee2e2;
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+.financial-mgmt-flow-content {
+  flex: 1;
+}
+
+.financial-mgmt-flow-content h3 {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.financial-mgmt-flow-amount {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #ef4444;
+  margin-bottom: 4px;
+}
+
+.financial-mgmt-flow-count {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Cash Flow Summary Styles */
+.financial-mgmt-flow-section {
+  background: linear-gradient(135deg, var(--secondary) 0%, rgba(16, 124, 65, 0.05) 100%);
+}
+
+.financial-mgmt-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.financial-mgmt-cashflow-card {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.financial-mgmt-cashflow-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+.financial-mgmt-cashflow-card h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.financial-mgmt-flow-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.financial-mgmt-flow-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.financial-mgmt-flow-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.financial-mgmt-flow-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+
+.financial-mgmt-flow-count-small {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.financial-mgmt-incoming-row .financial-mgmt-flow-value {
+  color: #10b981; /* Green for incoming */
+}
+
+.financial-mgmt-incoming-row svg {
+  color: #10b981;
+}
+
+.financial-mgmt-outgoing-row .financial-mgmt-flow-value {
+  color: #ef4444; /* Red for outgoing */
+}
+
+.financial-mgmt-outgoing-row svg {
+  color: #ef4444;
+}
+
+.financial-mgmt-flow-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+.financial-mgmt-net-row {
+  padding: 12px 0;
+  border-top: 2px solid var(--border);
+  margin-top: 4px;
+}
+
+.financial-mgmt-flow-value-net {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: right;
+  grid-column: 2 / -1;
+}
+
+.financial-mgmt-net-row.positive .financial-mgmt-flow-value-net {
+  color: #107c41; /* Excel green for positive */
+}
+
+.financial-mgmt-net-row.positive svg {
+  color: #107c41;
+}
+
+.financial-mgmt-net-row.negative .financial-mgmt-flow-value-net {
+  color: #ef4444; /* Red for negative */
+}
+
+.financial-mgmt-net-row.negative svg {
+  color: #ef4444;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .financial-mgmt-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .financial-mgmt-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .financial-mgmt-cash-table th:first-child,
+  .financial-mgmt-cash-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--secondary);
+    z-index: 1;
+  }
+
+  .financial-mgmt-denomination-label {
+    min-width: 80px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+  }
+
+  .financial-mgmt-quantity-input {
+    width: 80px;
+    padding: 8px 12px;
+  }
+
+  .financial-mgmt-summary-value {
+    font-size: 1.25rem;
+  }
+
+  .financial-mgmt-total-amount {
+    font-size: 1.25rem;
+  }
+
+  .financial-mgmt-flow-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .financial-mgmt-flow-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .financial-mgmt-flow-value,
+  .financial-mgmt-flow-count-small {
+    text-align: left;
+  }
+
+  .financial-mgmt-flow-value-net {
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .financial-mgmt-page-title {
+    font-size: 1.5rem;
+  }
+
+  .financial-mgmt-section {
+    padding: 16px;
+  }
+
+  .financial-mgmt-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
