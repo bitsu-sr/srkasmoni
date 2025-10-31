@@ -1162,6 +1162,15 @@
   font-weight: 600;
   color: #111827;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dashboard-payout-indicator {
+  color: #107c41; /* Excel green */
+  flex-shrink: 0;
 }
 
 .dashboard-slots-progress {

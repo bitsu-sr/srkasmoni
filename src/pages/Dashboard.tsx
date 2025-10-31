@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Plus, Users, UserPlus, TrendingUp, DollarSign, Clock, CheckCircle, XCircle, ArrowRight, AlertTriangle } from 'lucide-react'
+import { Plus, Users, UserPlus, TrendingUp, DollarSign, Clock, CheckCircle, XCircle, ArrowRight, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useCachedDashboard } from '../hooks/useCachedQueries'
 import { useLanguage } from '../contexts/LanguageContext'
 import { dashboardService } from '../services/dashboardService'
@@ -354,7 +354,12 @@ const Dashboard = () => {
               .map((group: any) => (
               <div key={group.id} className="dashboard-table-row">
                 <div className="dashboard-table-cell">
-                  <div className="dashboard-group-name">{group.name}</div>
+                  <div className="dashboard-group-name">
+                    {group.name}
+                    {group.hasCompletedPayouts && (
+                      <CheckCircle2 size={18} className="dashboard-payout-indicator" title="Payout completed for this group" />
+                    )}
+                  </div>
                      </div>
                 <div className="dashboard-table-cell">
                   SRD {group.monthlyAmount?.toLocaleString()}

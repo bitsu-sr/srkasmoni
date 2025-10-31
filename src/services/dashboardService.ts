@@ -26,6 +26,7 @@ export interface DashboardGroup {
   slotsPaid: number
   slotsTotal: number
   created_at: string
+  hasCompletedPayouts?: boolean
 }
 
 export interface DashboardData {
@@ -113,6 +114,7 @@ export const dashboardService = {
         paymentStats,
         overduePayments,
         totalPayouts,
+        completedPayouts,
         recentPayments,
         recentMembers,
         recentGroups
@@ -125,6 +127,8 @@ export const dashboardService = {
         this.getCurrentMonthOverduePayments(selectedMonth, activeGroupIds),
         // Get total payouts for selected month
         this.getTotalPayouts(selectedMonth),
+        // Get completed payouts for selected month to check which groups have them
+        supabase.from('payouts').select('group_id').eq('payout_month', currentMonth).eq('payout', true),
         // Get recent payments (limited to 5)
         this.getRecentPaymentsOptimized(5),
         // Get recent members (limited to 3)
@@ -137,7 +141,7 @@ export const dashboardService = {
       const stats = await this.calculateDashboardStats(activeGroups, paymentStats, overduePayments, selectedMonth, totalPayouts)
       
       // Transform groups data (using only active groups)
-      const groups = this.transformDashboardGroups(activeGroups, paymentStats, paymentsData, selectedMonth)
+      const groups = this.transformDashboardGroups(activeGroups, paymentStats, paymentsData, selectedMonth, completedPayouts.data)
 
       // Create the result object first
       const result = {
@@ -597,12 +601,22 @@ export const dashboardService = {
   },
 
   // Transform groups data for dashboard
-  transformDashboardGroups(groupsData: any[], _paymentStats: any, paymentsData: any[], selectedMonth?: string): DashboardGroup[] {
+  transformDashboardGroups(groupsData: any[], _paymentStats: any, paymentsData: any[], selectedMonth?: string, completedPayouts?: any[]): DashboardGroup[] {
     try {
       const currentMonth = selectedMonth || new Date().toISOString().split('T')[0].substring(0, 7)
 
       if (!groupsData || !Array.isArray(groupsData)) {
         return []
+      }
+
+      // Create a set of group IDs that have completed payouts
+      const groupsWithCompletedPayouts = new Set<number>()
+      if (completedPayouts && Array.isArray(completedPayouts)) {
+        completedPayouts.forEach((payout: any) => {
+          if (payout.group_id) {
+            groupsWithCompletedPayouts.add(payout.group_id)
+          }
+        })
       }
 
       // groupsData already contains only active groups, so no need to filter again
@@ -650,7 +664,8 @@ export const dashboardService = {
           nextRecipient,
           slotsPaid,
           slotsTotal,
-          created_at: group.created_at
+          created_at: group.created_at,
+          hasCompletedPayouts: groupsWithCompletedPayouts.has(group.id)
         }
       })
 
