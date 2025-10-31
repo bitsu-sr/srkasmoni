@@ -357,7 +357,9 @@ const Dashboard = () => {
                   <div className="dashboard-group-name">
                     {group.name}
                     {group.hasCompletedPayouts && (
-                      <CheckCircle2 size={18} className="dashboard-payout-indicator" title="Payout completed for this group" />
+                      <span title="Payout completed for this group">
+                        <CheckCircle2 size={18} className="dashboard-payout-indicator" />
+                      </span>
                     )}
                   </div>
                      </div>
