@@ -1,7 +1,9 @@
 import { Search, Filter, Trash2 } from 'lucide-react'
 import type { PaymentFilters as PaymentFiltersType } from '../types/payment'
 import type { Group } from '../types/member'
+import type { Bank } from '../types/bank'
 import { groupService } from '../services/groupService'
+import { bankService } from '../services/bankService'
 import { useState, useEffect, useCallback } from 'react'
 import './PaymentFilters.css'
 
@@ -13,6 +15,7 @@ interface PaymentFiltersProps {
 
 const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFiltersProps) => {
   const [groups, setGroups] = useState<Group[]>([])
+  const [banks, setBanks] = useState<Bank[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
   const [searchValue, setSearchValue] = useState(filters.search || '')
   // Store the timeout ID to be able to cancel it
@@ -20,6 +23,7 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
 
   useEffect(() => {
     loadGroups()
+    loadBanks()
   }, [])
 
   // Cleanup timeout on unmount
@@ -42,6 +46,15 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
       setGroups(groupsData)
     } catch (error) {
       console.error('Failed to load groups:', error)
+    }
+  }
+
+  const loadBanks = async () => {
+    try {
+      const banksData = await bankService.getAllBanks()
+      setBanks(banksData)
+    } catch (error) {
+      console.error('Failed to load banks:', error)
     }
   }
 
@@ -186,6 +199,22 @@ const PaymentFilters = ({ filters, onFiltersChange, onClearFilters }: PaymentFil
                 {groups.map(group => (
                   <option key={group.id} value={group.id}>
                     {group.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Receiver's Bank Filter */}
+            <div className="payment-filters-group">
+              <label>Receiver's Bank</label>
+              <select
+                value={filters.receiverBankId || ''}
+                onChange={(e) => handleFilterChange('receiverBankId', Number(e.target.value) || undefined)}
+              >
+                <option value="">All Banks</option>
+                {banks.map(bank => (
+                  <option key={bank.id} value={bank.id}>
+                    {bank.shortName}
                   </option>
                 ))}
               </select>

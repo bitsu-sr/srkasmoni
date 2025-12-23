@@ -244,7 +244,7 @@ const Payments = () => {
       
       setIsModalOpen(false)
       setEditingPayment(null)
-      await loadPayments()
+      await loadPayments(filters)
       await loadStats()
     } catch (error) {
       console.error('Error saving payment:', error)
@@ -263,7 +263,7 @@ const Payments = () => {
       setIsDeleting(true)
       await paymentService.deletePayment(deletingPayment.id)
       setDeletingPayment(null)
-      await loadPayments()
+      await loadPayments(filters)
       await loadStats()
     } catch (error) {
       console.error('Error deleting payment:', error)

@@ -51,6 +51,9 @@ export const paymentService = {
     if (filters?.paymentMonth) {
       query = query.eq('payment_month', filters.paymentMonth)
     }
+    if (filters?.receiverBankId) {
+      query = query.eq('receiver_bank_id', filters.receiverBankId)
+    }
 
     const { data, error } = await query
 
