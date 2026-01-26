@@ -1,4 +1,4 @@
-import { Edit, Trash2, Eye } from 'lucide-react'
+import { Edit, Trash2, Eye, FileText } from 'lucide-react'
 import type { Payment } from '../types/payment'
 import { paymentSlotService } from '../services/paymentSlotService'
 import { formatPaymentDate } from '../utils/dateUtils'
@@ -11,10 +11,11 @@ interface PaymentTableProps {
   onDelete?: (payment: Payment) => void
   onView: (payment: Payment) => void
   onStatusUpdate?: (updatedPayment: Payment) => void
+  onGenerateReceipt?: (payment: Payment) => void
   canManagePayments?: boolean
 }
 
-const PaymentTable = ({ payments, onEdit, onDelete, onView, onStatusUpdate, canManagePayments = false }: PaymentTableProps) => {
+const PaymentTable = ({ payments, onEdit, onDelete, onView, onStatusUpdate, onGenerateReceipt, canManagePayments = false }: PaymentTableProps) => {
 
 
 
@@ -90,6 +91,15 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView, onStatusUpdate, canM
                   >
                     <Eye size={16} />
                   </button>
+                  {onGenerateReceipt && (
+                    <button
+                      className="payment-table-action-btn payment-table-action-receipt"
+                      onClick={() => onGenerateReceipt(payment)}
+                      title="Generate Receipt"
+                    >
+                      <FileText size={16} />
+                    </button>
+                  )}
                   {canManagePayments && onEdit && (
                     <button
                       className="payment-table-action-btn payment-table-action-edit"

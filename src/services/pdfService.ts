@@ -3,6 +3,7 @@ import pdfMake from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { Payout } from '../types/payout';
 import { PaymentSlot } from '../types/paymentSlot';
+import { Payment } from '../types/payment';
 
 // Type for unpaid slots with member and group info
 interface UnpaidSlot extends PaymentSlot {
@@ -425,6 +426,221 @@ export const pdfService = {
 
         const pdfDoc = pdfMake.createPdf(docDefinition);
         pdfDoc.download(`payments-due-export-${exportType}-${new Date().toISOString().split('T')[0]}.pdf`);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  },
+
+  // Generate proof of payment receipt
+  async generatePaymentReceiptPDF(payment: Payment): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Fetch logo and convert to base64
+        let logoBase64 = '';
+        try {
+          const response = await fetch('https://srkasmoni.vercel.app/logokasmonigr.png');
+          const blob = await response.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          logoBase64 = btoa(String.fromCharCode(...uint8Array));
+        } catch (error) {
+          console.warn('Could not fetch logo, proceeding without it:', error);
+        }
+
+        const content: any[] = [];
+        
+        // Add logo if available
+        if (logoBase64) {
+          content.push({
+            columns: [
+              {
+                image: `data:image/png;base64,${logoBase64}`,
+                width: 50,
+                height: 50
+              },
+              {
+                text: '',
+                width: '*'
+              }
+            ],
+            margin: [0, 0, 0, 20]
+          });
+        }
+
+        // Title
+        content.push({
+          text: 'PROOF OF PAYMENT RECEIPT',
+          fontSize: 20,
+          bold: true,
+          alignment: 'center',
+          color: '#217346',
+          margin: [0, 0, 0, 20]
+        });
+
+        // Receipt details
+        const receiptDate = new Date().toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
+        });
+
+        content.push({
+          text: `Receipt Date: ${receiptDate}`,
+          fontSize: 10,
+          alignment: 'right',
+          margin: [0, 0, 0, 10]
+        });
+
+        // Payment Information Section
+        content.push({
+          text: 'Payment Information',
+          fontSize: 14,
+          bold: true,
+          color: '#217346',
+          margin: [0, 20, 0, 10]
+        });
+
+        const paymentInfo = [
+          ['Payment ID:', `#${payment.id}`],
+          ['Payment Date:', new Date(payment.paymentDate).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+          })],
+          ['Payment Month:', new Date(payment.paymentMonth + '-01').toLocaleDateString('en-GB', {
+            month: 'long',
+            year: 'numeric'
+          })],
+          ['Amount:', `SRD ${payment.amount.toLocaleString()}.00`],
+          ['Payment Method:', payment.paymentMethod === 'cash' ? 'Cash' : 'Bank Transfer'],
+          ['Status:', payment.status.charAt(0).toUpperCase() + payment.status.slice(1).replace('_', ' ')]
+        ];
+
+        if (payment.paymentMethod === 'bank_transfer') {
+          if (payment.senderBank?.name) {
+            paymentInfo.push(['Sender Bank:', payment.senderBank.name]);
+          }
+          if (payment.receiverBank?.name) {
+            paymentInfo.push(['Receiver Bank:', payment.receiverBank.name]);
+          }
+        }
+
+        if (payment.fineAmount > 0) {
+          paymentInfo.push(['Fine Amount:', `SRD ${payment.fineAmount.toLocaleString()}.00`]);
+        }
+
+        if (payment.notes) {
+          paymentInfo.push(['Notes:', payment.notes]);
+        }
+
+        content.push({
+          table: {
+            widths: ['*', '*'],
+            body: paymentInfo.map(row => [
+              { text: row[0], bold: true },
+              { text: row[1] as string }
+            ])
+          },
+          layout: {
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5,
+            hLineColor: () => '#cccccc',
+            vLineColor: () => '#cccccc'
+          },
+          margin: [0, 0, 0, 20]
+        });
+
+        // Member Information Section
+        if (payment.member) {
+          content.push({
+            text: 'Member Information',
+            fontSize: 14,
+            bold: true,
+            color: '#217346',
+            margin: [0, 20, 0, 10]
+          });
+
+          const memberInfo = [
+            ['Name:', `${payment.member.firstName} ${payment.member.lastName}`]
+          ];
+
+          content.push({
+            table: {
+              widths: ['*', '*'],
+              body: memberInfo.map(row => [
+                { text: row[0], bold: true },
+                { text: row[1] }
+              ])
+            },
+            layout: {
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0.5,
+              hLineColor: () => '#cccccc',
+              vLineColor: () => '#cccccc'
+            },
+            margin: [0, 0, 0, 20]
+          });
+        }
+
+        // Group Information Section
+        if (payment.group) {
+          content.push({
+            text: 'Group Information',
+            fontSize: 14,
+            bold: true,
+            color: '#217346',
+            margin: [0, 20, 0, 10]
+          });
+
+          const groupInfo = [
+            ['Group Name:', payment.group.name],
+            ['Monthly Amount:', `SRD ${payment.group.monthlyAmount.toLocaleString()}.00`]
+          ];
+
+          content.push({
+            table: {
+              widths: ['*', '*'],
+              body: groupInfo.map(row => [
+                { text: row[0], bold: true },
+                { text: row[1] }
+              ])
+            },
+            layout: {
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0.5,
+              hLineColor: () => '#cccccc',
+              vLineColor: () => '#cccccc'
+            },
+            margin: [0, 0, 0, 20]
+          });
+        }
+
+        // Footer note
+        content.push({
+          text: 'This is a computer-generated receipt. No signature is required.',
+          fontSize: 9,
+          italics: true,
+          alignment: 'center',
+          color: '#666666',
+          margin: [0, 30, 0, 0]
+        });
+
+        const docDefinition: TDocumentDefinitions = {
+          pageSize: 'A4',
+          pageMargins: [40, 60, 40, 60],
+          content,
+          styles: {
+            header: { fontSize: 14, bold: true, color: '#217346' }
+          }
+        };
+
+        const memberName = payment.member 
+          ? `${payment.member.firstName}_${payment.member.lastName}`.replace(/\s+/g, '_')
+          : 'Payment';
+        const pdfDoc = pdfMake.createPdf(docDefinition);
+        pdfDoc.download(`payment_receipt_${memberName}_${payment.id}_${new Date().toISOString().split('T')[0]}.pdf`);
         resolve();
       } catch (error) {
         reject(error);

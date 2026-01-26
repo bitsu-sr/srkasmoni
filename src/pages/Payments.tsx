@@ -8,6 +8,8 @@ import PaymentTable from '../components/PaymentTable'
 import PaymentFilters from '../components/PaymentFilters'
 import PaymentPieChart from '../components/PaymentPieChart'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
+import ReceiptConfirmationModal from '../components/ReceiptConfirmationModal'
+import { pdfService } from '../services/pdfService'
 import { useAuth } from '../contexts/AuthContext'
 import './Payments.css'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -51,7 +53,19 @@ const Payments = () => {
   const [deletingPayment, setDeletingPayment] = useState<Payment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [viewingPayment, setViewingPayment] = useState<Payment | null>(null)
-  const [selectedWorkflow, setSelectedWorkflow] = useState<'group-first' | 'member-first' | 'multi-group'>('member-first')
+  const [selectedWorkflow, setSelectedWorkflow] = useState<'group-first' | 'member-first' | 'multi-group'>(() => {
+    // Load workflow from localStorage, default to 'member-first'
+    if (typeof window !== 'undefined') {
+      const savedWorkflow = localStorage.getItem('payments-selected-workflow') as 'group-first' | 'member-first' | 'multi-group' | null
+      if (savedWorkflow && ['group-first', 'member-first', 'multi-group'].includes(savedWorkflow)) {
+        return savedWorkflow
+      }
+    }
+    return 'member-first'
+  })
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [savedPayment, setSavedPayment] = useState<Payment | null>(null)
+  const [isGeneratingReceipt, setIsGeneratingReceipt] = useState(false)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -190,6 +204,15 @@ const Payments = () => {
 
   const handleWorkflowChange = (newWorkflow: 'group-first' | 'member-first' | 'multi-group') => {
     setSelectedWorkflow(newWorkflow)
+    // Save workflow to localStorage
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('payments-selected-workflow', newWorkflow)
+      }
+    } catch (e) {
+      // Ignore storage errors
+      console.warn('Failed to save workflow preference:', e)
+    }
   }
 
   const handleEditPayment = (payment: Payment) => {
@@ -233,12 +256,20 @@ const Payments = () => {
       // Check if this is a multi-group workflow refresh call (has memberId but no groupId/slotId)
       const isMultiGroupRefresh = paymentData.memberId > 0 && paymentData.groupId === 0 && paymentData.slotId === ''
       
+      let savedPaymentId: number | null = null
+      
       if (!isMultiGroupRefresh) {
         // Only save if this is not a multi-group refresh call
         if (editingPayment) {
           await paymentService.updatePayment(editingPayment.id, paymentData)
         } else {
-          await paymentService.createPayment(paymentData)
+          const newPayment = await paymentService.createPayment(paymentData)
+          // The createPayment returns raw database data (snake_case), extract the ID
+          // Supabase returns the inserted row with 'id' field
+          // Handle both transformed Payment object and raw database response
+          if (typeof newPayment === 'object' && newPayment !== null) {
+            savedPaymentId = (newPayment as any).id || null
+          }
         }
       }
       
@@ -246,6 +277,31 @@ const Payments = () => {
       setEditingPayment(null)
       await loadPayments(filters)
       await loadStats()
+      
+      // Show receipt confirmation modal only for new payments (not edits)
+      // Wait a bit for the modal to close before showing receipt modal
+      if (!editingPayment && savedPaymentId && !isMultiGroupRefresh) {
+        console.log('Preparing to show receipt modal for payment ID:', savedPaymentId)
+        // Use setTimeout to ensure the payment modal is closed before showing receipt modal
+        setTimeout(async () => {
+          try {
+            const fullPayment = await paymentService.getPayment(savedPaymentId!)
+            console.log('Fetched payment for receipt:', fullPayment)
+            if (fullPayment) {
+              setSavedPayment(fullPayment)
+              setShowReceiptModal(true)
+              console.log('Receipt modal should now be visible')
+            } else {
+              console.warn('Payment not found for receipt generation, ID:', savedPaymentId)
+            }
+          } catch (error) {
+            console.error('Error fetching payment for receipt:', error)
+            // Continue without showing receipt modal if there's an error
+          }
+        }, 300) // Increased delay to ensure modal is fully closed
+      } else {
+        console.log('Receipt modal conditions not met:', { editingPayment, savedPaymentId, isMultiGroupRefresh })
+      }
     } catch (error) {
       console.error('Error saving payment:', error)
     }
@@ -269,6 +325,40 @@ const Payments = () => {
       console.error('Error deleting payment:', error)
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleGenerateReceipt = async () => {
+    if (!savedPayment) return
+
+    try {
+      setIsGeneratingReceipt(true)
+      await pdfService.generatePaymentReceiptPDF(savedPayment)
+      setShowReceiptModal(false)
+      setSavedPayment(null)
+    } catch (error) {
+      console.error('Error generating receipt:', error)
+      alert('Failed to generate receipt. Please try again.')
+    } finally {
+      setIsGeneratingReceipt(false)
+    }
+  }
+
+  const handleGenerateReceiptFromTable = async (payment: Payment) => {
+    try {
+      // Fetch the full payment with all relations if not already loaded
+      const fullPayment = payment.member && payment.group 
+        ? payment 
+        : await paymentService.getPayment(payment.id)
+      
+      if (fullPayment) {
+        await pdfService.generatePaymentReceiptPDF(fullPayment)
+      } else {
+        alert('Unable to generate receipt. Payment data not available.')
+      }
+    } catch (error) {
+      console.error('Error generating receipt:', error)
+      alert('Failed to generate receipt. Please try again.')
     }
   }
 
@@ -467,6 +557,7 @@ const Payments = () => {
               onDelete={canManagePayments ? handleDeletePayment : undefined}
               onView={handleViewPayment}
               onStatusUpdate={handleStatusUpdate}
+              onGenerateReceipt={handleGenerateReceiptFromTable}
               canManagePayments={canManagePayments}
             />
           )}
@@ -626,6 +717,17 @@ const Payments = () => {
           isLoading={isDeleting}
         />
       )}
+
+      {/* Receipt Confirmation Modal */}
+      <ReceiptConfirmationModal
+        isOpen={showReceiptModal}
+        onClose={() => {
+          setShowReceiptModal(false)
+          setSavedPayment(null)
+        }}
+        onConfirm={handleGenerateReceipt}
+        isLoading={isGeneratingReceipt}
+      />
     </div>
   )
 }

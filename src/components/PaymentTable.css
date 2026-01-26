@@ -121,6 +121,11 @@
   color: #ef4444;
 }
 
+.payment-table-action-receipt:hover {
+  background: #e8f5e8;
+  color: #217346;
+}
+
 /* Empty State */
 .payment-table-empty-state {
   padding: 60px 20px;

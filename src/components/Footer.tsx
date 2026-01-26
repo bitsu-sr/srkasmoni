@@ -1,5 +1,6 @@
 import './Footer.css'
 import { useLanguage } from '../contexts/LanguageContext'
+import packageJson from '../../package.json'
 
 const Footer = () => {
   const { t } = useLanguage()
@@ -9,6 +10,7 @@ const Footer = () => {
         <div className="footer-left">
           <p className="copyright">© 2024 Sranan Kasmoni. {t('footer.rights')}</p>
           <p className="email">{t('footer.email')}: bitsu.sr@gmail.com</p>
+          <p className="version">Version: {packageJson.version}</p>
         </div>
         <div className="footer-right">
           <a 
