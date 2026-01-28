@@ -276,6 +276,99 @@ export const payoutService = {
       console.error('Error updating payout calculated amount:', error)
       return false
     }
+  },
+  // Get group members with their payment status for a specific month
+  async getGroupMembersWithPaymentStatus(groupId: number, month: string): Promise<Array<{
+    groupMemberId: number
+    memberId: number
+    memberName: string
+    paymentStatus: 'not_paid' | 'pending' | 'received' | 'settled'
+    paymentDate?: string
+    paymentAmount?: number
+  }>> {
+    try {
+      const { data: groupMembers, error: membersError } = await supabase
+        .from('group_members')
+        .select(`
+          id,
+          member_id,
+          members!inner(
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .eq('group_id', groupId)
+
+      if (membersError) {
+        throw new Error(`Failed to fetch group members: ${membersError.message}`)
+      }
+
+      if (!groupMembers || groupMembers.length === 0) {
+        return []
+      }
+
+      const memberIds = groupMembers.map((gm: any) => gm.member_id)
+
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('member_id, status, payment_date, amount')
+        .eq('group_id', groupId)
+        .eq('payment_month', month)
+        .in('member_id', memberIds)
+        .in('status', ['received', 'settled', 'pending'])
+
+      if (paymentsError) {
+        console.warn('Error fetching payments:', paymentsError)
+      }
+
+      const paymentMap = new Map<number, { status: string; paymentDate?: string; paymentAmount?: number }>()
+      payments?.forEach((payment: any) => {
+        const existing = paymentMap.get(payment.member_id)
+        if (
+          !existing ||
+          (payment.status === 'settled' && existing.status !== 'settled') ||
+          (payment.status === 'received' && existing.status === 'pending') ||
+          (payment.status === existing.status && payment.payment_date > (existing.paymentDate || ''))
+        ) {
+          paymentMap.set(payment.member_id, {
+            status: payment.status,
+            paymentDate: payment.payment_date,
+            paymentAmount: payment.amount
+          })
+        }
+      })
+
+      const result: Array<{
+        groupMemberId: number
+        memberId: number
+        memberName: string
+        paymentStatus: 'not_paid' | 'pending' | 'received' | 'settled'
+        paymentDate?: string
+        paymentAmount?: number
+      }> = groupMembers.map((gm: any) => {
+        const member = gm.members
+        const paymentInfo = paymentMap.get(member.id)
+
+        return {
+          groupMemberId: gm.id,
+          memberId: member.id,
+          memberName: `${member.first_name} ${member.last_name}`,
+          paymentStatus: (paymentInfo?.status as 'not_paid' | 'pending' | 'received' | 'settled') || 'not_paid',
+          paymentDate: paymentInfo?.paymentDate,
+          paymentAmount: paymentInfo?.paymentAmount
+        }
+      })
+
+      result.sort((a: typeof result[number], b: typeof result[number]) =>
+        a.memberName.localeCompare(b.memberName)
+      )
+
+      return result
+    } catch (error) {
+      console.error('Error getting group members with payment status:', error)
+      throw error
+    }
   }
 }
 

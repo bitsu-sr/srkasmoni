@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Grid, List } from 'lucide-react'
+import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Grid, List, FileText } from 'lucide-react'
 import { Member, MemberFormData, MemberFilters } from '../types/member'
 import { memberService } from '../services/memberService'
 import { getAllMembersWithStatus, getMemberWithStatus, MemberWithStatus } from '../services/memberStatusService'
@@ -10,6 +10,8 @@ import MemberModal from '../components/MemberModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import MonthFilter from '../components/MonthFilter'
 import { useMonthFilter } from '../hooks/useMonthFilter'
+import { pdfService } from '../services/pdfService'
+import { groupService } from '../services/groupService'
 import './Members.css'
 import { useLanguage } from '../contexts/LanguageContext'
 
@@ -309,6 +311,95 @@ const Members = () => {
 
   const handleViewDetails = (memberId: number) => {
     navigate(`/members/${memberId}`)
+  }
+
+  const handleGenerateContract = async (member: MemberWithStatus) => {
+    try {
+      // Get member slots with group information
+      const slots = await memberService.getMemberSlotsDetails(member.id)
+      
+      if (slots.length === 0) {
+        alert('Deze deelnemer heeft geen slots in groepen. Voeg eerst een slot toe aan een groep.')
+        return
+      }
+
+      // If member has multiple slots, let user choose which one to generate contract for
+      if (slots.length > 1) {
+        const slotOptions = slots.map((slot, index) => 
+          `${index + 1}. ${slot.groupName} - ${slot.assignedMonthFormatted}`
+        ).join('\n')
+        
+        const selected = prompt(
+          `Deze deelnemer heeft meerdere slots. Kies welke contract u wilt genereren:\n\n${slotOptions}\n\nVoer het nummer in (1-${slots.length}):`
+        )
+        
+        if (!selected) return
+        
+        const slotIndex = parseInt(selected) - 1
+        if (isNaN(slotIndex) || slotIndex < 0 || slotIndex >= slots.length) {
+          alert('Ongeldige keuze.')
+          return
+        }
+        
+        await generateContractForSlot(member, slots[slotIndex])
+      } else {
+        // Only one slot, generate contract directly
+        await generateContractForSlot(member, slots[0])
+      }
+    } catch (error) {
+      console.error('Error generating contract:', error)
+      alert('Er is een fout opgetreden bij het genereren van het contract.')
+    }
+  }
+
+  const generateContractForSlot = async (member: MemberWithStatus, slot: {
+    id: number
+    groupId: number
+    groupName: string
+    monthlyAmount: number
+    assignedMonthDate: string
+  }) => {
+    try {
+      // Get full group information
+      const group = await groupService.getGroupById(slot.groupId)
+      
+      if (!group) {
+        alert('Groep informatie niet gevonden.')
+        return
+      }
+
+      // Generate contract
+      await pdfService.generateContractPDF(
+        {
+          id: member.id,
+          firstName: member.firstName,
+          lastName: member.lastName,
+          birthDate: member.birthDate,
+          birthplace: member.birthplace,
+          address: member.address,
+          city: member.city,
+          phone: member.phone,
+          email: member.email,
+          nationalId: member.nationalId,
+          occupation: member.occupation,
+          bankName: member.bankName,
+          accountNumber: member.accountNumber
+        },
+        {
+          id: group.id,
+          name: group.name,
+          monthlyAmount: group.monthlyAmount,
+          startDate: group.startDate,
+          endDate: group.endDate,
+          duration: group.duration,
+          maxMembers: group.maxMembers
+        },
+        slot.assignedMonthDate
+      )
+    } catch (error) {
+      console.error('Error generating contract:', error)
+      alert('Er is een fout opgetreden bij het genereren van het contract.')
+    }
   }
 
   // Helper function to format month display
@@ -781,6 +872,14 @@ const Members = () => {
                               <Eye size={16} />
                               {t('members.btn.viewDetails')}
                             </button>
+                            <button 
+                              className="members-btn members-btn-secondary"
+                              onClick={() => handleGenerateContract(member)}
+                              title="Contract genereren"
+                            >
+                              <FileText size={16} />
+                              Contract
+                            </button>
                             {isAdmin && (
                               <button 
                                 className="members-btn members-btn-danger"
@@ -838,6 +937,13 @@ const Members = () => {
                                     title="View Details"
                                   >
                                     <Eye size={16} />
+                                  </button>
+                                  <button 
+                                    className="members-table-action-btn"
+                                    onClick={() => handleGenerateContract(member)}
+                                    title="Contract genereren"
+                                  >
+                                    <FileText size={16} />
                                   </button>
                                   {isAdmin && (
                                     <button 
@@ -933,6 +1039,14 @@ const Members = () => {
                               <Eye size={16} />
                               {t('members.btn.viewDetails')}
                             </button>
+                            <button 
+                              className="members-btn members-btn-secondary"
+                              onClick={() => handleGenerateContract(member)}
+                              title="Contract genereren"
+                            >
+                              <FileText size={16} />
+                              Contract
+                            </button>
                             {isAdmin && (
                               <button 
                                 className="members-btn members-btn-danger"
@@ -990,6 +1104,13 @@ const Members = () => {
                                     title="View Details"
                                   >
                                     <Eye size={16} />
+                                  </button>
+                                  <button 
+                                    className="members-table-action-btn"
+                                    onClick={() => handleGenerateContract(member)}
+                                    title="Contract genereren"
+                                  >
+                                    <FileText size={16} />
                                   </button>
                                   {isAdmin && (
                                     <button 

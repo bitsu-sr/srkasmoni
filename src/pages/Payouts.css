@@ -567,6 +567,18 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
+.payouts-status-clickable {
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.payouts-status-clickable:hover {
+  transform: translateY(-1px);
+}
+
 /* Special styling for fraction format status - applied via class */
 .payouts-status-badge.fraction-format {
   font-family: 'Courier New', monospace;
@@ -1355,6 +1367,182 @@
   height: 18px;
 }
 
+/* Member Payment Status Modal */
+.payouts-member-status-modal {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-width: 860px;
+  width: 90%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.payouts-member-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+.payouts-member-status-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+
+.payouts-member-status-subtitle {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.payouts-member-status-close-btn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #64748b;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.payouts-member-status-close-btn:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+
+.payouts-member-status-close-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.payouts-member-status-body {
+  padding: 0 1.5rem 1.5rem;
+  overflow-y: auto;
+}
+
+.payouts-member-status-table-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.payouts-member-status-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+}
+
+.payouts-member-status-table thead {
+  background-color: #f8fafc;
+}
+
+.payouts-member-status-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.payouts-member-status-table td {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.9375rem;
+}
+
+.payouts-member-status-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.payouts-member-status-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.payouts-member-status-status {
+  text-align: left;
+}
+
+.payouts-member-status-date {
+  color: #64748b;
+}
+
+.payouts-member-status-amount {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.payouts-member-status-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  background-color: #ffffff;
+}
+
+.payouts-member-status-close-action {
+  background-color: #f8fafc;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.payouts-member-status-close-action:hover {
+  background-color: #e2e8f0;
+  border-color: #cbd5f5;
+}
+
+.payouts-member-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.payouts-member-status-badge--settled {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.payouts-member-status-badge--received {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.payouts-member-status-badge--pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.payouts-member-status-badge--not-paid {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
 .payouts-loading-icon {
   width: 16px;
   height: 16px;
@@ -1614,4 +1802,3 @@
     background-color: white !important;
   }
 }
-

@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Users, UserPlus, TrendingUp, DollarSign, Clock, CheckCircle, XCircle, ArrowRight, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { useCachedDashboard } from '../hooks/useCachedQueries'
 import { useLanguage } from '../contexts/LanguageContext'
 import { dashboardService } from '../services/dashboardService'
+import { payoutService } from '../services/payoutService'
 import { useMonthFilter } from '../hooks/useMonthFilter'
 import MonthFilter from '../components/MonthFilter'
 import './Dashboard.css'
@@ -74,6 +76,19 @@ const Dashboard = () => {
   const navigate = useNavigate()
   const { t } = useLanguage()
   const { selectedMonth, updateMonth } = useMonthFilter('dashboard')
+
+  // Member payment status modal state
+  const [isMemberStatusModalOpen, setIsMemberStatusModalOpen] = useState(false)
+  const [selectedGroupName, setSelectedGroupName] = useState('')
+  const [memberPaymentStatuses, setMemberPaymentStatuses] = useState<Array<{
+    groupMemberId: number
+    memberId: number
+    memberName: string
+    paymentStatus: 'not_paid' | 'pending' | 'received' | 'settled'
+    paymentDate?: string
+    paymentAmount?: number
+  }>>([])
+  const [loadingMemberStatuses, setLoadingMemberStatuses] = useState(false)
   
   // Navigation handlers
   const handleAddPayment = () => {
@@ -82,6 +97,25 @@ const Dashboard = () => {
 
   const handleCreateGroup = () => {
     navigate('/groups')
+  }
+
+  const handleGroupRowClick = async (group: any) => {
+    setSelectedGroupName(group.name)
+    setIsMemberStatusModalOpen(true)
+    setLoadingMemberStatuses(true)
+
+    try {
+      const members = await payoutService.getGroupMembersWithPaymentStatus(
+        group.id,
+        selectedMonth
+      )
+      setMemberPaymentStatuses(members)
+    } catch (error) {
+      console.error('Error fetching member payment statuses:', error)
+      setMemberPaymentStatuses([])
+    } finally {
+      setLoadingMemberStatuses(false)
+    }
   }
   
   // Redirect regular users to My Dashboard
@@ -352,7 +386,19 @@ const Dashboard = () => {
             {dashboardData?.groups
               .sort((a: any, b: any) => a.name.localeCompare(b.name))
               .map((group: any) => (
-              <div key={group.id} className="dashboard-table-row">
+              <div
+                key={group.id}
+                className="dashboard-table-row dashboard-table-row-clickable"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleGroupRowClick(group)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    handleGroupRowClick(group)
+                  }
+                }}
+              >
                 <div className="dashboard-table-cell">
                   <div className="dashboard-group-name">
                     {group.name}
@@ -390,7 +436,7 @@ const Dashboard = () => {
             {(!dashboardData?.groups || dashboardData.groups.length === 0) && (
               <div className="dashboard-table-empty">No active groups</div>
              )}
-           </div>
+          </div>
          </div>
 
         {/* Recent Activity */}
@@ -522,7 +568,105 @@ const Dashboard = () => {
                        </div>
                      </div>
       </div>
+      {/* Member Payment Status Modal */}
+      {isMemberStatusModalOpen && (
+        <div className="dashboard-member-status-overlay" onClick={() => setIsMemberStatusModalOpen(false)}>
+          <div className="dashboard-member-status-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="dashboard-member-status-header">
+              <div>
+                <h2 className="dashboard-member-status-title">Member Payment Status</h2>
+                <p className="dashboard-member-status-subtitle">
+                  {selectedGroupName} - {formatMonthYear(selectedMonth)}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="dashboard-member-status-close-btn"
+                onClick={() => setIsMemberStatusModalOpen(false)}
+                aria-label="Close member payment status"
+              >
+                <XCircle className="dashboard-member-status-close-icon" />
+              </button>
+            </div>
+
+            <div className="dashboard-member-status-body">
+              {loadingMemberStatuses ? (
+                <div className="dashboard-member-status-loading">
+                  <div className="dashboard-member-status-spinner"></div>
+                  <p>Loading member payment statuses...</p>
+                </div>
+              ) : memberPaymentStatuses.length === 0 ? (
+                <div className="dashboard-member-status-empty">
+                  <p>No members found for this group.</p>
+                </div>
+              ) : (
+                <div className="dashboard-member-status-table-wrapper">
+                  <table className="dashboard-member-status-table">
+                    <thead>
+                      <tr>
+                        <th>Member Name</th>
+                        <th>Payment Status</th>
+                        <th>Payment Date</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {memberPaymentStatuses.map((member) => (
+                        <tr key={member.groupMemberId}>
+                          <td className="dashboard-member-status-name">{member.memberName}</td>
+                          <td className="dashboard-member-status-status">
+                            {getDashboardMemberStatusBadge(member.paymentStatus)}
+                          </td>
+                          <td className="dashboard-member-status-date">
+                            {member.paymentDate
+                              ? new Date(member.paymentDate).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })
+                              : '-'}
+                          </td>
+                          <td className="dashboard-member-status-amount">
+                            {member.paymentAmount ? `SRD ${member.paymentAmount.toLocaleString()}` : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="dashboard-member-status-footer">
+              <button
+                type="button"
+                className="dashboard-member-status-close-action"
+                onClick={() => setIsMemberStatusModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+const getDashboardMemberStatusBadge = (status: 'not_paid' | 'pending' | 'received' | 'settled') => {
+  const badgeMap = {
+    settled: { label: 'SETTLED', className: 'dashboard-member-status-badge--settled' },
+    received: { label: 'RECEIVED', className: 'dashboard-member-status-badge--received' },
+    pending: { label: 'PENDING', className: 'dashboard-member-status-badge--pending' },
+    not_paid: { label: 'NOT PAID', className: 'dashboard-member-status-badge--not-paid' }
+  }
+
+  const badge = badgeMap[status] || badgeMap.not_paid
+
+  return (
+    <span className={`dashboard-member-status-badge ${badge.className}`}>
+      {badge.label}
+    </span>
   )
 }
 

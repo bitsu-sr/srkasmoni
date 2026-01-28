@@ -99,6 +99,19 @@ const Payouts: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false)
   const [selectedPayoutMonth, setSelectedPayoutMonth] = useState('')
 
+  // Member payment status modal state
+  const [isMemberStatusModalOpen, setIsMemberStatusModalOpen] = useState(false)
+  const [selectedGroupName, setSelectedGroupName] = useState('')
+  const [memberPaymentStatuses, setMemberPaymentStatuses] = useState<Array<{
+    groupMemberId: number
+    memberId: number
+    memberName: string
+    paymentStatus: 'not_paid' | 'pending' | 'received' | 'settled'
+    paymentDate?: string
+    paymentAmount?: number
+  }>>([])
+  const [loadingMemberStatuses, setLoadingMemberStatuses] = useState(false)
+
   // Banks and payment info state
   const [banks, setBanks] = useState<Bank[]>([])
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'cash'>('bank_transfer')
@@ -432,8 +445,28 @@ const Payouts: React.FC = () => {
 
 
 
+  // Handle status badge click
+  const handleStatusClick = async (payout: Payout) => {
+    setSelectedGroupName(payout.groupName)
+    setIsMemberStatusModalOpen(true)
+    setLoadingMemberStatuses(true)
+
+    try {
+      const members = await payoutService.getGroupMembersWithPaymentStatus(
+        payout.groupId,
+        payout.receiveMonth
+      )
+      setMemberPaymentStatuses(members)
+    } catch (error) {
+      console.error('Error fetching member payment statuses:', error)
+      setMemberPaymentStatuses([])
+    } finally {
+      setLoadingMemberStatuses(false)
+    }
+  }
+
   // Get status badge
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, payout: Payout) => {
     // Check if status is in fraction format (e.g., "7/12")
     if (status.includes('/')) {
       const [received, total] = status.split('/').map(Number)
@@ -452,9 +485,14 @@ const Payouts: React.FC = () => {
       }
       
       return (
-        <span className={`payouts-status-badge ${statusClass} fraction-format`}>
+        <button
+          type="button"
+          className={`payouts-status-badge ${statusClass} fraction-format payouts-status-clickable`}
+          onClick={() => handleStatusClick(payout)}
+          title="Click to view member payment status"
+        >
           {status}
-        </span>
+        </button>
       )
     }
     
@@ -474,9 +512,14 @@ const Payouts: React.FC = () => {
     }
     
     return (
-      <span className={`payouts-status-badge ${statusClasses[status as keyof typeof statusClasses] || 'payout-status-pending'}`}>
+      <button
+        type="button"
+        className={`payouts-status-badge ${statusClasses[status as keyof typeof statusClasses] || 'payout-status-pending'} payouts-status-clickable`}
+        onClick={() => handleStatusClick(payout)}
+        title="Click to view member payment status"
+      >
         {statusLabels[status as keyof typeof statusLabels] || status}
-      </span>
+      </button>
     )
   }
 
@@ -1179,7 +1222,7 @@ const Payouts: React.FC = () => {
                     </div>
                   </td>
                   <td className="payouts-table-cell col-status">
-                    {getStatusBadge(payout.status)}
+                    {getStatusBadge(payout.status, payout)}
                   </td>
                   <td className="payouts-table-cell col-bank">
                     <div className="payouts-bank-info">
@@ -1623,7 +1666,106 @@ const Payouts: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Member Payment Status Modal */}
+      {isMemberStatusModalOpen && (
+        <div className="payouts-modal-overlay" onClick={() => setIsMemberStatusModalOpen(false)}>
+          <div className="payouts-member-status-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="payouts-member-status-header">
+              <div className="payouts-member-status-header-text">
+                <h2 className="payouts-member-status-title">Member Payment Status</h2>
+                <p className="payouts-member-status-subtitle">
+                  {selectedGroupName} - {selectedMonthDisplay}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMemberStatusModalOpen(false)}
+                className="payouts-member-status-close-btn"
+                aria-label="Close member payment status"
+              >
+                <XCircle className="payouts-member-status-close-icon" />
+              </button>
+            </div>
+
+            <div className="payouts-member-status-body">
+              {loadingMemberStatuses ? (
+                <div className="payouts-loading">
+                  <div className="payouts-spinner"></div>
+                  <p>Loading member payment statuses...</p>
+                </div>
+              ) : memberPaymentStatuses.length === 0 ? (
+                <div className="payouts-empty-state">
+                  <p>No members found for this group.</p>
+                </div>
+              ) : (
+                <div className="payouts-member-status-table-wrapper">
+                  <table className="payouts-member-status-table">
+                    <thead>
+                      <tr>
+                        <th>Member Name</th>
+                        <th>Payment Status</th>
+                        <th>Payment Date</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {memberPaymentStatuses.map((member) => (
+                        <tr key={member.groupMemberId}>
+                          <td className="payouts-member-status-name">{member.memberName}</td>
+                          <td className="payouts-member-status-status">
+                            {getMemberPaymentStatusBadge(member.paymentStatus)}
+                          </td>
+                          <td className="payouts-member-status-date">
+                            {member.paymentDate
+                              ? new Date(member.paymentDate).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })
+                              : '-'}
+                          </td>
+                          <td className="payouts-member-status-amount">
+                            {member.paymentAmount ? `SRD ${member.paymentAmount.toLocaleString()}` : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="payouts-member-status-footer">
+              <button
+                type="button"
+                onClick={() => setIsMemberStatusModalOpen(false)}
+                className="payouts-member-status-close-action"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+const getMemberPaymentStatusBadge = (status: 'not_paid' | 'pending' | 'received' | 'settled') => {
+  const badgeMap = {
+    settled: { label: 'SETTLED', className: 'payouts-member-status-badge--settled' },
+    received: { label: 'RECEIVED', className: 'payouts-member-status-badge--received' },
+    pending: { label: 'PENDING', className: 'payouts-member-status-badge--pending' },
+    not_paid: { label: 'NOT PAID', className: 'payouts-member-status-badge--not-paid' }
+  }
+
+  const badge = badgeMap[status] || badgeMap.not_paid
+
+  return (
+    <span className={`payouts-member-status-badge ${badge.className}`}>
+      {badge.label}
+    </span>
   )
 }
 
