@@ -39,6 +39,7 @@ const Payouts: React.FC = () => {
   // Auth state
   const { user } = useAuth()
   const isAdminUser = user?.role === 'admin' || user?.role === 'super_user'
+  const canManagePayoutDetails = user?.role === 'admin'
   const [currentUserMemberId, setCurrentUserMemberId] = useState<number | null>(null)
   
   // State for data
@@ -624,6 +625,9 @@ const Payouts: React.FC = () => {
   }
 
   const handleViewDetails = async (payout: Payout) => {
+    if (!canManagePayoutDetails) {
+      return
+    }
     setSelectedPayout(payout)
     setIsDetailsModalOpen(true)
     
@@ -1247,13 +1251,15 @@ const Payouts: React.FC = () => {
                   </td>
                   <td className="payouts-table-cell col-actions payment-table-actions">
                     <div className="payment-table-actions">
-                      <button 
-                        onClick={() => handleViewDetails(payout)}
-                        className="payment-table-action-btn payment-table-action-view"
-                        title="View Details"
-                      >
-                        <Eye size={16} />
-                      </button>
+                      {canManagePayoutDetails && (
+                        <button 
+                          onClick={() => handleViewDetails(payout)}
+                          className="payment-table-action-btn payment-table-action-view"
+                          title="View Details"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleDownload(payout)}
                         className="payment-table-action-btn payment-table-action-edit"
@@ -1331,7 +1337,7 @@ const Payouts: React.FC = () => {
       )}
 
       {/* Payout Details Modal */}
-      {isDetailsModalOpen && selectedPayout && (
+      {canManagePayoutDetails && isDetailsModalOpen && selectedPayout && (
         <div className="payouts-modal-overlay">
           <div className="payouts-modal">
             <div className={`payouts-modal-header ${isPayoutPaid ? 'payouts-modal-header-paid' : ''}`}>

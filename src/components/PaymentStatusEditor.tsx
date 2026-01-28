@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Check, X, Edit3 } from 'lucide-react'
 import type { Payment } from '../types/payment'
 import { paymentService } from '../services/paymentService'
+import { getDefaultPaymentNote } from '../utils/paymentNotes'
 import './PaymentStatusEditor.css'
 
 interface PaymentStatusEditorProps {
@@ -71,14 +72,17 @@ const PaymentStatusEditor = ({ payment, onStatusUpdate, canEdit }: PaymentStatus
 
     try {
       setIsUpdating(true)
+      const defaultNote = getDefaultPaymentNote(selectedStatus)
       await paymentService.updatePayment(payment.id, {
-        status: selectedStatus
+        status: selectedStatus,
+        notes: defaultNote
       })
       
       // Create updated payment object with new status
       const updatedPayment: Payment = {
         ...payment,
         status: selectedStatus,
+        notes: defaultNote,
         updatedAt: new Date().toISOString()
       }
       

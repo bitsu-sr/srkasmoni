@@ -10,6 +10,7 @@ import { bankService } from '../services/bankService'
 import { paymentService } from '../services/paymentService'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import { getDefaultPaymentNote } from '../utils/paymentNotes'
 import './PaymentModal.css'
 
 interface PaymentModalProps {
@@ -40,7 +41,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      status: 'pending',
      senderBankId: undefined,
      receiverBankId: undefined,
-     notes: ''
+     notes: getDefaultPaymentNote('pending')
    })
 
   const [groups, setGroups] = useState<Group[]>([])
@@ -83,14 +84,14 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
     paymentDate: string
     paymentMonth: string
     paymentMethod: 'bank_transfer' | 'cash'
-    status: 'pending' | 'received' | 'settled'
+    status: 'pending' | 'received' | 'settled' | 'not_paid'
     notes: string
   }>({
     paymentDate: new Date().toLocaleDateString('en-CA'),
     paymentMonth: new Date().toISOString().substring(0, 7),
     paymentMethod: 'bank_transfer',
     status: 'pending',
-    notes: ''
+    notes: getDefaultPaymentNote('pending')
   })
 
   // Helper function to check if a group is active for a given payment month
@@ -159,10 +160,17 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
        
        if (prefillData) {
          // Handle prefill data (e.g., from Payments Due page)
-         setFormData(prev => ({
-           ...prev,
-           ...prefillData
-         }))
+         setFormData(prev => {
+           const next = {
+             ...prev,
+             ...prefillData
+           }
+           const status = (prefillData.status || next.status) as Payment['status']
+           if (!prefillData.notes || !prefillData.notes.trim()) {
+             next.notes = getDefaultPaymentNote(status)
+           }
+           return next
+         })
          
                   // Load cascading data if groupId is provided
          if (prefillData.groupId) {
@@ -877,7 +885,16 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
    }
 
   const handleInputChange = (field: keyof PaymentFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const next = { ...prev, [field]: value }
+      if (field === 'status') {
+        const shouldResetNotes = !prev.notes || !prev.notes.trim() || prev.notes === getDefaultPaymentNote(prev.status)
+        if (shouldResetNotes) {
+          next.notes = getDefaultPaymentNote(value as Payment['status'])
+        }
+      }
+      return next
+    })
     
     // Clear validation errors
     if (errors[field]) {
@@ -886,7 +903,16 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
 
     // Sync with multi-group payment info when in multi-group workflow
     if (workflow === 'multi-group') {
-      setMultiGroupPaymentInfo(prev => ({ ...prev, [field]: value }))
+      setMultiGroupPaymentInfo(prev => {
+        const next = { ...prev, [field]: value }
+        if (field === 'status') {
+          const shouldResetNotes = !prev.notes || !prev.notes.trim() || prev.notes === getDefaultPaymentNote(prev.status as Payment['status'])
+          if (shouldResetNotes) {
+            next.notes = getDefaultPaymentNote(value as Payment['status'])
+          }
+        }
+        return next
+      })
     }
 
     // Handle cascading updates based on workflow
