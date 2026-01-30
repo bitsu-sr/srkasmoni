@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Search, Filter, User, Users, Activity, Clock, Eye, FileText, RefreshCw } from 'lucide-react'
 import { paymentLogService } from '../services/paymentLogService'
 import { useAuth } from '../contexts/AuthContext'
+import MonthFilter from '../components/MonthFilter'
+import { useMonthFilter } from '../hooks/useMonthFilter'
 
 import type { PaymentLogFilters } from '../types/paymentLog'
 import './PaymentLogs.css'
@@ -21,6 +23,13 @@ const PaymentLogs: React.FC = () => {
   const [selectedAction, setSelectedAction] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  // Month filter state (persisted)
+  const { selectedMonth, updateMonth } = useMonthFilter('payment-logs')
 
 
   
@@ -28,18 +37,23 @@ const PaymentLogs: React.FC = () => {
   const { data: paymentLogs, isLoading, error, refetch } = useQuery({
     queryKey: ['paymentLogs', filters, canViewAllRecords, user?.username],
     queryFn: () => {
+      const normalizedFilters = {
+        ...filters,
+        startDate: normalizeDateString(filters.startDate),
+        endDate: normalizeDateString(filters.endDate)
+      }
       // If user can view all records, pass filters as is
       if (canViewAllRecords) {
-        return paymentLogService.getPaymentLogs(filters)
+        return paymentLogService.getPaymentLogs(normalizedFilters)
       }
       
       // If normal user, get their member ID and filter by it
       if (user?.username) {
         // First get the member ID for this user
-        return paymentLogService.getPaymentLogsByUserEmail(user.email || '', filters)
+        return paymentLogService.getPaymentLogsByUserEmail(user.email || '', normalizedFilters)
       }
       
-      return paymentLogService.getPaymentLogs(filters)
+      return paymentLogService.getPaymentLogs(normalizedFilters)
     },
     staleTime: 0, // Always fetch fresh data
     refetchOnWindowFocus: true, // Refetch when window regains focus
@@ -90,11 +104,19 @@ const PaymentLogs: React.FC = () => {
 
   // Apply filters
   const applyFilters = () => {
+    const normalizedStartDate = normalizeDateString(startDate)
+    const normalizedEndDate = normalizeDateString(endDate)
+    if (normalizedStartDate && normalizedStartDate !== startDate) {
+      setStartDate(normalizedStartDate)
+    }
+    if (normalizedEndDate && normalizedEndDate !== endDate) {
+      setEndDate(normalizedEndDate)
+    }
     setFilters(prev => ({
       ...prev,
       action: selectedAction || undefined,
-      startDate: startDate || undefined,
-      endDate: endDate || undefined
+      startDate: normalizedStartDate || undefined,
+      endDate: normalizedEndDate || undefined
     }))
   }
 
@@ -159,6 +181,58 @@ const PaymentLogs: React.FC = () => {
         {status.replace('_', ' ').toUpperCase()}
       </span>
     )
+  }
+
+  const getMonthRange = (month: string) => {
+    const [year, monthNumber] = month.split('-').map(Number)
+    const start = `${year}-${String(monthNumber).padStart(2, '0')}-01`
+    const endDay = new Date(year, monthNumber + 1, 0).getDate()
+    const end = `${year}-${String(monthNumber).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
+    return { start, end }
+  }
+
+  const normalizeDateString = (dateString?: string) => {
+    if (!dateString) return undefined
+    const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (!match) return dateString
+    const year = Number(match[1])
+    const month = Number(match[2])
+    const day = Number(match[3])
+    if (!year || !month || !day) return dateString
+    const safeMonth = Math.min(Math.max(month, 1), 12)
+    const lastDay = new Date(year, safeMonth, 0).getDate()
+    const safeDay = Math.min(Math.max(day, 1), lastDay)
+    return `${year}-${String(safeMonth).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`
+  }
+
+  useEffect(() => {
+    const { start, end } = getMonthRange(selectedMonth)
+    const normalizedStart = normalizeDateString(start) as string
+    const normalizedEnd = normalizeDateString(end) as string
+    setStartDate(normalizedStart)
+    setEndDate(normalizedEnd)
+    setFilters(prev => ({
+      ...prev,
+      startDate: normalizedStart,
+      endDate: normalizedEnd
+    }))
+    setCurrentPage(1)
+  }, [selectedMonth])
+
+  // Pagination calculations
+  const totalLogs = paymentLogs?.length || 0
+  const totalPages = Math.ceil(totalLogs / pageSize)
+  const startIndex = (currentPage - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const currentPageData = paymentLogs ? paymentLogs.slice(startIndex, endIndex) : []
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize)
+    setCurrentPage(1)
   }
 
   if (error) {
@@ -301,6 +375,12 @@ const PaymentLogs: React.FC = () => {
 
       {/* Search and Filters */}
       <div className="search-filters-section">
+        <div className="payment-logs-month-filter">
+          <MonthFilter
+            selectedMonth={selectedMonth}
+            onMonthChange={updateMonth}
+          />
+        </div>
         {!canViewAllRecords && (
           <div className="search-notice">
             <span>🔍 Search within your payment logs only</span>
@@ -373,6 +453,38 @@ const PaymentLogs: React.FC = () => {
         )}
       </div>
 
+      {/* Pagination Info */}
+      {paymentLogs && paymentLogs.length > 0 && (
+        <div className="payment-logs-pagination-section">
+          <div className="payment-logs-page-size-selector">
+            <label htmlFor="payment-logs-page-size">Rows per page</label>
+            <select
+              id="payment-logs-page-size"
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(parseInt(e.target.value, 10))}
+              className="payment-logs-page-size-dropdown"
+            >
+              <option value={10}>10 rows</option>
+              <option value={25}>25 rows</option>
+              <option value={50}>50 rows</option>
+              <option value={100}>100 rows</option>
+            </select>
+          </div>
+          
+          <div className="payment-logs-pagination-info">
+            <div className="payment-logs-pagination-stats">
+              <span className="payment-logs-record-count">
+                Showing {startIndex + 1}-{Math.min(endIndex, totalLogs)} of {totalLogs} logs
+                {!canViewAllRecords && ' (your logs only)'}
+              </span>
+              <span className="payment-logs-page-info">
+                Page {currentPage} of {totalPages || 1}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payment Logs Table */}
       <div className="logs-table-container">
         {isLoading ? (
@@ -393,8 +505,8 @@ const PaymentLogs: React.FC = () => {
             </div>
             
             <div className="table-body">
-                                           {paymentLogs && paymentLogs.length > 0 ? (
-                paymentLogs.map((log) => {
+              {currentPageData.length > 0 ? (
+                currentPageData.map((log) => {
                   const actionDisplay = getActionDisplay(log.action)
                   return (
                     <div key={log.id} className="table-row">
@@ -479,13 +591,102 @@ const PaymentLogs: React.FC = () => {
         )}
       </div>
 
-      {/* Pagination or Load More */}
-      {paymentLogs && paymentLogs.length > 0 && (
-        <div className="pagination-section">
-          <p className="results-count">
-            Showing {paymentLogs.length} payment log{paymentLogs.length !== 1 ? 's' : ''}
-            {!canViewAllRecords && ' (your logs only)'}
-          </p>
+      {/* Pagination Controls */}
+      {paymentLogs && paymentLogs.length > 0 && totalPages > 1 && (
+        <div className="payment-logs-pagination-controls">
+          <button
+            className="payment-logs-btn-pagination payment-logs-btn-secondary"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          
+          <div className="payment-logs-page-numbers">
+            {(() => {
+              const pages = []
+              const maxVisiblePages = 5
+              
+              if (totalPages <= maxVisiblePages) {
+                for (let i = 1; i <= totalPages; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      className={`payment-logs-btn-pagination payment-logs-btn-page ${i === currentPage ? 'payment-logs-active' : ''}`}
+                      onClick={() => handlePageChange(i)}
+                    >
+                      {i}
+                    </button>
+                  )
+                }
+              } else {
+                let startPage = Math.max(1, currentPage - 2)
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+                
+                if (endPage - startPage < maxVisiblePages - 1) {
+                  startPage = Math.max(1, endPage - maxVisiblePages + 1)
+                }
+                
+                if (startPage > 1) {
+                  pages.push(
+                    <button
+                      key={1}
+                      className="payment-logs-btn-pagination payment-logs-btn-page"
+                      onClick={() => handlePageChange(1)}
+                    >
+                      1
+                    </button>
+                  )
+                  
+                  if (startPage > 2) {
+                    pages.push(
+                      <span key="ellipsis1" className="payment-logs-ellipsis">...</span>
+                    )
+                  }
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      className={`payment-logs-btn-pagination payment-logs-btn-page ${i === currentPage ? 'payment-logs-active' : ''}`}
+                      onClick={() => handlePageChange(i)}
+                    >
+                      {i}
+                    </button>
+                  )
+                }
+                
+                if (endPage < totalPages) {
+                  if (endPage < totalPages - 1) {
+                    pages.push(
+                      <span key="ellipsis2" className="payment-logs-ellipsis">...</span>
+                    )
+                  }
+                  
+                  pages.push(
+                    <button
+                      key={totalPages}
+                      className="payment-logs-btn-pagination payment-logs-btn-page"
+                      onClick={() => handlePageChange(totalPages)}
+                    >
+                      {totalPages}
+                    </button>
+                  )
+                }
+              }
+              
+              return pages
+            })()}
+          </div>
+          
+          <button
+            className="payment-logs-btn-pagination payment-logs-btn-secondary"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
         </div>
       )}
     </div>

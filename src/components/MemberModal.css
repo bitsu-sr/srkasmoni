@@ -269,6 +269,32 @@
   }
 }
 
+@media (min-width: 1025px) {
+  .modal-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .member-form {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 0;
+  }
+
+  .form-sections {
+    padding-bottom: 5rem;
+  }
+
+  .modal-actions {
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    padding-bottom: 1.5rem;
+    z-index: 2;
+    box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.06);
+  }
+}
+
 @media (max-width: 480px) {
   .modal-header,
   .member-form {

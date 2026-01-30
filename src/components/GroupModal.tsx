@@ -170,8 +170,8 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content">
         <div className="modal-header">
           <h2>{mode === 'create' ? 'Create New Group' : 'Edit Group'}</h2>
           <button className="modal-close" onClick={onClose}>
