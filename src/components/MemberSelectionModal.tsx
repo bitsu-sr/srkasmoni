@@ -13,6 +13,16 @@ interface MemberSelectionModalProps {
   groupId: number
 }
 
+interface GroupMonthSlot {
+  month: string
+  memberCount: number
+  memberNames: string[]
+  maxPerSlot: number
+  isFull: boolean
+  isReserved: boolean
+  reservedBy?: string
+}
+
 const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({ 
   isOpen, 
   onClose, 
@@ -21,7 +31,7 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
 }) => {
   const [members, setMembers] = useState<Member[]>([])
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
-  const [allMonths, setAllMonths] = useState<{ month: string; isReserved: boolean; reservedBy?: string }[]>([])
+  const [allMonths, setAllMonths] = useState<GroupMonthSlot[]>([])
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -68,8 +78,8 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
     try {
       const months = await groupService.getAllGroupMonths(groupId)
       setAllMonths(months)
-      // Set the first available month as selected
-      const firstAvailable = months.find(m => !m.isReserved)
+      // Set the first slot that can accept another member (not full)
+      const firstAvailable = months.find(m => !m.isFull)
       if (firstAvailable) {
         setSelectedMonth(firstAvailable.month)
       }
@@ -104,22 +114,28 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
         assignedMonthDate: selectedMonth
       })
 
-      // Success! Update the local months state to mark the slot as reserved
-      setAllMonths(prevMonths => 
-        prevMonths.map(month => 
-          month.month === selectedMonth 
-            ? { 
-                ...month, 
-                isReserved: true, 
-                reservedBy: `${selectedMember.firstName} ${selectedMember.lastName}` 
+      // Success! Update the local months state (one more member in this slot)
+      const addedName = `${selectedMember.firstName} ${selectedMember.lastName}`
+      setAllMonths(prevMonths =>
+        prevMonths.map(month =>
+          month.month === selectedMonth
+            ? {
+                ...month,
+                memberCount: month.memberCount + 1,
+                memberNames: [...month.memberNames, addedName],
+                isFull: month.memberCount + 1 >= month.maxPerSlot,
+                isReserved: true,
+                reservedBy: [...month.memberNames, addedName].join(', ')
               }
             : month
         )
       )
 
-      // Reset month selection to the next available month
-      const nextAvailable = allMonths.find(m => !m.isReserved && m.month !== selectedMonth)
-      setSelectedMonth(nextAvailable?.month || '')
+      // Reset month selection: stay on same month if it can still take another, else first available
+      const updatedSlot = allMonths.find(m => m.month === selectedMonth)
+      const sameSlotStillAvailable = updatedSlot && (updatedSlot.memberCount + 1) < updatedSlot.maxPerSlot
+      const nextAvailable = sameSlotStillAvailable ? selectedMonth : (allMonths.find(m => !m.isFull)?.month || '')
+      setSelectedMonth(nextAvailable)
       setSuccessMessage(`Successfully added ${selectedMember.firstName} ${selectedMember.lastName} for ${formatMonthYear(selectedMonth)}`)
       
       // Don't close the modal - let user add more slots or close manually
@@ -134,8 +150,11 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
         if (err.message?.includes('group_id, member_id')) {
           errorMessage = 'This member is already in this group. You can add multiple slots to the same member.'
         } else if (err.message?.includes('group_id, assigned_month_date')) {
-          errorMessage = 'This month is already assigned to another member in this group.'
+          errorMessage = 'This slot is full. Maximum members per slot reached.'
         }
+      }
+      if (err?.message?.includes('maximum number of members')) {
+        errorMessage = err.message
       }
       
       setError(errorMessage)
@@ -214,27 +233,34 @@ const MemberSelectionModal: React.FC<MemberSelectionModalProps> = ({
             </div>
           </div>
 
-          {/* Month Selection */}
+          {/* Month Selection (slot sharing: multiple members per month allowed up to maxPerSlot) */}
           <div className="month-selection-section">
-            <h3>Select Month</h3>
+            <h3>Select Month (slot)</h3>
+            <p className="month-selection-hint">You can add another member to a month that already has one (shared slot).</p>
             <div className="months-grid">
-              {allMonths.map((monthData) => (
-                <button
-                  key={monthData.month}
-                  className={`month-button ${selectedMonth === monthData.month ? 'selected' : ''} ${monthData.isReserved ? 'reserved' : ''}`}
-                  onClick={() => !monthData.isReserved && handleMonthSelect(monthData.month)}
-                  disabled={monthData.isReserved}
-                  title={monthData.isReserved ? `Reserved by ${monthData.reservedBy}` : undefined}
-                >
-                  {formatMonthYear(monthData.month)}
-                  {monthData.isReserved && (
-                    <div className="reserved-indicator">
-                      <span className="reserved-text">Reserved</span>
-                      <span className="reserved-by">{monthData.reservedBy}</span>
-                    </div>
-                  )}
-                </button>
-              ))}
+              {allMonths.map((monthData) => {
+                const canSelect = !monthData.isFull
+                const label = monthData.memberCount === 0
+                  ? 'Available'
+                  : `${monthData.memberNames.join(', ')} (${monthData.memberCount}/${monthData.maxPerSlot})`
+                return (
+                  <button
+                    key={monthData.month}
+                    className={`month-button ${selectedMonth === monthData.month ? 'selected' : ''} ${monthData.memberCount > 0 ? 'has-members' : ''} ${monthData.isFull ? 'full' : ''}`}
+                    onClick={() => canSelect && handleMonthSelect(monthData.month)}
+                    disabled={!canSelect}
+                    title={monthData.memberCount > 0 ? label : 'Available for assignment'}
+                  >
+                    {formatMonthYear(monthData.month)}
+                    {monthData.memberCount > 0 && (
+                      <div className="reserved-indicator">
+                        <span className="reserved-text">{monthData.isFull ? 'Full' : 'Shared'}</span>
+                        <span className="reserved-by">{monthData.memberNames.join(', ')} ({monthData.memberCount}/{monthData.maxPerSlot})</span>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
             </div>
             {allMonths.length === 0 && (
               <div className="no-months">

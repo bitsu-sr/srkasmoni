@@ -380,9 +380,10 @@ const Dashboard = () => {
               <div className="dashboard-header-cell">{t('dashboard.groups.headers.name')}</div>
               <div className="dashboard-header-cell">{t('dashboard.groups.headers.monthlyAmount')}</div>
               <div className="dashboard-header-cell">{t('dashboard.groups.headers.nextRecipient')}</div>
+              <div className="dashboard-header-cell">{t('dashboard.groups.headers.slots')}</div>
               <div className="dashboard-header-cell">{t('dashboard.groups.headers.slotsProgress')}</div>
               <div className="dashboard-header-cell">{t('dashboard.groups.headers.created')}</div>
-                       </div>
+            </div>
             {dashboardData?.groups
               .sort((a: any, b: any) => a.name.localeCompare(b.name))
               .map((group: any) => (
@@ -414,7 +415,16 @@ const Dashboard = () => {
                    </div>
                 <div className="dashboard-table-cell">
                   {group.nextRecipient}
-                     </div>
+                </div>
+                <div className="dashboard-table-cell dashboard-slots-summary">
+                  {group.slotCount != null && group.slotsTotal > group.slotCount ? (
+                    <span title="Shared slots: multiple members per month">
+                      {group.slotsTotal} members, {group.slotCount} slots
+                    </span>
+                  ) : (
+                    <span>{group.slotsTotal} slot{group.slotsTotal !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
                 <div className="dashboard-table-cell">
                   <div className="dashboard-slots-progress">
                     <span className="dashboard-slots-text">

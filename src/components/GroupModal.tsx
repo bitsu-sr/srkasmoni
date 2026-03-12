@@ -37,6 +37,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
     description: '',
     monthlyAmount: 0,
     maxMembers: 1,
+    maxMembersPerSlot: 2,
     duration: 6, // Default to 6 months based on default dates
     startDate: getDefaultStartDate(),
     endDate: getDefaultEndDate(),
@@ -55,6 +56,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
         description: group.description || '',
         monthlyAmount: group.monthlyAmount,
         maxMembers: group.maxMembers,
+        maxMembersPerSlot: group.maxMembersPerSlot ?? 2,
         duration: calculatedDuration as number,
         startDate: group.startDate,
         endDate: group.endDate,
@@ -68,6 +70,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
         description: '',
         monthlyAmount: 0,
         maxMembers: 1,
+        maxMembersPerSlot: 2,
         duration: 6, // Default to 6 months based on default dates
         startDate: getDefaultStartDate(),
         endDate: getDefaultEndDate(),
@@ -92,6 +95,11 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
 
     if (formData.maxMembers < 1) {
       newErrors.maxMembers = 'Maximum members must be at least 1'
+    }
+
+    const maxPerSlot = formData.maxMembersPerSlot ?? 2
+    if (maxPerSlot < 1 || maxPerSlot > 20) {
+      newErrors.maxMembersPerSlot = 'Max members per slot must be between 1 and 20'
     }
 
     if (formData.duration < 1) {
@@ -232,6 +240,22 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
                 min="1"
               />
               {errors.maxMembers && <span className="error-message">{errors.maxMembers}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="maxMembersPerSlot">Max per slot (shared) *</label>
+              <input
+                type="number"
+                id="maxMembersPerSlot"
+                value={formData.maxMembersPerSlot ?? 2}
+                onChange={(e) => handleInputChange('maxMembersPerSlot', parseInt(e.target.value) || 2)}
+                className={errors.maxMembersPerSlot ? 'error' : ''}
+                placeholder="2"
+                min="1"
+                max="20"
+              />
+              <small className="form-hint">Max members that can share one month (e.g. 2 = split payout)</small>
+              {errors.maxMembersPerSlot && <span className="error-message">{errors.maxMembersPerSlot}</span>}
             </div>
           </div>
 

@@ -25,6 +25,8 @@ export interface DashboardGroup {
   nextRecipient: string
   slotsPaid: number
   slotsTotal: number
+  /** Number of distinct slot months (calendar slots). When < slotsTotal, group has shared slots. */
+  slotCount?: number
   created_at: string
   hasCompletedPayouts?: boolean
 }
@@ -621,36 +623,37 @@ export const dashboardService = {
 
       // groupsData already contains only active groups, so no need to filter again
       const transformedGroups = groupsData.map(group => {
-        // Find next recipient for current month
+        // Next recipient(s) for current month (slot sharing: can be multiple)
         let nextRecipient = 'No recipient this month'
         if (group.group_members && Array.isArray(group.group_members)) {
-          const currentMonthMember = group.group_members.find((member: any) => 
+          const currentMonthMembers = group.group_members.filter((member: any) =>
             member.assigned_month_date === currentMonth
           )
-          
-          if (currentMonthMember?.members) {
-            nextRecipient = `${currentMonthMember.members.first_name} ${currentMonthMember.members.last_name}`
+          if (currentMonthMembers.length > 0) {
+            const names = currentMonthMembers
+              .map((m: any) => m.members ? `${m.members.first_name} ${m.members.last_name}` : '')
+              .filter(Boolean)
+            nextRecipient = names.join(', ')
           }
         }
 
-        // Calculate slots info correctly using payment data
+        // Total member-slots (rows in group_members)
         const slotsTotal = group.group_members?.length || 0
-        
-        // Count slots that have received payments for this group
+        // Distinct calendar slots (months) - when < slotsTotal, group has shared slots
+        const uniqueMonths = new Set((group.group_members || []).map((m: any) => m.assigned_month_date))
+        const slotCount = uniqueMonths.size
+
+        // Count member-slots that have received payments for this group
         let slotsPaid = 0
         if (paymentsData && Array.isArray(paymentsData) && group.group_members) {
           const groupPayments = paymentsData.filter(payment => payment.group_id === group.id)
-          
-          // Count unique slot payments using slot_id
           const paidSlots = new Set()
-          
           groupPayments.forEach(payment => {
             if (payment.slot_id) {
               const slotKey = `${payment.group_id}-${payment.member_id}-${payment.slot_id}`
               paidSlots.add(slotKey)
             }
           })
-          
           slotsPaid = paidSlots.size
         }
 
@@ -664,6 +667,7 @@ export const dashboardService = {
           nextRecipient,
           slotsPaid,
           slotsTotal,
+          slotCount,
           created_at: group.created_at,
           hasCompletedPayouts: groupsWithCompletedPayouts.has(group.id)
         }

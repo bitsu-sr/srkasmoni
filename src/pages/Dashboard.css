@@ -1124,7 +1124,7 @@
 
 .dashboard-table-header {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1.5fr 1.5fr 1fr;
+  grid-template-columns: 1.5fr 1fr 1.5fr 1.2fr 1.5fr 1fr;
   gap: 16px;
   padding: 16px 20px;
   background: #f9fafb;
@@ -1136,7 +1136,7 @@
 
 .dashboard-table-row {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1.5fr 1.5fr 1fr;
+  grid-template-columns: 1.5fr 1fr 1.5fr 1.2fr 1.5fr 1fr;
   gap: 16px;
   padding: 16px 20px;
   border-bottom: 1px solid #f3f4f6;
@@ -1414,14 +1414,14 @@
 /* Mobile responsive styles for dashboard groups table */
 @media (max-width: 768px) {
   .dashboard-table-header {
-    grid-template-columns: 1.5fr 1fr 1.5fr 1.5fr;
+    grid-template-columns: 1.5fr 1fr 1.5fr 1.2fr 1.5fr;
     gap: 12px;
     padding: 12px 16px;
     font-size: 13px;
   }
   
   .dashboard-table-row {
-    grid-template-columns: 1.5fr 1fr 1.5fr 1.5fr;
+    grid-template-columns: 1.5fr 1fr 1.5fr 1.2fr 1.5fr;
     gap: 12px;
     padding: 12px 16px;
   }

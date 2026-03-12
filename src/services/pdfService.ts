@@ -4,6 +4,7 @@ import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { Payout } from '../types/payout';
 import { PaymentSlot } from '../types/paymentSlot';
 import { Payment } from '../types/payment';
+import type { Group, GroupMember } from '../types/member';
 
 // Type for unpaid slots with member and group info
 interface UnpaidSlot extends PaymentSlot {
@@ -426,6 +427,239 @@ export const pdfService = {
 
         const pdfDoc = pdfMake.createPdf(docDefinition);
         pdfDoc.download(`payments-due-export-${exportType}-${new Date().toISOString().split('T')[0]}.pdf`);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  },
+
+  /**
+   * Generate a PDF report for a group with members and slots (like the GroupDetails page).
+   */
+  /** Payment status for dot color: received=green, not_paid=red, pending=orange, settled=purple */
+  async generateGroupDetailsPDF(
+    group: Group,
+    members: GroupMember[],
+    statusByMemberAndMonth: Record<string, 'received' | 'not_paid' | 'pending' | 'settled'>,
+    months: string[]
+  ): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Fetch logo and convert to base64 (same as Payments/Payout PDFs)
+        let logoBase64 = '';
+        try {
+          const response = await fetch('https://srkasmoni.vercel.app/logokasmonigr.png');
+          const blob = await response.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          logoBase64 = btoa(String.fromCharCode(...uint8Array));
+        } catch (error) {
+          console.warn('Could not fetch logo, proceeding without it:', error);
+        }
+
+        const formatMonthYear = (dateString: string): string => {
+          try {
+            const [year, month] = dateString.split('-').map(Number);
+            if (isNaN(year) || isNaN(month) || month < 1 || month > 12) return dateString;
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${monthNames[month - 1]} ${year}`;
+          } catch {
+            return dateString;
+          }
+        };
+
+        const monthLetters = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+        const formatMonthLetter = (dateString: string): string => {
+          try {
+            const [_year, month] = dateString.split('-').map(Number);
+            if (isNaN(month) || month < 1 || month > 12) return '?';
+            return monthLetters[month - 1];
+          } catch {
+            return '?';
+          }
+        };
+
+        const calculateDuration = (startDate: string, endDate: string): number => {
+          if (!startDate || !endDate) return 0;
+          const [startYear, startMonth] = startDate.split('-').map(Number);
+          const [endYear, endMonth] = endDate.split('-').map(Number);
+          if (isNaN(startYear) || isNaN(startMonth) || isNaN(endYear) || isNaN(endMonth)) return 0;
+          return (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+        };
+
+        const groupDuration = group.startDate && group.endDate
+          ? calculateDuration(group.startDate, group.endDate)
+          : group.duration || 0;
+
+        const membersPerMonth = new Map<string, number>();
+        members.forEach((m) => {
+          const d = typeof m.assignedMonthDate === 'string'
+            ? m.assignedMonthDate
+            : `2024-${String(m.assignedMonthDate).padStart(2, '0')}`;
+          membersPerMonth.set(d, (membersPerMonth.get(d) || 0) + 1);
+        });
+
+        const statusToColor: Record<string, string> = {
+          received: '#16a34a',  // Green = Paid
+          not_paid: '#dc2626',   // Red = Unpaid
+          pending: '#ea580c',    // Orange = Pending
+          settled: '#7c3aed'    // Purple = Settled
+        };
+        const dotCell = (status: 'received' | 'not_paid' | 'pending' | 'settled'): TableCell => ({
+          canvas: [
+            {
+              type: 'ellipse',
+              x: 6,
+              y: 6,
+              r1: 4,
+              r2: 4,
+              color: statusToColor[status] ?? statusToColor.not_paid
+            }
+          ],
+          margin: [0, 2, 0, 2],
+          alignment: 'center'
+        });
+
+        const tableFontSize = 9;
+        const header: TableCell[] = [
+          { text: 'Month', bold: true, alignment: 'center', fillColor: '#007000', color: 'white', fontSize: tableFontSize },
+          { text: 'Member', bold: true, alignment: 'center', fillColor: '#007000', color: 'white', fontSize: tableFontSize },
+          { text: 'Receives', bold: true, alignment: 'center', fillColor: '#007000', color: 'white', fontSize: tableFontSize },
+          ...months.map((m) => ({ text: formatMonthLetter(m), bold: true, alignment: 'center', fillColor: '#007000', color: 'white', fontSize: tableFontSize }))
+        ];
+
+        const body: TableCell[][] = [header];
+        members.forEach((slot) => {
+          const monthDate = typeof slot.assignedMonthDate === 'string'
+            ? slot.assignedMonthDate
+            : `2024-${String(slot.assignedMonthDate).padStart(2, '0')}`;
+          const sharersCount = membersPerMonth.get(monthDate) || 1;
+          const slotAmount = ((group.monthlyAmount || 0) / sharersCount) * groupDuration;
+
+          body.push([
+            { text: formatMonthYear(monthDate), fontSize: tableFontSize },
+            { text: `${slot.member?.firstName || ''} ${slot.member?.lastName || ''}`.trim() || '-', fontSize: tableFontSize },
+            { text: `SRD ${slotAmount.toLocaleString()}`, alignment: 'right', fontSize: tableFontSize },
+            ...months.map((m) => dotCell(statusByMemberAndMonth[`${slot.memberId}-${m}`] ?? 'not_paid'))
+          ]);
+        });
+
+        const uniqueMembers = new Set(members.map((m) => m.memberId)).size;
+        const periodLabel = group.startDate && group.endDate
+          ? `${formatMonthYear(group.startDate)} - ${formatMonthYear(group.endDate)}`
+          : 'N/A';
+
+        const content: any[] = [];
+
+        if (logoBase64) {
+          content.push({
+            columns: [
+              {
+                image: `data:image/png;base64,${logoBase64}`,
+                width: 50,
+                height: 50
+              },
+              { text: '', width: '*' }
+            ],
+            margin: [0, 0, 0, 20]
+          });
+        }
+
+        content.push(
+          {
+            text: `Generated on: ${new Date().toLocaleString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false
+            })}`,
+            fontSize: 9,
+            alignment: 'right',
+            margin: [0, 0, 0, 10]
+          }
+        );
+
+        content.push(
+          {
+            text: 'Group Information',
+            fontSize: 14,
+            bold: true,
+            margin: [0, 0, 0, 10]
+          },
+          {
+            table: {
+              widths: ['*', '*'],
+              body: [
+                [{ text: 'Group Name:', fontSize: 9 }, { text: group.name, fontSize: 9 }],
+                [{ text: 'Description:', fontSize: 9 }, { text: group.description || '-', fontSize: 9 }],
+                [{ text: 'Monthly Amount:', fontSize: 9 }, { text: `SRD ${group.monthlyAmount.toLocaleString()}`, fontSize: 9 }],
+                [{ text: 'Duration:', fontSize: 9 }, { text: `${groupDuration} months`, fontSize: 9 }],
+                [{ text: 'Period:', fontSize: 9 }, { text: periodLabel, fontSize: 9 }],
+                [{ text: 'Members / Slots:', fontSize: 9 }, { text: `${uniqueMembers} members, ${members.length} slots / ${group.maxMembers}`, fontSize: 9 }]
+              ]
+            },
+            layout: {
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0.5,
+              hLineColor: () => '#cccccc',
+              vLineColor: () => '#cccccc'
+            },
+            margin: [0, 0, 0, 20]
+          },
+          {
+            text: 'Slots',
+            fontSize: 14,
+            bold: true,
+            margin: [0, 0, 0, 10]
+          },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['auto', '*', 80, ...months.map(() => 14)],
+              body
+            },
+            layout: {
+              fillColor: (rowIndex: number) => {
+                if (rowIndex === 0) return null;
+                return rowIndex % 2 === 0 ? '#f9f9f9' : null;
+              },
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0.5,
+              hLineColor: () => '#cccccc',
+              vLineColor: () => '#cccccc'
+            }
+          }
+        );
+
+        const docDefinition: TDocumentDefinitions = {
+          pageSize: 'A4',
+          pageOrientation: 'portrait',
+          pageMargins: [40, 60, 40, 60],
+          header: {
+            text: 'Sranan Kasmoni - Group Details',
+            style: 'header',
+            alignment: 'center',
+            margin: [0, 10]
+          },
+          footer: (currentPage, pageCount) => ({
+            text: `Page ${currentPage} of ${pageCount}`,
+            alignment: 'right',
+            margin: [0, 10, 40, 0],
+            fontSize: 9
+          }),
+          content,
+          styles: {
+            header: { fontSize: 14, bold: true, color: '#007000' }
+          }
+        };
+
+        const pdfDoc = pdfMake.createPdf(docDefinition);
+        const safeName = group.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+        pdfDoc.download(`group-details-${safeName}-${new Date().toISOString().split('T')[0]}.pdf`);
         resolve();
       } catch (error) {
         reject(error);

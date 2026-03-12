@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, 
@@ -17,6 +17,7 @@ import type { Group, GroupMember, GroupMemberFormData } from '../types/member'
 import { groupService } from '../services/groupService'
 import { memberService } from '../services/memberService'
 import { paymentService } from '../services/paymentService'
+import { pdfService } from '../services/pdfService'
 import { useAuth } from '../contexts/AuthContext'
 import MemberSelectionModal from '../components/MemberSelectionModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
@@ -53,6 +54,9 @@ const GroupDetails = () => {
     const saved = localStorage.getItem('group-details-view-mode')
     return saved === 'table' || saved === 'cards' ? (saved as 'cards' | 'table') : 'cards'
   })
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [exportPdfSuccess, setExportPdfSuccess] = useState<string | null>(null)
+  const [exportPdfError, setExportPdfError] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -66,6 +70,15 @@ const GroupDetails = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showSlotRemoveModal, setShowSlotRemoveModal] = useState(false)
   const [slotToRemove, setSlotToRemove] = useState<{ memberId: number; monthDate: string; memberName: string } | null>(null)
+
+  const membersPerMonth = useMemo(() => {
+    const m = new Map<string, number>()
+    members.forEach((s) => {
+      const d = typeof s.assignedMonthDate === 'string' ? s.assignedMonthDate : `2024-${String(s.assignedMonthDate).padStart(2, '0')}`
+      m.set(d, (m.get(d) || 0) + 1)
+    })
+    return m
+  }, [members])
 
   useEffect(() => {
     // Redirect non-admin users away from this page
@@ -329,19 +342,20 @@ const GroupDetails = () => {
       const text = await file.text()
       const membersToImport = parseCSV(text)
       
-      // Check if group has enough available slots
-      const totalSlots = members.length
-      const availableSlots = group.maxMembers - totalSlots
+      const groupDuration = group.startDate && group.endDate ? calculateDuration(group.startDate, group.endDate) : 0
+      const maxTotalMemberSlots = groupDuration * (group.maxMembersPerSlot ?? 2)
+      const availableSlots = maxTotalMemberSlots - members.length
       if (membersToImport.length > availableSlots) {
         setCsvImportResult({
           success: 0,
-          errors: [`Cannot import ${membersToImport.length} members. Group only has ${availableSlots} available slots.`],
+          errors: [`Cannot import ${membersToImport.length} rows. Only ${availableSlots} member slot(s) available (max ${maxTotalMemberSlots} total).`],
           total: membersToImport.length
         })
         event.target.value = ''
         return
       }
-      
+
+      let currentMembers = [...members]
       const results: CSVImportResult = {
         success: 0,
         errors: [],
@@ -350,24 +364,25 @@ const GroupDetails = () => {
 
       for (const memberData of membersToImport) {
         try {
-          // Check if member exists
           const member = await memberService.getMemberById(memberData.memberId)
           if (!member) {
             results.errors.push(`Row ${results.success + results.errors.length + 1}: Member with ID ${memberData.memberId} not found`)
             continue
           }
 
-          // Check if slot is already taken
-          const existingMembers = await groupService.getGroupMembers(group.id)
-          const isSlotTaken = existingMembers.some(m => m.assignedMonthDate === memberData.assignedMonthDate)
-          if (isSlotTaken) {
-            results.errors.push(`Row ${results.success + results.errors.length + 1}: Month ${memberData.assignedMonthDate} is already assigned`)
+          const maxPerSlot = group.maxMembersPerSlot ?? 2
+          const countInMonth = currentMembers.filter(m => {
+            const d = typeof m.assignedMonthDate === 'string' ? m.assignedMonthDate : `2024-${String(m.assignedMonthDate).padStart(2, '0')}`
+            return d === memberData.assignedMonthDate
+          }).length
+          if (countInMonth >= maxPerSlot) {
+            results.errors.push(`Row ${results.success + results.errors.length + 1}: Month ${memberData.assignedMonthDate} is full (${maxPerSlot} members per slot)`)
             continue
           }
 
-          // Add member to group
           await groupService.addMemberToGroup(group.id, memberData)
           results.success++
+          currentMembers = await groupService.getGroupMembers(group.id)
         } catch (error: any) {
           const errorMsg = `Row ${results.success + results.errors.length + 1}: Failed to import member ${memberData.memberId} for month ${memberData.assignedMonthDate}: ${error.message || 'Unknown error'}`
           results.errors.push(errorMsg)
@@ -395,6 +410,55 @@ const GroupDetails = () => {
     }
   }
 
+  const handleExportPdf = async () => {
+    if (!group) return
+    try {
+      setIsExportingPdf(true)
+      setExportPdfSuccess(null)
+      setExportPdfError(null)
+
+      const buildMonthRange = (start: string, end: string): string[] => {
+        const result: string[] = []
+        if (!start || !end) return result
+        const [sy, sm] = start.split('-').map(Number)
+        const [ey, em] = end.split('-').map(Number)
+        if ([sy, sm, ey, em].some(n => Number.isNaN(n))) return result
+
+        let y = sy
+        let m = sm
+        while (y < ey || (y === ey && m <= em)) {
+          result.push(`${y}-${String(m).padStart(2, '0')}`)
+          m++
+          if (m === 13) {
+            m = 1
+            y++
+          }
+        }
+        return result
+      }
+
+      const months = buildMonthRange(group.startDate, group.endDate)
+
+      // Build status-by-member-and-month for dots: received=green, not_paid=red, pending=orange, settled=purple
+      const statusMap: Record<string, 'received' | 'not_paid' | 'pending' | 'settled'> = {}
+      const payments = await paymentService.getPayments({ groupId: group.id })
+      payments.forEach(p => {
+        if (p.paymentMonth && (p.status === 'received' || p.status === 'not_paid' || p.status === 'pending' || p.status === 'settled')) {
+          statusMap[`${p.memberId}-${p.paymentMonth}`] = p.status
+        }
+      })
+
+      await pdfService.generateGroupDetailsPDF(group, members, statusMap, months)
+      setExportPdfSuccess('PDF exported successfully.')
+      setTimeout(() => setExportPdfSuccess(null), 4000)
+    } catch (err) {
+      console.error('Error exporting PDF:', err)
+      setExportPdfError('Failed to export PDF. Please try again.')
+      setTimeout(() => setExportPdfError(null), 5000)
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }
 
   // Show loading while checking permissions or loading data
   if (loading || !isAdmin) {
@@ -540,8 +604,9 @@ const GroupDetails = () => {
                 </button>
               </div>
               {(() => {
-                const totalSlots = members.length
-                const hasAvailableSlots = totalSlots < group.maxMembers
+                const groupDuration = group?.startDate && group?.endDate ? calculateDuration(group.startDate, group.endDate) : 0
+                const maxTotalMemberSlots = groupDuration * (group.maxMembersPerSlot ?? 2)
+                const hasAvailableSlots = members.length < maxTotalMemberSlots
                 return hasAvailableSlots ? (
                   <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
                     <Plus size={16} />
@@ -556,7 +621,7 @@ const GroupDetails = () => {
             </div>
           </div>
 
-          {/* CSV Import Section */}
+          {/* CSV Import & PDF Export Section */}
           <div className="csv-import-section">
             <div className="csv-import-buttons">
               <button className="btn btn-secondary btn-compact" onClick={downloadSampleCSV}>
@@ -577,7 +642,22 @@ const GroupDetails = () => {
                   {isImporting ? 'Importing...' : 'Import CSV'}
                 </label>
               </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-compact"
+                onClick={handleExportPdf}
+                disabled={isExportingPdf}
+                title="Export group, members and slots to PDF"
+              >
+                <Download size={16} />
+                {isExportingPdf ? 'Exporting...' : 'Export PDF'}
+              </button>
             </div>
+            {(exportPdfSuccess || exportPdfError) && (
+              <div className={`group-details-pdf-message ${exportPdfError ? 'error' : 'success'}`}>
+                {exportPdfSuccess ?? exportPdfError}
+              </div>
+            )}
             <div className="csv-import-info">
               <p>
                 Import members to this group using a CSV file with columns: <code>memberId,assignedMonthDate</code>
@@ -631,7 +711,7 @@ const GroupDetails = () => {
             <div className="empty-members">
               <Users size={64} className="empty-icon" />
               <h3>No Slots Yet</h3>
-              <p>This group doesn't have any slots assigned yet. Add the first member slot to get started. Each member can reserve multiple monthly slots.</p>
+              <p>This group doesn't have any slots assigned yet. Add the first member slot to get started. Each member can reserve multiple monthly slots; multiple members can share one slot (split payout).</p>
               <button className="btn btn-primary btn-compact" onClick={() => setShowMemberModal(true)}>
                 <Plus size={16} />
                 Add First Slot
@@ -644,12 +724,11 @@ const GroupDetails = () => {
                   const monthDate = typeof slot.assignedMonthDate === 'string' 
                     ? slot.assignedMonthDate 
                     : `2024-${String(slot.assignedMonthDate).padStart(2, '0')}`
-                  
+                  const groupDuration = group?.startDate && group?.endDate ? calculateDuration(group.startDate, group.endDate) : 0
+                  const sharersCount = membersPerMonth.get(monthDate) || 1
+                  const slotAmount = ((group?.monthlyAmount || 0) / sharersCount) * groupDuration
                   const slotKey = `${slot.memberId}-${monthDate}`
                   const isPaid = slotPaymentStatus.get(slotKey) || false
-                  const groupDuration = group?.startDate && group?.endDate ? 
-                    calculateDuration(group.startDate, group.endDate) : 0
-                  const slotAmount = (group?.monthlyAmount || 0) * groupDuration
 
                   return (
                     <div key={slot.id} className="slot-card">
@@ -657,6 +736,9 @@ const GroupDetails = () => {
                         <div className="slot-header">
                           <div className="slot-month">
                             {formatMonthYear(monthDate)}
+                            {sharersCount > 1 && (
+                              <span className="slot-shared-badge" title="Shared slot"> ({sharersCount})</span>
+                            )}
                           </div>
                           <div className="slot-payment-status">
                             {isPaid ? (
@@ -678,6 +760,9 @@ const GroupDetails = () => {
                         <div className="slot-details">
                           <span className="slot-amount">
                             Receives: SRD {slotAmount.toLocaleString()}
+                            {sharersCount > 1 && (
+                              <span className="slot-split-note"> (split)</span>
+                            )}
                           </span>
                           <span className="slot-duration">
                             Duration: {groupDuration} month{groupDuration !== 1 ? 's' : ''}
@@ -720,7 +805,8 @@ const GroupDetails = () => {
                       const isPaid = slotPaymentStatus.get(slotKey) || false
                       const groupDuration = group?.startDate && group?.endDate ? 
                         calculateDuration(group.startDate, group.endDate) : 0
-                      const slotAmount = (group?.monthlyAmount || 0) * groupDuration
+                      const sharersCount = membersPerMonth.get(monthDate) || 1
+                      const slotAmount = ((group?.monthlyAmount || 0) / sharersCount) * groupDuration
 
                       return (
                         <tr 

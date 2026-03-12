@@ -10,6 +10,7 @@ interface GroupRow {
   description: string | null
   monthly_amount: number
   max_members: number
+  max_members_per_slot?: number
   duration: number
   start_date: string
   end_date: string
@@ -26,6 +27,7 @@ interface GroupUpdate {
   description?: string | null
   monthly_amount?: number
   max_members?: number
+  max_members_per_slot?: number
   duration?: number
   start_date?: string
   end_date?: string
@@ -45,6 +47,7 @@ const transformGroupRow = (row: GroupRow): Group => ({
   description: row.description,
   monthlyAmount: row.monthly_amount,
   maxMembers: row.max_members,
+  maxMembersPerSlot: row.max_members_per_slot ?? 2,
   duration: row.duration,
   startDate: row.start_date,
   endDate: row.end_date,
@@ -152,23 +155,27 @@ export const groupService = {
   // Create new group
   async createGroup(groupData: GroupFormData): Promise<Group> {
     try {
+      const insertPayload: Record<string, unknown> = {
+        name: groupData.name,
+        description: groupData.description,
+        monthly_amount: groupData.monthlyAmount,
+        max_members: groupData.maxMembers,
+        duration: groupData.duration,
+        start_date: groupData.startDate,
+        end_date: groupData.endDate,
+        payment_deadline_day: groupData.paymentDeadlineDay,
+        late_fine_percentage: groupData.lateFinePercentage,
+        late_fine_fixed_amount: groupData.lateFineFixedAmount,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_by: (await supabase.auth.getUser()).data.user?.id
+      }
+      if (groupData.maxMembersPerSlot != null) {
+        insertPayload.max_members_per_slot = groupData.maxMembersPerSlot
+      }
       const { data, error } = await supabase
         .from('groups')
-        .insert({
-          name: groupData.name,
-          description: groupData.description,
-          monthly_amount: groupData.monthlyAmount,
-          max_members: groupData.maxMembers,
-          duration: groupData.duration,
-          start_date: groupData.startDate,
-          end_date: groupData.endDate,
-          payment_deadline_day: groupData.paymentDeadlineDay,
-          late_fine_percentage: groupData.lateFinePercentage,
-          late_fine_fixed_amount: groupData.lateFineFixedAmount,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          created_by: (await supabase.auth.getUser()).data.user?.id
-        })
+        .insert(insertPayload)
         .select()
         .single()
 
@@ -195,7 +202,8 @@ export const groupService = {
       if (updates.paymentDeadlineDay !== undefined) updateData.payment_deadline_day = updates.paymentDeadlineDay
       if (updates.lateFinePercentage !== undefined) updateData.late_fine_percentage = updates.lateFinePercentage
       if (updates.lateFineFixedAmount !== undefined) updateData.late_fine_fixed_amount = updates.lateFineFixedAmount
-      
+      if (updates.maxMembersPerSlot !== undefined) updateData.max_members_per_slot = updates.maxMembersPerSlot
+
       updateData.updated_at = new Date().toISOString()
       
       const { data, error } = await supabase
@@ -323,8 +331,18 @@ export const groupService = {
     }
   },
 
-  // Get all months for a group (both available and reserved)
-  async getAllGroupMonths(groupId: number): Promise<{ month: string; isReserved: boolean; reservedBy?: string }[]> {
+  // Get all months for a group with slot-sharing info (member count and names per month)
+  async getAllGroupMonths(groupId: number): Promise<{
+    month: string
+    memberCount: number
+    memberNames: string[]
+    maxPerSlot: number
+    isFull: boolean
+    /** @deprecated Use memberCount > 0 or isFull */
+    isReserved: boolean
+    /** @deprecated Use memberNames.join(', ') */
+    reservedBy?: string
+  }[]> {
     try {
       const group = await this.getGroupById(groupId)
       if (!group) throw new Error('Group not found')
@@ -339,36 +357,48 @@ export const groupService = {
 
       if (error) throw error
 
-      const reservedMonths = new Map<string, string>()
-      assignedMonths.forEach((row: any) => {
+      const monthToMembers = new Map<string, string[]>()
+      ;(assignedMonths || []).forEach((row: any) => {
         const month = row.assigned_month_date
-        const memberName = row.member ? `${row.member.first_name} ${row.member.last_name}` : 'Unknown'
-        reservedMonths.set(month, memberName)
+        const memberName = row.member
+          ? `${row.member.first_name || ''} ${row.member.last_name || ''}`.trim() || 'Unknown'
+          : 'Unknown'
+        const list = monthToMembers.get(month) || []
+        list.push(memberName)
+        monthToMembers.set(month, list)
       })
 
-      const allMonths: { month: string; isReserved: boolean; reservedBy?: string }[] = []
+      const maxPerSlot = group.maxMembersPerSlot ?? 2
+      const allMonths: {
+        month: string
+        memberCount: number
+        memberNames: string[]
+        maxPerSlot: number
+        isFull: boolean
+        isReserved: boolean
+        reservedBy?: string
+      }[] = []
 
       if (group.startDate && group.endDate) {
-        // Parse start and end dates
         const [startYear, startMonth] = group.startDate.split('-').map(Number)
         const [endYear, endMonth] = group.endDate.split('-').map(Number)
-        
         let currentYear = startYear
         let currentMonth = startMonth
-        
-        // Generate all months from start to end
+
         while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
           const monthDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
-          const isReserved = reservedMonths.has(monthDate)
-          const reservedBy = reservedMonths.get(monthDate)
-          
+          const memberNames = monthToMembers.get(monthDate) || []
+          const memberCount = memberNames.length
+          const isFull = memberCount >= maxPerSlot
           allMonths.push({
             month: monthDate,
-            isReserved,
-            reservedBy
+            memberCount,
+            memberNames,
+            maxPerSlot,
+            isFull,
+            isReserved: memberCount > 0,
+            reservedBy: memberNames.length > 0 ? memberNames.join(', ') : undefined
           })
-          
-          // Move to next month
           currentMonth++
           if (currentMonth > 12) {
             currentMonth = 1
@@ -384,11 +414,11 @@ export const groupService = {
     }
   },
 
-  // Get available months for a group (only unreserved months)
+  // Get months where another member can be added (slot not full)
   async getAvailableMonths(groupId: number): Promise<string[]> {
     try {
       const allMonths = await this.getAllGroupMonths(groupId)
-      return allMonths.filter(m => !m.isReserved).map(m => m.month)
+      return allMonths.filter(m => !m.isFull).map(m => m.month)
     } catch (error) {
       console.error('Error getting available months:', error)
       throw error
@@ -446,32 +476,23 @@ export const groupService = {
           // Get slots info
           const slotsInfo = await paymentService.getGroupPaidSlotsCount(group.id)
           
-          // Get next recipient (member with slot in current month)
+          // Next recipient(s): all members with slot in current month (slot sharing)
           const currentMonth = new Date().toISOString().split('T')[0].substring(0, 7) // YYYY-MM format
           
           let nextRecipient = 'No recipient this month'
           
           try {
-            // First get the group member record
-            const { data: groupMemberData, error: memberError } = await supabase
+            const { data: slotMembers, error: memberError } = await supabase
               .from('group_members')
-              .select('member_id')
+              .select('members(first_name, last_name)')
               .eq('group_id', group.id)
               .eq('assigned_month_date', currentMonth)
-              .limit(1)
-              .single()
 
-            if (!memberError && groupMemberData?.member_id) {
-              // Then get the member details
-              const { data: memberData, error: memberDetailsError } = await supabase
-                .from('members')
-                .select('first_name, last_name')
-                .eq('id', groupMemberData.member_id)
-                .single()
-              
-              if (!memberDetailsError && memberData) {
-                nextRecipient = `${memberData.first_name} ${memberData.last_name}`
-              }
+            if (!memberError && slotMembers && slotMembers.length > 0) {
+              const names = slotMembers
+                .map((row: any) => row.members ? `${row.members.first_name} ${row.members.last_name}` : '')
+                .filter(Boolean)
+              nextRecipient = names.join(', ')
             }
           } catch (error) {
             console.warn(`Error getting next recipient for group ${group.id}:`, error)

@@ -179,6 +179,7 @@ const Groups = () => {
     startDate: groupWithDetails.startDate,
     endDate: groupWithDetails.endDate,
     maxMembers: groupWithDetails.maxMembers,
+    maxMembersPerSlot: groupWithDetails.maxMembersPerSlot,
     duration: groupWithDetails.duration,
     paymentDeadlineDay: groupWithDetails.paymentDeadlineDay,
     lateFinePercentage: groupWithDetails.lateFinePercentage,

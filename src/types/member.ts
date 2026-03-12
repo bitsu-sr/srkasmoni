@@ -55,6 +55,8 @@ export interface Group {
   description: string | null
   monthlyAmount: number
   maxMembers: number
+  /** Max members that can share one slot (group/month). Default 2. */
+  maxMembersPerSlot?: number
   duration: number
   startDate: string
   endDate: string
@@ -70,6 +72,7 @@ export interface GroupFormData {
   description: string
   monthlyAmount: number
   maxMembers: number
+  maxMembersPerSlot?: number
   duration: number
   startDate: string
   endDate: string

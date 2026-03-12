@@ -8,6 +8,7 @@ export interface GroupWithDetails {
   startDate: string
   endDate: string
   maxMembers: number
+  maxMembersPerSlot?: number
   duration: number
   paymentDeadlineDay: number
   lateFinePercentage: number
@@ -133,6 +134,7 @@ export const groupsOptimizedService = {
           startDate: group.start_date || group.startDate,
           endDate: group.end_date || group.endDate,
           maxMembers: group.max_members || group.maxMembers || 0,
+          maxMembersPerSlot: group.max_members_per_slot ?? 2,
           duration: duration,
           paymentDeadlineDay: group.payment_deadline_day || group.paymentDeadlineDay || 1,
           lateFinePercentage: group.late_fine_percentage || group.lateFinePercentage || 0,

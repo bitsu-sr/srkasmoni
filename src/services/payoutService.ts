@@ -56,10 +56,16 @@ export const payoutService = {
         payoutDetailsMap.set(detail.slot_id, detail)
       })
 
-      // Transform the data into Payout objects
+      // Transform the data into Payout objects (slot sharing: split monthly amount among members in same slot)
       const payouts: Payout[] = []
       
       groupsData?.forEach((group: any) => {
+        const membersThisMonth = group.group_members?.filter((m: any) => m.assigned_month_date === targetMonth) || []
+        const sharersCount = membersThisMonth.length
+        const groupMonthly = parseFloat(group.monthly_amount)
+        const monthlyPerMember = sharersCount > 0 ? groupMonthly / sharersCount : groupMonthly
+        const totalPerMember = monthlyPerMember * group.duration
+
         group.group_members?.forEach((memberSlot: any) => {
           if (memberSlot.assigned_month_date === targetMonth && memberSlot.members) {
             const member = memberSlot.members
@@ -77,8 +83,8 @@ export const payoutService = {
               nationalId: member.national_id,
               groupName: group.name,
               groupId: group.id,
-              monthlyAmount: parseFloat(group.monthly_amount),
-              totalAmount: parseFloat(group.monthly_amount) * group.duration,
+              monthlyAmount: monthlyPerMember, // Split: each recipient gets group monthly / sharers in this slot
+              totalAmount: totalPerMember,
               duration: group.duration,
               receiveMonth: targetMonth,
               status: `${paymentCount.received}/${paymentCount.total}`, // New status format
