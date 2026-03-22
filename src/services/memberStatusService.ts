@@ -3,6 +3,8 @@ import { memberService } from './memberService'
 export interface MemberStatusInfo {
   totalSlots: number
   totalMonthlyAmount: number
+  /** Sum of slotAmount for active (upcoming) slots only */
+  activeSlotsMonthlyAmount: number
   nextReceiveMonth: string | null
   isActive: boolean
   activeSlots: number
@@ -37,21 +39,30 @@ export interface MemberWithStatus {
 
 /**
  * Get comprehensive status information for a member
+ * Uses getMemberSlotsDetails once and derives all metrics (avoids duplicate fetches)
  */
 export const getMemberStatusInfo = async (memberId: number): Promise<MemberStatusInfo> => {
   try {
-    const slotsInfo = await memberService.getMemberSlotsInfo(memberId)
-    
-    // Calculate additional status metrics
     const slotsDetails = await memberService.getMemberSlotsDetails(memberId)
-    const activeSlots = slotsDetails.filter(slot => slot.isFuture).length
-    const inactiveSlots = slotsDetails.filter(slot => !slot.isFuture).length
-    
+    const totalSlots = slotsDetails.length
+    const totalMonthlyAmount = slotsDetails.reduce((sum, s) => sum + s.slotAmount, 0)
+    const activeSlotDetails = slotsDetails.filter(slot => slot.isActive)
+    const activeSlots = activeSlotDetails.length
+    const activeSlotsMonthlyAmount = activeSlotDetails.reduce((sum, s) => sum + s.slotAmount, 0)
+    const inactiveSlots = totalSlots - activeSlots
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    const upcomingReceiveMonths = activeSlotDetails
+      .filter(s => s.assignedMonthDate >= currentMonth)
+      .map(s => s.assignedMonthDate)
+      .sort()
+    const nextReceiveMonth = upcomingReceiveMonths[0] || null
+
     return {
-      totalSlots: slotsInfo.totalSlots,
-      totalMonthlyAmount: slotsInfo.totalMonthlyAmount,
-      nextReceiveMonth: slotsInfo.nextReceiveMonth,
-      isActive: slotsInfo.isActive,
+      totalSlots,
+      totalMonthlyAmount,
+      activeSlotsMonthlyAmount,
+      nextReceiveMonth,
+      isActive: totalSlots > 0,
       activeSlots,
       inactiveSlots
     }
@@ -61,6 +72,7 @@ export const getMemberStatusInfo = async (memberId: number): Promise<MemberStatu
     return {
       totalSlots: 0,
       totalMonthlyAmount: 0,
+      activeSlotsMonthlyAmount: 0,
       nextReceiveMonth: null,
       isActive: false,
       activeSlots: 0,
@@ -135,6 +147,7 @@ export const getAllMembersWithStatus = async (): Promise<MemberWithStatus[]> => 
             statusInfo: {
               totalSlots: 0,
               totalMonthlyAmount: 0,
+              activeSlotsMonthlyAmount: 0,
               nextReceiveMonth: null,
               isActive: false,
               activeSlots: 0,

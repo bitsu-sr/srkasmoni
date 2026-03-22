@@ -92,6 +92,7 @@ export const paymentSlotService = {
   },
 
   // Get all slots across all groups (for dashboard and payments due)
+  // Slot sharing: amount is split when multiple members share the same (group, month)
   async getAllSlots(): Promise<PaymentSlot[]> {
     try {
       const { data: slotsData, error: slotsError } = await supabase
@@ -110,19 +111,31 @@ export const paymentSlotService = {
         throw new Error(`Failed to fetch all slots: ${slotsError.message}`)
       }
 
-      // Transform the database data to match our PaymentSlot interface
-      const transformedSlots: PaymentSlot[] = (slotsData || []).map((groupMember: any) => ({
-        id: groupMember.id,
-        groupId: groupMember.group_id,
-        memberId: groupMember.member_id,
-        monthDate: groupMember.assigned_month_date || new Date().toISOString().slice(0, 7), // Use assigned month or current month
-        amount: groupMember.group?.monthly_amount || 0,
-        dueDate: '', // Not available in group_members
-        createdAt: new Date().toISOString(), // Not available in group_members
-        member: groupMember.member,
-        group: groupMember.group
-      }))
-      
+      // Count members per (group_id, assigned_month_date) for slot sharing
+      const sharersCountMap = new Map<string, number>()
+      ;(slotsData || []).forEach((row: any) => {
+        const key = `${row.group_id}-${row.assigned_month_date}`
+        sharersCountMap.set(key, (sharersCountMap.get(key) || 0) + 1)
+      })
+
+      const transformedSlots: PaymentSlot[] = (slotsData || []).map((groupMember: any) => {
+        const groupMonthly = groupMember.group?.monthly_amount || 0
+        const key = `${groupMember.group_id}-${groupMember.assigned_month_date}`
+        const sharersCount = sharersCountMap.get(key) || 1
+        const slotAmount = sharersCount > 0 ? groupMonthly / sharersCount : groupMonthly
+
+        return {
+          id: groupMember.id,
+          groupId: groupMember.group_id,
+          memberId: groupMember.member_id,
+          monthDate: groupMember.assigned_month_date || new Date().toISOString().slice(0, 7),
+          amount: slotAmount,
+          dueDate: '',
+          createdAt: new Date().toISOString(),
+          member: groupMember.member,
+          group: groupMember.group
+        }
+      })
 
       return transformedSlots
     } catch (error) {
@@ -134,7 +147,22 @@ export const paymentSlotService = {
   // Get available month assignments for a member in a group (for new payments)
   async getAvailableMonthAssignments(memberId: number, groupId: number): Promise<PaymentSlot[]> {
     try {
-      // First, get the group's monthly amount
+      // Get member month assignments from group_members table
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('assigned_month_date')
+        .eq('member_id', memberId)
+        .eq('group_id', groupId)
+
+      if (error) {
+        throw new Error(`Failed to fetch member month assignments: ${error.message}`)
+      }
+
+      const monthAssignments = (data || []).filter((item: any) => item.assigned_month_date)
+      if (monthAssignments.length === 0) {
+        return []
+      }
+
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
         .select('monthly_amount')
@@ -147,27 +175,35 @@ export const paymentSlotService = {
 
       const monthlyAmount = groupData?.monthly_amount || 0
 
-      // Get assigned_month_date from group_members table
-      const { data, error } = await supabase
+      // Count members per (group, month) so shared slots use split amounts
+      const monthDates = monthAssignments.map((item: any) => item.assigned_month_date)
+      const { data: groupMonthAssignments, error: groupMonthError } = await supabase
         .from('group_members')
         .select('assigned_month_date')
-        .eq('member_id', memberId)
         .eq('group_id', groupId)
+        .in('assigned_month_date', monthDates)
 
-      if (error) {
-        throw new Error(`Failed to fetch member month assignments: ${error.message}`)
+      if (groupMonthError) {
+        throw new Error(`Failed to fetch slot sharing data: ${groupMonthError.message}`)
       }
+
+      const sharersCountMap = new Map<string, number>()
+      ;(groupMonthAssignments || []).forEach((row: any) => {
+        sharersCountMap.set(
+          row.assigned_month_date,
+          (sharersCountMap.get(row.assigned_month_date) || 0) + 1
+        )
+      })
 
       // Transform the assigned_month_date to PaymentSlot format
       // Use a unique identifier based on the combination of group_id, member_id, and month_date
-      const transformedSlots: PaymentSlot[] = (data || [])
-        .filter((item: any) => item.assigned_month_date) // Only include items with assigned_month_date
+      const transformedSlots: PaymentSlot[] = monthAssignments
         .map((item: any) => ({
           id: `${groupId}_${memberId}_${item.assigned_month_date}`, // Unique identifier
           groupId: groupId,
           memberId: memberId,
           monthDate: item.assigned_month_date, // Use assigned_month_date from group_members
-          amount: monthlyAmount, // Use the group's monthly_amount
+          amount: monthlyAmount / (sharersCountMap.get(item.assigned_month_date) || 1),
           dueDate: '', // Not needed for display
           createdAt: new Date().toISOString()
         }))

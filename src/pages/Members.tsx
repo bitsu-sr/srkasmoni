@@ -845,7 +845,7 @@ const Members = () => {
 
                           <div className="members-member-details">
                             <div className="members-detail-item">
-                              <span className="members-detail-label">{t('members.detail.slots')}: {member.statusInfo.totalSlots}</span>
+                              <span className="members-detail-label">{t('members.detail.slots')}: {member.statusInfo.activeSlots}</span>
                             </div>
                             <div className="members-detail-item">
                               <span className="members-detail-label">{t('members.detail.nationalId')}: {member.nationalId}</span>
@@ -856,7 +856,7 @@ const Members = () => {
                             <div className="members-financial-row">
                               <span className="members-financial-label">{t('members.fin.totalMonthly')}</span>
                               <span className="members-financial-value">
-                                SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
+                                SRD {member.statusInfo.activeSlotsMonthlyAmount.toLocaleString()}
                               </span>
                             </div>
                             <div className="members-financial-row">
@@ -926,8 +926,8 @@ const Members = () => {
                               <td>{member.nationalId}</td>
                               <td>{member.phone}</td>
                               <td>{member.city}</td>
-                              <td>{member.statusInfo.totalSlots}</td>
-                              <td>SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}</td>
+                              <td>{member.statusInfo.activeSlots}</td>
+                              <td>SRD {member.statusInfo.activeSlotsMonthlyAmount.toLocaleString()}</td>
                               <td>{formatMonthDisplay(member.statusInfo.nextReceiveMonth)}</td>
                               <td className="members-member-actions-cell">
                                 <div className="members-table-actions">
@@ -1012,7 +1012,7 @@ const Members = () => {
 
                           <div className="members-member-details">
                             <div className="members-detail-item">
-                              <span className="members-detail-label">{t('members.detail.slots')}: {member.statusInfo.totalSlots}</span>
+                              <span className="members-detail-label">{t('members.detail.slots')}: {member.statusInfo.activeSlots}</span>
                             </div>
                             <div className="members-detail-item">
                               <span className="members-detail-label">{t('members.detail.nationalId')}: {member.nationalId}</span>
@@ -1023,7 +1023,7 @@ const Members = () => {
                             <div className="members-financial-row">
                               <span className="members-financial-label">{t('members.fin.totalMonthly')}</span>
                               <span className="members-financial-value">
-                                SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}
+                                SRD {member.statusInfo.activeSlotsMonthlyAmount.toLocaleString()}
                               </span>
                             </div>
                             <div className="members-financial-row">
@@ -1093,8 +1093,8 @@ const Members = () => {
                               <td>{member.nationalId}</td>
                               <td>{member.phone}</td>
                               <td>{member.city}</td>
-                              <td>{member.statusInfo.totalSlots}</td>
-                              <td>SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}</td>
+                              <td>{member.statusInfo.activeSlots}</td>
+                              <td>SRD {member.statusInfo.activeSlotsMonthlyAmount.toLocaleString()}</td>
                               <td>{formatMonthDisplay(member.statusInfo.nextReceiveMonth)}</td>
                               <td className="members-member-actions-cell">
                                 <div className="members-table-actions">

@@ -175,18 +175,8 @@ export const memberService = {
     isActive: boolean
   }> {
     try {
-      // Get all slots for the member across all groups
-      const { data: slotsData, error: slotsError } = await supabase
-        .from('group_members')
-        .select(`
-          assigned_month_date,
-          group:groups(monthly_amount)
-        `)
-        .eq('member_id', memberId)
-
-      if (slotsError) throw slotsError
-
-      if (!slotsData || slotsData.length === 0) {
+      const slotsDetails = await this.getMemberSlotsDetails(memberId)
+      if (!slotsDetails.length) {
         return {
           totalSlots: 0,
           totalMonthlyAmount: 0,
@@ -195,21 +185,14 @@ export const memberService = {
         }
       }
 
-      const totalSlots = slotsData.length
-      const totalMonthlyAmount = slotsData.reduce((sum: number, slot: any) => {
-        return sum + (slot.group?.monthly_amount || 0)
-      }, 0)
-
-      // Find the next receive month (closest future month)
-      const now = new Date()
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-      
-      const futureMonths = slotsData
-        .map((slot: any) => slot.assigned_month_date)
-        .filter((month: string) => month >= currentMonth)
+      const totalSlots = slotsDetails.length
+      const totalMonthlyAmount = slotsDetails.reduce((sum, slot) => sum + slot.slotAmount, 0)
+      const currentMonth = new Date().toISOString().slice(0, 7)
+      const upcomingMonths = slotsDetails
+        .filter(slot => slot.isActive && slot.assignedMonthDate >= currentMonth)
+        .map(slot => slot.assignedMonthDate)
         .sort()
-
-      const nextReceiveMonth = futureMonths.length > 0 ? futureMonths[0] : null
+      const nextReceiveMonth = upcomingMonths.length > 0 ? upcomingMonths[0] : null
 
       return {
         totalSlots,
@@ -234,12 +217,19 @@ export const memberService = {
     groupName: string
     groupDescription: string | null
     monthlyAmount: number
+    /** Amount this member receives (split when shared) */
+    slotAmount: number
+    /** Number of members sharing this slot; 1 if not shared */
+    sharersCount: number
     assignedMonthDate: string
     assignedMonthFormatted: string
-    isFuture: boolean
+    /** true when group is still running (current month <= group end month) */
+    isActive: boolean
   }[]> {
     try {
-      // Get all slots for the member with detailed group information
+      const now = new Date()
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
       const { data: slotsData, error: slotsError } = await supabase
         .from('group_members')
         .select(`
@@ -249,7 +239,8 @@ export const memberService = {
           group:groups(
             name,
             description,
-            monthly_amount
+            monthly_amount,
+            end_date
           )
         `)
         .eq('member_id', memberId)
@@ -261,23 +252,39 @@ export const memberService = {
         return []
       }
 
-      const now = new Date()
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      // Count members per (group_id, assigned_month_date) for slot sharing - single bulk query
+      const groupIds = [...new Set(slotsData.map((s: any) => s.group_id))]
+      const slotCountMap = new Map<string, number>()
+
+      if (groupIds.length > 0) {
+        const { data: allGroupSlots } = await supabase
+          .from('group_members')
+          .select('group_id, assigned_month_date')
+          .in('group_id', groupIds)
+        ;(allGroupSlots || []).forEach((row: any) => {
+          const key = `${row.group_id}-${row.assigned_month_date}`
+          slotCountMap.set(key, (slotCountMap.get(key) || 0) + 1)
+        })
+      }
 
       return slotsData.map((slot: any) => {
         const monthDate = slot.assigned_month_date
-        const isFuture = monthDate >= currentMonth
-        
-        // Format the month for display
+        const groupEndDate = slot.group?.end_date || ''
+        // Slot is active when the group is still running (current month <= group end month)
+        const isActive = groupEndDate && currentMonth <= groupEndDate
+        const groupMonthly = slot.group?.monthly_amount || 0
+        const sharersCount = slotCountMap.get(`${slot.group_id}-${monthDate}`) || 1
+        const slotAmount = sharersCount > 0 ? groupMonthly / sharersCount : groupMonthly
+
         let assignedMonthFormatted = monthDate
         try {
           const [year, month] = monthDate.split('-')
           const date = new Date(parseInt(year), parseInt(month) - 1)
-          assignedMonthFormatted = date.toLocaleDateString('en-US', { 
-            month: 'long', 
-            year: 'numeric' 
+          assignedMonthFormatted = date.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric'
           })
-        } catch (error) {
+        } catch {
           // Keep original format if parsing fails
         }
 
@@ -286,10 +293,12 @@ export const memberService = {
           groupId: slot.group_id,
           groupName: slot.group?.name || 'Unknown Group',
           groupDescription: slot.group?.description,
-          monthlyAmount: slot.group?.monthly_amount || 0,
+          monthlyAmount: groupMonthly,
+          slotAmount,
+          sharersCount,
           assignedMonthDate: monthDate,
           assignedMonthFormatted,
-          isFuture
+          isActive
         }
       })
     } catch (error) {

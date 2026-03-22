@@ -376,13 +376,13 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
         slots = await paymentSlotService.getAvailableMonthAssignments(memberId, groupId)
       }
       
-             setMemberSlots(slots)
-       // Clear slot selection when member changes, but keep the amount
-       setFormData(prev => ({
-         ...prev,
-         slotId: ''
-         // Don't reset amount - it should stay as the group's monthly amount
-       }))
+      setMemberSlots(slots)
+      // Clear slot selection and amount when member changes; amount comes from selected slot
+      setFormData(prev => ({
+        ...prev,
+        slotId: '',
+        amount: 0
+      }))
     } catch (error) {
       console.error('Failed to load member slots:', error)
       setMemberSlots([])
@@ -395,7 +395,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
        const amount = await paymentSlotService.getGroupMonthlyAmount(groupId)
        setFormData(prev => ({
          ...prev,
-         amount
+         amount: prev.slotId ? prev.amount : amount
        }))
      } catch (error) {
        console.error('Failed to load group monthly amount:', error)
@@ -589,11 +589,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
       const slotsPromises = activeGroupsForMember.map(async (group) => {
         try {
           const slots = await paymentSlotService.getAvailableMonthAssignments(memberId, group.id)
-          const amount = await paymentSlotService.getGroupMonthlyAmount(group.id)
-          return { groupId: group.id, groupName: group.name, slots, amount }
+          return { groupId: group.id, groupName: group.name, slots }
         } catch (error) {
           console.error(`Failed to load data for group ${group.id}:`, error)
-          return { groupId: group.id, groupName: group.name, slots: [], amount: 0 }
+          return { groupId: group.id, groupName: group.name, slots: [] }
         }
       })
       
@@ -609,7 +608,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
         combinationKey: string
       }> = []
       
-      groupData.forEach(({ groupId, groupName, slots, amount }) => {
+      groupData.forEach(({ groupId, groupName, slots }) => {
         slots.forEach(slot => {
           // Format month for display
           const [year, month] = slot.monthDate.split('-').map(Number)
@@ -623,7 +622,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
             groupName,
             slotId: String(slot.id),
             slotMonth,
-            amount,
+            amount: slot.amount,
             combinationKey
           })
         })
@@ -923,7 +922,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
     } else if (field === 'memberId') {
       loadMemberSlots(value, formData.groupId)
     } else if (field === 'slotId') {
-      // Amount is already set when group is selected
+      const selectedSlot = memberSlots.find(slot => String(slot.id) === String(value))
+      if (selectedSlot) {
+        setFormData(prev => ({ ...prev, amount: selectedSlot.amount }))
+      }
       }
     } else {
       // Member-first workflow
@@ -933,7 +935,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
         loadMemberSlots(formData.memberId, value)
         loadGroupMonthlyAmount(value)
       } else if (field === 'slotId') {
-        // Amount is already set when group is selected
+        const selectedSlot = memberSlots.find(slot => String(slot.id) === String(value))
+        if (selectedSlot) {
+          setFormData(prev => ({ ...prev, amount: selectedSlot.amount }))
+        }
       }
     }
   }
@@ -1481,7 +1486,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                <option value="">Select a slot</option>
                {memberSlots.map(slot => (
                  <option key={`slot-${slot.id}`} value={slot.id}>
-                   {paymentSlotService.formatMonthDate(slot.monthDate)}
+                   {paymentSlotService.formatMonthDate(slot.monthDate)} - SRD {slot.amount.toLocaleString()}
                  </option>
                ))}
              </select>
@@ -1504,7 +1509,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               readOnly
               className="payment-modal-readonly"
             />
-            <small className="payment-modal-form-help">Amount is locked to group's monthly amount</small>
+            <small className="payment-modal-form-help">Amount is locked to the selected slot amount and splits automatically for shared slots</small>
           </div>
           )}
 

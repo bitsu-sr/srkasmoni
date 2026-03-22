@@ -320,6 +320,49 @@
   font-size: 1rem;
 }
 
+.slots-subsection {
+  margin-bottom: 24px;
+}
+
+.slots-subsection:last-of-type {
+  margin-bottom: 16px;
+}
+
+.slots-subsection-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px 0;
+}
+
+.slots-subsection-empty {
+  margin: 0;
+  padding: 16px;
+  color: #6b7280;
+  font-size: 0.9375rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.slots-total-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+}
+
+.slots-total-amount {
+  font-weight: 600;
+  color: #059669;
+}
+
 .slots-table-container {
   overflow-x: auto;
   background: white;
@@ -377,6 +420,17 @@
 .month-date {
   font-weight: 500;
   color: #374151;
+}
+
+.slot-shared-badge {
+  font-size: 0.8em;
+  color: #059669;
+  font-weight: 500;
+}
+
+.slot-split-note {
+  font-size: 0.85em;
+  color: #6b7280;
 }
 
 .monthly-amount {
