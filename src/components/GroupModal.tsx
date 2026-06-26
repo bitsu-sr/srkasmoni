@@ -14,11 +14,9 @@ interface GroupModalProps {
 
 const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group, mode }) => {
   const getDefaultStartDate = () => {
-    // Allow starting from 1 year ago to give flexibility
     const now = new Date()
-    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1)
-    const year = oneYearAgo.getFullYear()
-    const month = String(oneYearAgo.getMonth() + 1).padStart(2, '0')
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
     return `${year}-${month}`
   }
 

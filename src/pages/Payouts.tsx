@@ -29,6 +29,7 @@ import { Bank } from '../types/bank'
 import { pdfService } from '../services/pdfService'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import { formatPaymentDate } from '../utils/dateUtils'
 
 const Payouts: React.FC = () => {
   const { t } = useLanguage()
@@ -1724,11 +1725,7 @@ const Payouts: React.FC = () => {
                           </td>
                           <td className="payouts-member-status-date">
                             {member.paymentDate
-                              ? new Date(member.paymentDate).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                })
+                              ? formatPaymentDate(member.paymentDate)
                               : '-'}
                           </td>
                           <td className="payouts-member-status-amount">

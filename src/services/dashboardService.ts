@@ -27,6 +27,8 @@ export interface DashboardGroup {
   slotsTotal: number
   /** Number of distinct slot months (calendar slots). When < slotsTotal, group has shared slots. */
   slotCount?: number
+  /** Last (most recent) slot month assigned to any member of this group, in YYYY-MM format. */
+  lastSlotMonth: string | null
   created_at: string
   hasCompletedPayouts?: boolean
 }
@@ -657,6 +659,14 @@ export const dashboardService = {
           slotsPaid = paidSlots.size
         }
 
+        // Find the last (most recent) assigned month date for this group
+        const assignedMonths = (group.group_members || [])
+          .map((m: any) => m.assigned_month_date)
+          .filter(Boolean)
+        const lastSlotMonth = assignedMonths.length > 0
+          ? assignedMonths.sort().reverse()[0]
+          : null
+
         return {
           id: group.id,
           name: group.name,
@@ -668,6 +678,7 @@ export const dashboardService = {
           slotsPaid,
           slotsTotal,
           slotCount,
+          lastSlotMonth,
           created_at: group.created_at,
           hasCompletedPayouts: groupsWithCompletedPayouts.has(group.id)
         }

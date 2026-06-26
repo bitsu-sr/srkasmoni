@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Users, UserPlus, TrendingUp, DollarSign, Clock, CheckCircle, XCircle, ArrowRight, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Plus, Users, UserPlus, TrendingUp, DollarSign, Clock, CheckCircle, XCircle, ArrowRight, AlertTriangle, CheckCircle2, Settings2 } from 'lucide-react'
 import { useCachedDashboard } from '../hooks/useCachedQueries'
 import { useLanguage } from '../contexts/LanguageContext'
 import { dashboardService } from '../services/dashboardService'
 import { payoutService } from '../services/payoutService'
 import { useMonthFilter } from '../hooks/useMonthFilter'
+import { useColumnVisibility, type ColumnDef } from '../hooks/useColumnVisibility'
+import { formatPaymentDate } from '../utils/dateUtils'
 import MonthFilter from '../components/MonthFilter'
 import './Dashboard.css'
 
@@ -89,7 +91,53 @@ const Dashboard = () => {
     paymentAmount?: number
   }>>([])
   const [loadingMemberStatuses, setLoadingMemberStatuses] = useState(false)
-  
+
+  // Column definitions for the groups table
+  const groupColumnDefs: ColumnDef[] = [
+    { key: 'name', label: t('dashboard.groups.headers.name'), defaultVisible: true },
+    { key: 'monthlyAmount', label: t('dashboard.groups.headers.monthlyAmount'), defaultVisible: true },
+    { key: 'nextRecipient', label: t('dashboard.groups.headers.nextRecipient'), defaultVisible: true },
+    { key: 'slots', label: t('dashboard.groups.headers.slots'), defaultVisible: true },
+    { key: 'slotsProgress', label: t('dashboard.groups.headers.slotsProgress'), defaultVisible: true },
+    { key: 'last', label: t('dashboard.groups.headers.last'), defaultVisible: true },
+    { key: 'created', label: t('dashboard.groups.headers.created'), defaultVisible: true },
+  ]
+
+  const {
+    visibility,
+    toggleColumn,
+    isVisible,
+    visibleColumns,
+    allColumns,
+  } = useColumnVisibility('dashboard-groups', groupColumnDefs)
+
+  // Column width map for the grid layout
+  const columnWidths: Record<string, string> = {
+    name: '1.5fr',
+    monthlyAmount: '1fr',
+    nextRecipient: '1.5fr',
+    slots: '1.2fr',
+    slotsProgress: '1.2fr',
+    last: '0.7fr',
+    created: '1fr',
+  }
+
+  const gridTemplateColumns = visibleColumns.map(col => columnWidths[col.key] || '1fr').join(' ')
+
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false)
+  const columnMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close column menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(event.target as Node)) {
+        setIsColumnMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   // Navigation handlers
   const handleAddPayment = () => {
     navigate('/payments')
@@ -373,16 +421,44 @@ const Dashboard = () => {
 
         {/* Groups Table */}
         <div className="dashboard-groups-section">
-          <h2>{t('dashboard.groups.all')}</h2>
+          <div className="dashboard-groups-header">
+            <h2>{t('dashboard.groups.all')}</h2>
+            <div className="dashboard-column-toggle-wrapper" ref={columnMenuRef}>
+              <button
+                className="dashboard-column-toggle-btn"
+                onClick={() => setIsColumnMenuOpen(prev => !prev)}
+                title="Toggle columns"
+              >
+                <Settings2 size={18} />
+                <span>Columns</span>
+              </button>
+              {isColumnMenuOpen && (
+                <div className="dashboard-column-menu">
+                  <div className="dashboard-column-menu-header">Show/Hide Columns</div>
+                  {allColumns.map(col => (
+                    <label key={col.key} className="dashboard-column-menu-item">
+                      <input
+                        type="checkbox"
+                        checked={visibility[col.key] ?? col.defaultVisible}
+                        onChange={() => toggleColumn(col.key)}
+                      />
+                      <span>{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
           <p className="dashboard-groups-note">Only active groups are displayed. Groups past their end date are automatically hidden.</p>
           <div className="dashboard-groups-table">
-            <div className="dashboard-table-header">
-              <div className="dashboard-header-cell">{t('dashboard.groups.headers.name')}</div>
-              <div className="dashboard-header-cell">{t('dashboard.groups.headers.monthlyAmount')}</div>
-              <div className="dashboard-header-cell">{t('dashboard.groups.headers.nextRecipient')}</div>
-              <div className="dashboard-header-cell">{t('dashboard.groups.headers.slots')}</div>
-              <div className="dashboard-header-cell">{t('dashboard.groups.headers.slotsProgress')}</div>
-              <div className="dashboard-header-cell">{t('dashboard.groups.headers.created')}</div>
+            <div className="dashboard-table-header" style={{ gridTemplateColumns }}>
+              <div className={`dashboard-header-cell${isVisible('name') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.name')}</div>
+              <div className={`dashboard-header-cell${isVisible('monthlyAmount') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.monthlyAmount')}</div>
+              <div className={`dashboard-header-cell${isVisible('nextRecipient') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.nextRecipient')}</div>
+              <div className={`dashboard-header-cell${isVisible('slots') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.slots')}</div>
+              <div className={`dashboard-header-cell${isVisible('slotsProgress') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.slotsProgress')}</div>
+              <div className={`dashboard-header-cell${isVisible('last') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.last')}</div>
+              <div className={`dashboard-header-cell${isVisible('created') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.created')}</div>
             </div>
             {dashboardData?.groups
               .sort((a: any, b: any) => a.name.localeCompare(b.name))
@@ -390,6 +466,7 @@ const Dashboard = () => {
               <div
                 key={group.id}
                 className="dashboard-table-row dashboard-table-row-clickable"
+                style={{ gridTemplateColumns }}
                 role="button"
                 tabIndex={0}
                 onClick={() => handleGroupRowClick(group)}
@@ -400,7 +477,7 @@ const Dashboard = () => {
                   }
                 }}
               >
-                <div className="dashboard-table-cell">
+                <div className={`dashboard-table-cell${isVisible('name') ? '' : ' dashboard-table-cell--hidden'}`}>
                   <div className="dashboard-group-name">
                     {group.name}
                     {group.hasCompletedPayouts && (
@@ -410,13 +487,13 @@ const Dashboard = () => {
                     )}
                   </div>
                      </div>
-                <div className="dashboard-table-cell">
+                <div className={`dashboard-table-cell${isVisible('monthlyAmount') ? '' : ' dashboard-table-cell--hidden'}`}>
                   SRD {group.monthlyAmount?.toLocaleString()}
                    </div>
-                <div className="dashboard-table-cell">
+                <div className={`dashboard-table-cell${isVisible('nextRecipient') ? '' : ' dashboard-table-cell--hidden'}`}>
                   {group.nextRecipient}
                 </div>
-                <div className="dashboard-table-cell dashboard-slots-summary">
+                <div className={`dashboard-table-cell dashboard-slots-summary${isVisible('slots') ? '' : ' dashboard-table-cell--hidden'}`}>
                   {group.slotCount != null && group.slotsTotal > group.slotCount ? (
                     <span title="Shared slots: multiple members per month">
                       {group.slotsTotal} members, {group.slotCount} slots
@@ -425,7 +502,7 @@ const Dashboard = () => {
                     <span>{group.slotsTotal} slot{group.slotsTotal !== 1 ? 's' : ''}</span>
                   )}
                 </div>
-                <div className="dashboard-table-cell">
+                <div className={`dashboard-table-cell${isVisible('slotsProgress') ? '' : ' dashboard-table-cell--hidden'}`}>
                   <div className="dashboard-slots-progress">
                     <span className="dashboard-slots-text">
                       {group.slotsPaid}/{group.slotsTotal}
@@ -438,7 +515,10 @@ const Dashboard = () => {
                      </div>
                    </div>
                      </div>
-                <div className="dashboard-table-cell">
+                <div className={`dashboard-table-cell${isVisible('last') ? '' : ' dashboard-table-cell--hidden'}`}>
+                  {group.lastSlotMonth ? formatMonthYear(group.lastSlotMonth) : '-'}
+                </div>
+                <div className={`dashboard-table-cell${isVisible('created') ? '' : ' dashboard-table-cell--hidden'}`}>
                   {formatMonthYear(group.created_at)}
                    </div>
                  </div>
@@ -629,11 +709,7 @@ const Dashboard = () => {
                           </td>
                           <td className="dashboard-member-status-date">
                             {member.paymentDate
-                              ? new Date(member.paymentDate).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                })
+                              ? formatPaymentDate(member.paymentDate)
                               : '-'}
                           </td>
                           <td className="dashboard-member-status-amount">

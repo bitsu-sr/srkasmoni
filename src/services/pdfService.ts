@@ -5,6 +5,7 @@ import { Payout } from '../types/payout';
 import { PaymentSlot } from '../types/paymentSlot';
 import { Payment } from '../types/payment';
 import type { Group, GroupMember } from '../types/member';
+import type { GroupWithDetails } from './groupsOptimizedService';
 
 // Type for unpaid slots with member and group info
 interface UnpaidSlot extends PaymentSlot {
@@ -1364,6 +1365,165 @@ export const pdfService = {
         reject(error)
       }
     })
+  },
+
+  /**
+   * Generate a PDF listing multiple groups with their member slots (Groups page export).
+   */
+  async generateGroupsListPDF(sectionTitle: string, groups: GroupWithDetails[]): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const formatMonthYear = (dateString: string): string => {
+          try {
+            const [year, month] = dateString.split('-').map(Number);
+            if (isNaN(year) || isNaN(month) || month < 1 || month > 12) return dateString;
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${monthNames[month - 1]} ${year}`;
+          } catch {
+            return dateString;
+          }
+        };
+
+        const normalizeMonthDate = (date: string | number): string =>
+          typeof date === 'string' ? date : `2024-${String(date).padStart(2, '0')}`;
+
+        const calculateDuration = (startDate: string, endDate: string): number => {
+          if (!startDate || !endDate) return 0;
+          const [startYear, startMonth] = startDate.split('-').map(Number);
+          const [endYear, endMonth] = endDate.split('-').map(Number);
+          if ([startYear, startMonth, endYear, endMonth].some(n => isNaN(n))) return 0;
+          return (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+        };
+
+        const formatSrdAmount = (amount: number): string =>
+          `SRD ${amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        const tableFontSize = 9;
+        const headerFill = '#007000';
+        const tableLayout = {
+          hLineWidth: () => 0.5,
+          vLineWidth: () => 0.5,
+          hLineColor: () => '#000000',
+          vLineColor: () => '#000000'
+        };
+
+        const content: any[] = [
+          {
+            text: `Generated on: ${new Date().toLocaleString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false
+            })}`,
+            fontSize: 9,
+            alignment: 'right',
+            margin: [0, 0, 0, 16]
+          }
+        ];
+
+        groups.forEach((group, groupIndex) => {
+          const groupDuration = group.startDate && group.endDate
+            ? calculateDuration(group.startDate, group.endDate)
+            : group.duration || 0;
+          const periodLabel = group.startDate && group.endDate
+            ? `${formatMonthYear(group.startDate)} - ${formatMonthYear(group.endDate)}`
+            : 'N/A';
+          const members = group.members || [];
+
+          const membersPerMonth = new Map<string, number>();
+          members.forEach((m) => {
+            const monthDate = normalizeMonthDate(m.assignedMonthDate);
+            membersPerMonth.set(monthDate, (membersPerMonth.get(monthDate) || 0) + 1);
+          });
+
+          const sortedMembers = [...members].sort((a, b) =>
+            normalizeMonthDate(a.assignedMonthDate).localeCompare(normalizeMonthDate(b.assignedMonthDate))
+          );
+
+          content.push({
+            columns: [
+              { text: group.name, bold: true, fontSize: 11 },
+              { text: periodLabel, alignment: 'right', fontSize: 11 }
+            ],
+            margin: [0, groupIndex > 0 ? 24 : 0, 0, 8]
+          });
+
+          const tableHeader: TableCell[] = [
+            { text: 'Month', bold: true, fillColor: headerFill, color: 'white', fontSize: tableFontSize },
+            { text: 'Member', bold: true, fillColor: headerFill, color: 'white', fontSize: tableFontSize },
+            { text: 'Monthly', bold: true, fillColor: headerFill, color: 'white', fontSize: tableFontSize },
+            { text: 'Duration', bold: true, fillColor: headerFill, color: 'white', fontSize: tableFontSize },
+            { text: 'Receives', bold: true, fillColor: headerFill, color: 'white', fontSize: tableFontSize }
+          ];
+
+          const tableBody: TableCell[][] = [tableHeader];
+
+          if (sortedMembers.length === 0) {
+            tableBody.push([
+              { text: '-', fontSize: tableFontSize, colSpan: 5, alignment: 'center' },
+              {}, {}, {}, {}
+            ]);
+          } else {
+            sortedMembers.forEach((slot) => {
+              const monthDate = normalizeMonthDate(slot.assignedMonthDate);
+              const sharersCount = membersPerMonth.get(monthDate) || 1;
+              const receivesAmount = ((group.monthlyAmount || 0) / sharersCount) * groupDuration;
+              const memberName = `${slot.member?.firstName || ''} ${slot.member?.lastName || ''}`.trim() || '-';
+
+              tableBody.push([
+                { text: formatMonthYear(monthDate), fontSize: tableFontSize },
+                { text: memberName, fontSize: tableFontSize },
+                { text: formatSrdAmount(group.monthlyAmount || 0), fontSize: tableFontSize },
+                { text: String(groupDuration), fontSize: tableFontSize },
+                { text: formatSrdAmount(receivesAmount), fontSize: tableFontSize }
+              ]);
+            });
+          }
+
+          content.push({
+            table: {
+              headerRows: 1,
+              widths: ['auto', '*', 'auto', 'auto', 'auto'],
+              body: tableBody
+            },
+            layout: tableLayout,
+            margin: [0, 0, 0, 8]
+          });
+        });
+
+        const docDefinition: TDocumentDefinitions = {
+          pageSize: 'A4',
+          pageOrientation: 'portrait',
+          pageMargins: [40, 60, 40, 60],
+          header: {
+            text: `Sranan Kasmoni - ${sectionTitle}`,
+            style: 'header',
+            alignment: 'center',
+            margin: [0, 10]
+          },
+          footer: (currentPage, pageCount) => ({
+            text: `Page ${currentPage} of ${pageCount}`,
+            alignment: 'right',
+            margin: [0, 10, 40, 0],
+            fontSize: 9
+          }),
+          content,
+          styles: {
+            header: { fontSize: 14, bold: true, color: '#007000' }
+          }
+        };
+
+        const sectionSlug = sectionTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const pdfDoc = pdfMake.createPdf(docDefinition);
+        pdfDoc.download(`groups-${sectionSlug}-${new Date().toISOString().split('T')[0]}.pdf`);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
   },
 
   // Helper to convert numbers to Dutch words

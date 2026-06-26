@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Filter, User, Users, Activity, Clock, Eye, FileText, RefreshCw } from 'lucide-react'
 import { paymentLogService } from '../services/paymentLogService'
@@ -219,12 +219,23 @@ const PaymentLogs: React.FC = () => {
     setCurrentPage(1)
   }, [selectedMonth])
 
-  // Pagination calculations
-  const totalLogs = paymentLogs?.length || 0
+  const sortedPaymentLogs = useMemo(() => {
+    if (!paymentLogs?.length) return paymentLogs ?? []
+    return [...paymentLogs].sort((a, b) => {
+      const tb = new Date(b.createdAt).getTime()
+      const ta = new Date(a.createdAt).getTime()
+      const nb = Number.isNaN(tb) ? 0 : tb
+      const na = Number.isNaN(ta) ? 0 : ta
+      return nb - na
+    })
+  }, [paymentLogs])
+
+  // Pagination calculations (newest timestamp first)
+  const totalLogs = sortedPaymentLogs.length
   const totalPages = Math.ceil(totalLogs / pageSize)
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
-  const currentPageData = paymentLogs ? paymentLogs.slice(startIndex, endIndex) : []
+  const currentPageData = sortedPaymentLogs.slice(startIndex, endIndex)
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
