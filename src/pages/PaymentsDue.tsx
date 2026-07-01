@@ -21,6 +21,15 @@ interface UnpaidSlot extends PaymentSlot {
 
 type SortField = 'firstName' | 'lastName' | 'group' | 'slot' | 'amount'
 type SortDirection = 'asc' | 'desc'
+type PaymentStatusFilter = 'all' | 'paid' | 'unpaid'
+
+const PAYMENT_STATUS_FILTER_KEY = 'payments-due-payment-status-filter'
+
+function readSavedPaymentStatusFilter(): PaymentStatusFilter {
+  const saved = typeof window !== 'undefined' ? localStorage.getItem(PAYMENT_STATUS_FILTER_KEY) : null
+  if (saved === 'all' || saved === 'paid' || saved === 'unpaid') return saved
+  return 'all'
+}
 
 const PaymentsDue: React.FC = () => {
   const { settings, updateSetting } = usePerformanceSettings()
@@ -42,7 +51,7 @@ const PaymentsDue: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   
   // Filter state
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid' | 'unpaid'>('all')
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentStatusFilter>(readSavedPaymentStatusFilter)
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('payments-due-selected-month') : null
     if (saved && /^\d{4}-\d{2}$/.test(saved)) return saved
@@ -87,7 +96,7 @@ const PaymentsDue: React.FC = () => {
   }
 
   // Handle payment status filter change
-  const handlePaymentStatusFilterChange = (status: 'all' | 'paid' | 'unpaid') => {
+  const handlePaymentStatusFilterChange = (status: PaymentStatusFilter) => {
     setPaymentStatusFilter(status)
     setCurrentPage(1) // Reset to first page when filter changes
   }
@@ -106,6 +115,13 @@ const PaymentsDue: React.FC = () => {
       localStorage.setItem('payments-due-selected-month', selectedMonth)
     } catch {}
   }, [selectedMonth])
+
+  // Persist payment status filter
+  useEffect(() => {
+    try {
+      localStorage.setItem(PAYMENT_STATUS_FILTER_KEY, paymentStatusFilter)
+    } catch {}
+  }, [paymentStatusFilter])
 
   // Load data based on performance settings and user permissions
   const loadUnpaidSlots = useCallback(async () => {
@@ -645,7 +661,7 @@ const PaymentsDue: React.FC = () => {
               <select
                 id="payment-status"
                 value={paymentStatusFilter}
-                onChange={(e) => handlePaymentStatusFilterChange(e.target.value as 'all' | 'paid' | 'unpaid')}
+                onChange={(e) => handlePaymentStatusFilterChange(e.target.value as PaymentStatusFilter)}
                 className="payment-status-dropdown"
               >
                 <option value="all">{t('paymentsDue.filter.all')}</option>

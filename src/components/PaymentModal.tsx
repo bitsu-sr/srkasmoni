@@ -271,6 +271,8 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
   useEffect(() => {
     if (workflow === 'multi-group' && groups.length > 0 && multiGroupPaymentInfo.paymentMonth) {
       filterActiveGroups(groups, multiGroupPaymentInfo.paymentMonth)
+      setExistingPayments({})
+      setSelectedCombinations(new Set())
       
       // Reload member data if a member is already selected
       if (selectedMemberForMulti) {
@@ -298,12 +300,11 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
    // Check for duplicate payment when form data changes
    useEffect(() => {
      const checkForDuplicates = async () => {
-       if (formData.memberId && formData.groupId && formData.slotId && !isEditing) {
+       if (formData.memberId && formData.groupId && formData.slotId && formData.paymentMonth && !isEditing) {
          try {
-          // Check if a payment exists for this member, group, and slot for the current month
           const isDuplicate = await paymentService.checkDuplicatePayment(formData)
           if (isDuplicate) {
-            setDuplicateWarning('⚠️ A payment for this member, group, and slot exists for the current month. Duplicate payments for the same month are not allowed.')
+            setDuplicateWarning(`⚠️ A payment for this member, group, and slot already exists for ${formData.paymentMonth}. Duplicate payments for the same month are not allowed.`)
           } else {
             setDuplicateWarning('')
           }
@@ -317,7 +318,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      }
 
      checkForDuplicates()
-   }, [formData.memberId, formData.groupId, formData.slotId, isEditing])
+   }, [formData.memberId, formData.groupId, formData.slotId, formData.paymentMonth, isEditing])
 
    // Close dropdown when clicking outside (member-first workflow)
    useEffect(() => {
@@ -706,8 +707,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
       
       if (!combination) return
       
-      // Get current month for payment_month comparison
-      const currentMonth = new Date().toISOString().substring(0, 7)
+      const paymentMonth = multiGroupPaymentInfo.paymentMonth
       
       // Parse the slot month back to YYYY-MM format for database query
       const [monthName, year] = combination.slotMonth.split(' ')
@@ -728,7 +728,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
         .eq('member_id', memberId)
         .eq('group_id', groupId)
         .eq('payment_slots.month_date', monthDate)
-        .eq('payment_month', currentMonth)
+        .eq('payment_month', paymentMonth)
       
       if (error) {
         console.error('Error querying payments:', error)
