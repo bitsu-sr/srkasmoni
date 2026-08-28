@@ -1,6 +1,10 @@
+export const MEMBER_CITIES = ['Paramaribo', 'Nieuw Nickerie', 'Lelydorp', 'Moengo', 'Albina', 'Other']
+export const MEMBER_NATIONALITIES = ['Surinamese', 'Dutch', 'American', 'Canadian', 'Other']
+
 export interface Member {
   id: number
   firstName: string
+  middleName?: string
   lastName: string
   birthDate: string
   birthplace: string
@@ -25,6 +29,7 @@ export interface Member {
 
 export interface MemberFormData {
   firstName: string
+  middleName: string
   lastName: string
   birthDate: string
   birthplace: string
@@ -42,6 +47,43 @@ export interface MemberFormData {
   lastPayment: string
   nextPayment: string
   notes: string
+}
+
+export interface MemberSignup {
+  id: number
+  firstName: string
+  middleName: string
+  lastName: string
+  birthDate: string
+  birthplace: string
+  address: string
+  city: string
+  phone: string
+  email: string
+  nationalId: string
+  nationality: string
+  occupation: string
+  bankName: string
+  accountNumber: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MemberSignupFormData {
+  firstName: string
+  middleName: string
+  lastName: string
+  birthDate: string
+  birthplace: string
+  address: string
+  city: string
+  phone: string
+  email: string
+  nationalId: string
+  nationality: string
+  occupation: string
+  bankName: string
+  accountNumber: string
 }
 
 export interface MemberFilters {

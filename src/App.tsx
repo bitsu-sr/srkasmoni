@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import RootRedirect from './components/RootRedirect'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import Landing from './pages/Landing'
+import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import MyDashboard from './pages/MyDashboard'
 import Groups from './pages/Groups'
@@ -45,6 +46,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
                   <Route path="/landing" element={<Landing />} />
+                  <Route path="/signup" element={<Signup />} />
                   <Route path="/dashboard" element={
                     <ProtectedRoute>
                       <Dashboard />

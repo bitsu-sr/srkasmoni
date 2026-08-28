@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS group_members (
 CREATE TABLE members (
   id BIGSERIAL PRIMARY KEY,
   first_name VARCHAR(100) NOT NULL,
+  middle_name VARCHAR(100) DEFAULT '',
   last_name VARCHAR(100) NOT NULL,
   birth_date DATE NOT NULL,
   birthplace VARCHAR(100) NOT NULL,

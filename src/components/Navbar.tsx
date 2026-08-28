@@ -169,12 +169,17 @@ const Navbar = () => {
             {isAuthenticated ? (
               <UserProfileDropdown />
             ) : (
-              <button 
-                className="login-btn"
-                onClick={() => setIsLoginModalOpen(true)}
-              >
-                {t('auth.login')}
-              </button>
+              <>
+                <Link to="/signup" className="signup-btn">
+                  {t('auth.signup')}
+                </Link>
+                <button 
+                  className="login-btn"
+                  onClick={() => setIsLoginModalOpen(true)}
+                >
+                  {t('auth.login')}
+                </button>
+              </>
             )}
           </div>
         )}
@@ -192,12 +197,17 @@ const Navbar = () => {
             {isAuthenticated ? (
               <UserProfileDropdown />
             ) : (
-              <button 
-                className="mobile-login-btn"
-                onClick={() => setIsLoginModalOpen(true)}
-              >
-                {t('auth.login')}
-              </button>
+              <>
+                <Link to="/signup" className="mobile-signup-btn">
+                  {t('auth.signup')}
+                </Link>
+                <button 
+                  className="mobile-login-btn"
+                  onClick={() => setIsLoginModalOpen(true)}
+                >
+                  {t('auth.login')}
+                </button>
+              </>
             )}
           </div>
         )}

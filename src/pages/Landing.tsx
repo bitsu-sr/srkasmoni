@@ -78,8 +78,8 @@ const Landing = () => {
                   Traditional tandas built communities for generations, but shouldn't be complicated. Sranan Kasmoni brings trusted tanda systems into the digital age with complete transparency, bank-level security, and automated management.
                 </p>
                 <div className="hero-cta">
-                  <Link to="/dashboard" className="cta-button primary">
-                    Get started
+                  <Link to="/signup" className="cta-button primary">
+                    {t('auth.signup')}
                     <ArrowRight size={20} />
                   </Link>
                   <Link to="/groups" className="cta-button secondary">
@@ -400,7 +400,7 @@ const Landing = () => {
             <h2>{t('landing.cta.title')}</h2>
             <p>{t('landing.cta.subtitle')}</p>
             <div className="cta-buttons">
-              <Link to="/dashboard" className="cta-button primary large">
+              <Link to="/signup" className="cta-button primary large">
                 {t('landing.cta.primary')}
                 <ArrowRight size={24} />
               </Link>

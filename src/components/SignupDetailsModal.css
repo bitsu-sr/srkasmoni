@@ -1,0 +1,140 @@
+.signup-details-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.signup-details-content {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.signup-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.signup-details-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #111827;
+}
+
+.signup-details-name {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.signup-details-close {
+  background: none;
+  border: none;
+  color: #6b7280;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.signup-details-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.signup-details-body {
+  padding: 8px 24px 24px;
+}
+
+.signup-details-section {
+  padding-top: 16px;
+}
+
+.signup-details-section h3 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.signup-details-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 0;
+}
+
+.signup-details-item dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.signup-details-item dd {
+  margin: 4px 0 0;
+  color: #111827;
+  word-break: break-word;
+}
+
+.signup-details-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 16px 24px 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.signup-details-actions .btn {
+  min-height: 44px;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.signup-details-actions .btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.signup-details-actions .btn-primary {
+  background: #16a34a;
+  color: white;
+}
+
+.signup-details-actions .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (min-width: 640px) {
+  .signup-details-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .signup-details-actions {
+    flex-direction: column-reverse;
+  }
+
+  .signup-details-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

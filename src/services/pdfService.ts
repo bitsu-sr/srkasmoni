@@ -6,6 +6,7 @@ import { PaymentSlot } from '../types/paymentSlot';
 import { Payment } from '../types/payment';
 import type { Group, GroupMember } from '../types/member';
 import type { GroupWithDetails } from './groupsOptimizedService';
+import { formatMemberName } from '../utils/memberName';
 
 // Type for unpaid slots with member and group info
 interface UnpaidSlot extends PaymentSlot {
@@ -901,6 +902,7 @@ export const pdfService = {
     member: {
       id: number
       firstName: string
+      middleName?: string
       lastName: string
       birthDate: string
       birthplace: string
@@ -1026,7 +1028,7 @@ export const pdfService = {
 
         // Member information section
         content.push({
-          text: `Naam: ${member.firstName} ${member.lastName},`,
+          text: `Naam: ${formatMemberName(member)},`,
           fontSize: 11,
           margin: [0, 0, 0, 5]
         })
@@ -1242,7 +1244,7 @@ export const pdfService = {
         })
 
         content.push({
-          text: `Voorbeeld betalingskenmerk: "Boodschappen ${member.firstName} ${member.lastName} ${assignedMonthFormatted}"`,
+          text: `Voorbeeld betalingskenmerk: "Boodschappen ${formatMemberName(member)} ${assignedMonthFormatted}"`,
           fontSize: 10,
           margin: [0, 0, 0, 5]
         })
@@ -1358,7 +1360,7 @@ export const pdfService = {
         }
 
         const pdfDoc = pdfMake.createPdf(docDefinition)
-        const fileName = `Overeenkomst_${member.firstName}_${member.lastName}_${group.name}_${assignedMonth}.pdf`
+        const fileName = `Overeenkomst_${formatMemberName(member).replace(/\s+/g, '_')}_${group.name}_${assignedMonth}.pdf`
         pdfDoc.download(fileName)
         resolve()
       } catch (error) {

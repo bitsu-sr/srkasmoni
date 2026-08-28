@@ -1,17 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Grid, List, FileText } from 'lucide-react'
-import { Member, MemberFormData, MemberFilters } from '../types/member'
+import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Grid, List, FileText, Check } from 'lucide-react'
+import { Member, MemberFormData, MemberFilters, MemberSignup } from '../types/member'
 import { memberService } from '../services/memberService'
+import { memberSignupService } from '../services/memberSignupService'
 import { getAllMembersWithStatus, getMemberWithStatus, MemberWithStatus } from '../services/memberStatusService'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MemberModal from '../components/MemberModal'
+import SignupDetailsModal from '../components/SignupDetailsModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import MonthFilter from '../components/MonthFilter'
 import { useMonthFilter } from '../hooks/useMonthFilter'
 import { pdfService } from '../services/pdfService'
 import { groupService } from '../services/groupService'
+import { formatMemberName } from '../utils/memberName'
 import './Members.css'
 import { useLanguage } from '../contexts/LanguageContext'
 
@@ -40,10 +43,13 @@ const Members = () => {
   const [members, setMembers] = useState<MemberWithStatus[]>([])
   const [activeMembers, setActiveMembers] = useState<MemberWithStatus[]>([])
   const [inactiveMembers, setInactiveMembers] = useState<MemberWithStatus[]>([])
+  const [signups, setSignups] = useState<MemberSignup[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<Member | null>(null)
   const [deletingMember, setDeletingMember] = useState<Member | null>(null)
+  const [rejectingSignup, setRejectingSignup] = useState<MemberSignup | null>(null)
+  const [viewingSignup, setViewingSignup] = useState<MemberSignup | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMembers, setIsLoadingMembers] = useState(true)
   const [filters, setFilters] = useState<MemberFilters>({
@@ -166,6 +172,25 @@ const Members = () => {
     loadMembers()
   }, [isAdmin, user?.username])
 
+  useEffect(() => {
+    if (!isAdmin) {
+      setSignups([])
+      return
+    }
+
+    const loadSignups = async () => {
+      try {
+        const data = await memberSignupService.getAllSignups()
+        setSignups(data)
+      } catch (error) {
+        console.error('Failed to load sign-ups:', error)
+        setSignups([])
+      }
+    }
+
+    loadSignups()
+  }, [isAdmin])
+
   // Update active/inactive members when selected month changes
   useEffect(() => {
     const updateMemberStatus = async () => {
@@ -191,6 +216,7 @@ const Members = () => {
     let filtered = membersToFilter.filter(member => {
       const matchesSearch = 
         member.firstName.toLowerCase().includes(filters.search.toLowerCase()) ||
+        (member.middleName || '').toLowerCase().includes(filters.search.toLowerCase()) ||
         member.lastName.toLowerCase().includes(filters.search.toLowerCase()) ||
         member.nationalId.includes(filters.search) ||
         member.phone.includes(filters.search) ||
@@ -205,8 +231,8 @@ const Members = () => {
     // Sort the filtered members
     filtered.sort((a, b) => {
       if (sortConfig.field === 'name') {
-        const aName = `${a.firstName} ${a.lastName}`.toLowerCase()
-        const bName = `${b.firstName} ${b.lastName}`.toLowerCase()
+        const aName = formatMemberName(a).toLowerCase()
+        const bName = formatMemberName(b).toLowerCase()
         
         if (sortConfig.direction === 'asc') {
           return aName.localeCompare(bName)
@@ -269,27 +295,85 @@ const Members = () => {
       alert('Only administrators can delete members.')
       return
     }
+    setRejectingSignup(null)
     setDeletingMember(member)
     setIsDeleteModalOpen(true)
   }
 
+  const signupToMemberForm = (signup: MemberSignup): MemberFormData => ({
+    firstName: signup.firstName,
+    middleName: signup.middleName || '',
+    lastName: signup.lastName,
+    birthDate: signup.birthDate,
+    birthplace: signup.birthplace,
+    address: signup.address,
+    city: signup.city,
+    phone: signup.phone,
+    email: signup.email,
+    nationalId: signup.nationalId,
+    nationality: signup.nationality,
+    occupation: signup.occupation,
+    bankName: signup.bankName,
+    accountNumber: signup.accountNumber,
+    dateOfRegistration: new Date().toISOString().split('T')[0],
+    totalReceived: 0,
+    lastPayment: '',
+    nextPayment: '',
+    notes: ''
+  })
+
+  const handleApproveSignup = async (signup: MemberSignup) => {
+    if (!isAdmin) return
+
+    try {
+      setIsLoading(true)
+      const newMember = await memberService.createMember(signupToMemberForm(signup))
+      await memberSignupService.deleteSignup(signup.id)
+      setSignups(prev => prev.filter(s => s.id !== signup.id))
+
+      const memberWithStatus = await getMemberWithStatus(newMember.id)
+      if (memberWithStatus) {
+        setMembers(prev => [...prev, memberWithStatus])
+      }
+      setViewingSignup(null)
+    } catch (error) {
+      console.error('Error approving sign-up:', error)
+      alert(t('members.signups.approveError'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRejectSignup = (signup: MemberSignup) => {
+    if (!isAdmin) return
+    setDeletingMember(null)
+    setViewingSignup(null)
+    setRejectingSignup(signup)
+    setIsDeleteModalOpen(true)
+  }
+
   const confirmDelete = async () => {
-    if (!deletingMember) return
-    
     if (!isAdmin) {
       alert('Only administrators can delete members.')
       return
     }
 
+    if (!deletingMember && !rejectingSignup) return
+
     try {
       setIsLoading(true)
-      await memberService.deleteMember(deletingMember.id)
-      setMembers(prev => prev.filter(m => m.id !== deletingMember.id))
+      if (rejectingSignup) {
+        await memberSignupService.deleteSignup(rejectingSignup.id)
+        setSignups(prev => prev.filter(s => s.id !== rejectingSignup.id))
+        setRejectingSignup(null)
+      } else if (deletingMember) {
+        await memberService.deleteMember(deletingMember.id)
+        setMembers(prev => prev.filter(m => m.id !== deletingMember.id))
+        setDeletingMember(null)
+      }
       setIsDeleteModalOpen(false)
-      setDeletingMember(null)
     } catch (error) {
-      console.error('Error deleting member:', error)
-      // You might want to show an error message to the user here
+      console.error('Error deleting item:', error)
     } finally {
       setIsLoading(false)
     }
@@ -383,7 +467,8 @@ const Members = () => {
           nationalId: member.nationalId,
           occupation: member.occupation,
           bankName: member.bankName,
-          accountNumber: member.accountNumber
+          accountNumber: member.accountNumber,
+          middleName: member.middleName
         },
         {
           id: group.id,
@@ -425,6 +510,7 @@ const Members = () => {
     const sampleData = [
       {
         firstName: 'John',
+        middleName: 'A',
         lastName: 'Doe',
         birthDate: '1990-01-15',
         birthplace: 'Paramaribo',
@@ -442,6 +528,7 @@ const Members = () => {
       },
       {
         firstName: 'Jane',
+        middleName: '',
         lastName: 'Smith',
         birthDate: '1985-05-20',
         birthplace: 'Nieuw Nickerie',
@@ -461,7 +548,7 @@ const Members = () => {
 
     const csvContent = [
       // Header row
-      'firstName,lastName,birthDate,birthplace,address,city,phone,email,nationalId,nationality,occupation,bankName,accountNumber,dateOfRegistration,notes',
+      'firstName,middleName,lastName,birthDate,birthplace,address,city,phone,email,nationalId,nationality,occupation,bankName,accountNumber,dateOfRegistration,notes',
       // Data rows
       ...sampleData.map(row => 
         Object.values(row).map(value => `"${value}"`).join(',')
@@ -510,6 +597,7 @@ const Members = () => {
       // Transform to MemberFormData format
       const memberData: MemberFormData = {
         firstName: row.firstName,
+        middleName: row.middleName || '',
         lastName: row.lastName,
         birthDate: row.birthDate,
         birthplace: row.birthplace,
@@ -568,7 +656,7 @@ const Members = () => {
             setMembers(prev => [...prev, memberWithStatus])
           }
         } catch (error: any) {
-          const errorMsg = `Failed to import ${memberData.firstName} ${memberData.lastName}: ${error.message || 'Unknown error'}`
+          const errorMsg = `Failed to import ${formatMemberName(memberData)}: ${error.message || 'Unknown error'}`
           results.errors.push(errorMsg)
         }
       }
@@ -703,20 +791,21 @@ const Members = () => {
           </div>
         )}
 
-        {/* Search and Filters - Only show for admins */}
-        {isAdmin && (
-          <div className="members-filters-section">
-            <div className="members-search-box">
-              <Search size={20} />
-              <input
-                type="text"
-                className="members-search-input"
-                placeholder={t('members.searchPlaceholder')}
-                value={filters.search}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              />
-            </div>
+        {/* Search is always available; extra filters stay admin-only */}
+        <div className="members-filters-section">
+          <div className="members-search-box">
+            <Search size={20} />
+            <input
+              type="search"
+              className="members-search-input"
+              placeholder={t('members.searchPlaceholder')}
+              value={filters.search}
+              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              aria-label={t('members.searchPlaceholder')}
+            />
+          </div>
 
+          {isAdmin && (
             <div className="members-filters-row">
               <select
                 className="members-filter-select"
@@ -786,8 +875,8 @@ const Members = () => {
                 )}
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         
 
@@ -795,6 +884,18 @@ const Members = () => {
         {(() => {
           const filteredActiveMembers = getFilteredAndSortedMembers(activeMembers)
           const filteredInactiveMembers = getFilteredAndSortedMembers(inactiveMembers)
+          const search = filters.search.toLowerCase()
+          const filteredSignups = signups.filter(signup => {
+            if (!search) return true
+            return (
+              formatMemberName(signup).toLowerCase().includes(search) ||
+              signup.nationalId.includes(filters.search) ||
+              signup.phone.includes(filters.search) ||
+              signup.email.toLowerCase().includes(search) ||
+              signup.bankName.toLowerCase().includes(search) ||
+              signup.accountNumber.includes(filters.search)
+            )
+          })
           
           return (
             <>
@@ -829,7 +930,7 @@ const Members = () => {
                         <div key={member.id} className="members-member-card">
                           <div className="members-member-header">
                             <div className="members-member-info">
-                              <h3 className="members-member-name">{member.firstName} {member.lastName}</h3>
+                              <h3 className="members-member-name">{formatMemberName(member)}</h3>
                               <div className="members-status-tags">
                                 <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
                                   {member.statusInfo.isActive ? 'Active' : 'Inactive'}
@@ -915,7 +1016,7 @@ const Members = () => {
                             <tr key={member.id}>
                               <td className="members-member-name-cell">
                                 <div className="members-member-name-info">
-                                  <span className="members-member-full-name">{member.firstName} {member.lastName}</span>
+                                  <span className="members-member-full-name">{formatMemberName(member)}</span>
                                 </div>
                               </td>
                               <td>
@@ -965,6 +1066,91 @@ const Members = () => {
                 </div>
               )}
 
+              {/* New Sign-ups Section */}
+              {isAdmin && (
+                <div className="members-section members-section-signups">
+                  <div className="members-section-header">
+                    <h2 className="members-section-title">{t('members.signups.title')}</h2>
+                    <span className="members-section-count">
+                      {t('members.signups.count')
+                        .replace('{count}', String(filteredSignups.length))
+                        .replace('{plural}', filteredSignups.length !== 1 ? 's' : '')}
+                    </span>
+                  </div>
+
+                  {filteredSignups.length === 0 ? (
+                    <div className="members-signups-empty">{t('members.signups.empty')}</div>
+                  ) : (
+                    <div className="members-table-container members-table-container-signups">
+                      <table className="members-table">
+                        <thead>
+                          <tr>
+                            <th>{t('members.table.name')}</th>
+                            <th>{t('members.table.nationalId')}</th>
+                            <th>{t('members.table.phone')}</th>
+                            <th>{t('members.signups.email')}</th>
+                            <th>{t('members.table.city')}</th>
+                            <th>{t('members.signups.bank')}</th>
+                            <th>{t('members.signups.submitted')}</th>
+                            <th>{t('members.table.actions')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredSignups.map((signup) => (
+                            <tr
+                              key={signup.id}
+                              className="members-signup-row"
+                              onClick={() => setViewingSignup(signup)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setViewingSignup(signup)
+                                }
+                              }}
+                              tabIndex={0}
+                              role="button"
+                            >
+                              <td className="members-member-name-cell">
+                                <span className="members-member-full-name">{formatMemberName(signup)}</span>
+                              </td>
+                              <td>{signup.nationalId}</td>
+                              <td>{signup.phone}</td>
+                              <td>{signup.email}</td>
+                              <td>{signup.city}</td>
+                              <td>{signup.bankName}</td>
+                              <td>{new Date(signup.created_at).toLocaleDateString()}</td>
+                              <td
+                                className="members-member-actions-cell"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="members-table-actions">
+                                  <button
+                                    className="members-table-action-btn members-table-action-approve"
+                                    onClick={() => handleApproveSignup(signup)}
+                                    title={t('members.signups.approve')}
+                                    disabled={isLoading}
+                                  >
+                                    <Check size={16} />
+                                  </button>
+                                  <button
+                                    className="members-table-action-btn members-table-action-delete"
+                                    onClick={() => handleRejectSignup(signup)}
+                                    title={t('members.signups.reject')}
+                                    disabled={isLoading}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Inactive Members Section */}
               {filteredInactiveMembers.length > 0 && (
                 <div className="members-section members-section-inactive">
@@ -996,7 +1182,7 @@ const Members = () => {
                         <div key={member.id} className="members-member-card members-member-card-inactive">
                           <div className="members-member-header">
                             <div className="members-member-info">
-                              <h3 className="members-member-name">{member.firstName} {member.lastName}</h3>
+                              <h3 className="members-member-name">{formatMemberName(member)}</h3>
                               <div className="members-status-tags">
                                 <span className={`members-status-tag ${member.statusInfo.isActive ? 'active' : 'inactive'}`}>
                                   {member.statusInfo.isActive ? 'Active' : 'Inactive'}
@@ -1082,7 +1268,7 @@ const Members = () => {
                             <tr key={member.id} className="members-member-row-inactive">
                               <td className="members-member-name-cell">
                                 <div className="members-member-name-info">
-                                  <span className="members-member-full-name">{member.firstName} {member.lastName}</span>
+                                  <span className="members-member-full-name">{formatMemberName(member)}</span>
                                 </div>
                               </td>
                               <td>
@@ -1154,12 +1340,29 @@ const Members = () => {
         isLoading={isLoading}
       />
 
+      <SignupDetailsModal
+        isOpen={!!viewingSignup}
+        signup={viewingSignup}
+        isLoading={isLoading}
+        onClose={() => setViewingSignup(null)}
+        onApprove={handleApproveSignup}
+        onReject={handleRejectSignup}
+      />
+
       <DeleteConfirmModal
         isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
+        onClose={() => {
+          setIsDeleteModalOpen(false)
+          setDeletingMember(null)
+          setRejectingSignup(null)
+        }}
         onConfirm={confirmDelete}
-        itemName={`${deletingMember?.firstName} ${deletingMember?.lastName}`}
-        itemType="Member"
+        itemName={rejectingSignup ? formatMemberName(rejectingSignup) : formatMemberName({
+          firstName: deletingMember?.firstName || '',
+          middleName: deletingMember?.middleName,
+          lastName: deletingMember?.lastName || ''
+        })}
+        itemType={rejectingSignup ? 'Sign-up' : 'Member'}
         isLoading={isLoading}
       />
     </div>

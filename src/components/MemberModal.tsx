@@ -1,7 +1,31 @@
 import { useState, useEffect } from 'react'
 import { X, Check, X as XIcon, ChevronDown, ChevronRight } from 'lucide-react'
-import { Member, MemberFormData } from '../types/member'
+import { Member, MemberFormData, MEMBER_CITIES, MEMBER_NATIONALITIES } from '../types/member'
+import { bankService } from '../services/bankService'
+import type { Bank } from '../types/bank'
 import './MemberModal.css'
+
+const emptyMemberForm = (): MemberFormData => ({
+  firstName: '',
+  middleName: '',
+  lastName: '',
+  birthDate: '',
+  birthplace: '',
+  address: '',
+  city: '',
+  phone: '',
+  email: '',
+  nationalId: '',
+  nationality: '',
+  occupation: '',
+  bankName: '',
+  accountNumber: '',
+  dateOfRegistration: new Date().toISOString().split('T')[0],
+  totalReceived: 0,
+  lastPayment: '',
+  nextPayment: '',
+  notes: ''
+})
 
 interface MemberModalProps {
   isOpen: boolean
@@ -13,26 +37,8 @@ interface MemberModalProps {
 }
 
 const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoading = false }: MemberModalProps) => {
-  const [formData, setFormData] = useState<MemberFormData>({
-    firstName: '',
-    lastName: '',
-    birthDate: '',
-    birthplace: '',
-    address: '',
-    city: '',
-    phone: '',
-    email: '',
-    nationalId: '',
-    nationality: '',
-    occupation: '',
-    bankName: '',
-    accountNumber: '',
-    dateOfRegistration: new Date().toISOString().split('T')[0],
-    totalReceived: 0,
-    lastPayment: '',
-    nextPayment: '',
-    notes: ''
-  })
+  const [formData, setFormData] = useState<MemberFormData>(emptyMemberForm)
+  const [banks, setBanks] = useState<Bank[]>([])
 
   const [errors, setErrors] = useState<{
     firstName?: string
@@ -60,14 +66,21 @@ const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoa
     registration: false
   })
 
-  // Available cities and nationalities for selection
-  const availableCities = ['Paramaribo', 'Nieuw Nickerie', 'Lelydorp', 'Moengo', 'Albina', 'Other']
-  const availableNationalities = ['Surinamese', 'Dutch', 'American', 'Canadian', 'Other']
+  useEffect(() => {
+    if (!isOpen) return
+    bankService.getAllBanks()
+      .then(setBanks)
+      .catch(error => {
+        console.error('Error loading banks:', error)
+        setBanks([])
+      })
+  }, [isOpen])
 
   useEffect(() => {
     if (member && isEditing) {
       setFormData({
         firstName: member.firstName,
+        middleName: member.middleName || '',
         lastName: member.lastName,
         birthDate: member.birthDate,
         birthplace: member.birthplace,
@@ -88,27 +101,7 @@ const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoa
       })
       setEmailValid(isValidEmail(member.email))
     } else {
-      // Reset form for new member
-      setFormData({
-        firstName: '',
-        lastName: '',
-        birthDate: '',
-        birthplace: '',
-        address: '',
-        city: '',
-        phone: '',
-        email: '',
-        nationalId: '',
-        nationality: '',
-        occupation: '',
-        bankName: '',
-        accountNumber: '',
-        dateOfRegistration: new Date().toISOString().split('T')[0],
-        totalReceived: 0,
-        lastPayment: '',
-        nextPayment: '',
-        notes: ''
-      })
+      setFormData(emptyMemberForm())
       setEmailValid(null)
     }
     setErrors({})
@@ -117,27 +110,7 @@ const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoa
   // Additional effect to ensure form is reset when modal opens for new member
   useEffect(() => {
     if (isOpen && !member && !isEditing) {
-      // Reset form completely when opening for new member
-      setFormData({
-        firstName: '',
-        lastName: '',
-        birthDate: '',
-        birthplace: '',
-        address: '',
-        city: '',
-        phone: '',
-        email: '',
-        nationalId: '',
-        nationality: '',
-        occupation: '',
-        bankName: '',
-        accountNumber: '',
-        dateOfRegistration: new Date().toISOString().split('T')[0],
-        totalReceived: 0,
-        lastPayment: '',
-        nextPayment: '',
-        notes: ''
-      })
+      setFormData(emptyMemberForm())
       setEmailValid(null)
       setErrors({})
     }
@@ -255,7 +228,7 @@ const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoa
               
               {!collapsedSections.personal && (
                 <div className="section-content">
-                  <div className="form-row">
+                  <div className="form-row form-row-three">
                     <div className="form-group">
                       <label htmlFor="firstName">First Name *</label>
                       <input
@@ -268,6 +241,17 @@ const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoa
                         placeholder="Enter first name"
                       />
                       {errors.firstName && <span className="error-message">{errors.firstName}</span>}
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="middleName">Middle Name</label>
+                      <input
+                        type="text"
+                        id="middleName"
+                        name="middleName"
+                        value={formData.middleName}
+                        onChange={handleInputChange}
+                        placeholder="Enter middle name"
+                      />
                     </div>
                     <div className="form-group">
                       <label htmlFor="lastName">Last Name *</label>
@@ -337,7 +321,7 @@ const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoa
                         className={errors.city ? 'error' : ''}
                       >
                         <option value="">Select city</option>
-                        {availableCities.map(city => (
+                        {MEMBER_CITIES.map(city => (
                           <option key={city} value={city}>{city}</option>
                         ))}
                       </select>
@@ -353,7 +337,7 @@ const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoa
                         className={errors.nationality ? 'error' : ''}
                       >
                         <option value="">Select nationality</option>
-                        {availableNationalities.map(nat => (
+                        {MEMBER_NATIONALITIES.map(nat => (
                           <option key={nat} value={nat}>{nat}</option>
                         ))}
                       </select>
@@ -454,15 +438,21 @@ const MemberModal = ({ isOpen, onClose, onSave, member, isEditing = false, isLoa
                   <div className="form-row">
                     <div className="form-group">
                       <label htmlFor="bankName">Bank Name *</label>
-                      <input
-                        type="text"
+                      <select
                         id="bankName"
                         name="bankName"
                         value={formData.bankName}
                         onChange={handleInputChange}
                         className={errors.bankName ? 'error' : ''}
-                        placeholder="Enter bank name"
-                      />
+                      >
+                        <option value="">Select bank</option>
+                        {banks.map(bank => (
+                          <option key={bank.id} value={bank.name}>{bank.name}</option>
+                        ))}
+                        {formData.bankName && !banks.some(bank => bank.name === formData.bankName) && (
+                          <option value={formData.bankName}>{formData.bankName}</option>
+                        )}
+                      </select>
                       {errors.bankName && <span className="error-message">{errors.bankName}</span>}
                     </div>
                     <div className="form-group">

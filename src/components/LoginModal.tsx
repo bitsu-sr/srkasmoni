@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import './LoginModal.css';
@@ -10,6 +11,7 @@ interface LoginModalProps {
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [credentials, setCredentials] = useState({
     username: '',
     password: '',
@@ -235,6 +237,17 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 disabled={isLoading}
               >
                 Forgot your password?
+              </button>
+              <button
+                type="button"
+                className="forgot-password-link"
+                onClick={() => {
+                  onClose();
+                  navigate('/signup');
+                }}
+                disabled={isLoading}
+              >
+                Sign up
               </button>
             </div>
           </form>

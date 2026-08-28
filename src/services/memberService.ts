@@ -5,6 +5,7 @@ import { Member, MemberFormData } from '../types/member'
 const transformMemberRow = (row: any): Member => ({
   id: row.id,
   firstName: row.first_name,
+  middleName: row.middle_name || '',
   lastName: row.last_name,
   birthDate: row.birth_date,
   birthplace: row.birthplace,
@@ -30,6 +31,7 @@ const transformMemberRow = (row: any): Member => ({
 // Transform MemberFormData to database insert format
 const transformMemberForInsert = (member: MemberFormData): any => ({
   first_name: member.firstName,
+  middle_name: member.middleName?.trim() || '',
   last_name: member.lastName,
   birth_date: member.birthDate,
   birthplace: member.birthplace,
@@ -52,6 +54,7 @@ const transformMemberForInsert = (member: MemberFormData): any => ({
 // Transform MemberFormData to database update format
 const transformMemberForUpdate = (member: MemberFormData): any => ({
   first_name: member.firstName,
+  middle_name: member.middleName?.trim() || '',
   last_name: member.lastName,
   birth_date: member.birthDate,
   birthplace: member.birthplace,
@@ -157,7 +160,7 @@ export const memberService = {
       const { data, error } = await supabase
         .from('members')
         .select('*')
-        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
+        .or(`first_name.ilike.%${query}%,middle_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
         .order('created_at', { ascending: false })
 
       if (error) throw error

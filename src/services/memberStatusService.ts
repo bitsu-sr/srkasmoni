@@ -1,3 +1,4 @@
+import { Member } from '../types/member'
 import { memberService } from './memberService'
 
 export interface MemberStatusInfo {
@@ -11,29 +12,7 @@ export interface MemberStatusInfo {
   inactiveSlots: number
 }
 
-export interface MemberWithStatus {
-  id: number
-  firstName: string
-  lastName: string
-  birthDate: string
-  birthplace: string
-  address: string
-  city: string
-  phone: string
-  email: string
-  nationalId: string
-  nationality: string
-  occupation: string
-  bankName: string
-  accountNumber: string
-  dateOfRegistration: string
-  totalReceived: number
-  lastPayment: string
-  nextPayment: string
-  status: string
-  notes: string | null
-  created_at: string
-  updated_at: string
+export interface MemberWithStatus extends Member {
   statusInfo: MemberStatusInfo
 }
 
@@ -92,35 +71,7 @@ export const getMemberWithStatus = async (memberId: number): Promise<MemberWithS
     }
     
     const statusInfo = await getMemberStatusInfo(memberId)
-    
-    // Ensure all required properties are present
-    const memberWithStatus: MemberWithStatus = {
-      id: member.id,
-      firstName: member.firstName,
-      lastName: member.lastName,
-      birthDate: member.birthDate,
-      birthplace: member.birthplace,
-      address: member.address,
-      city: member.city,
-      phone: member.phone,
-      email: member.email,
-      nationalId: member.nationalId,
-      nationality: member.nationality,
-      occupation: member.occupation,
-      bankName: member.bankName,
-      accountNumber: member.accountNumber,
-      dateOfRegistration: member.dateOfRegistration,
-      totalReceived: member.totalReceived,
-      lastPayment: member.lastPayment,
-      nextPayment: member.nextPayment,
-      status: member.status,
-      notes: member.notes,
-      created_at: member.created_at,
-      updated_at: member.updated_at,
-      statusInfo
-    }
-    
-    return memberWithStatus
+    return { ...member, statusInfo }
   } catch (error) {
     console.error(`Failed to get member with status for ${memberId}:`, error)
     return null

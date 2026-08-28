@@ -122,6 +122,10 @@
   margin-bottom: 1rem;
 }
 
+.form-row-three {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .form-group {
   margin-bottom: 1rem;
 }
@@ -247,7 +251,8 @@
     margin: 0.5rem;
   }
   
-  .form-row {
+  .form-row,
+  .form-row-three {
     grid-template-columns: 1fr;
   }
   

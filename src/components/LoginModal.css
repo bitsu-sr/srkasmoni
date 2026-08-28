@@ -242,9 +242,12 @@
 .form-footer {
   justify-content: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  height: 50px;
+  gap: 4px;
+  height: auto;
   width: 100%;
+  padding-top: 8px;
 }
 
 .forgot-password-actions {

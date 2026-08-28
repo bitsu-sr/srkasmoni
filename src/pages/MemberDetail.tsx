@@ -4,6 +4,9 @@ import { ArrowLeft, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, CreditCar
 
 import { memberService } from '../services/memberService'
 import { getMemberWithStatus, MemberWithStatus, getMemberStatusText, getMemberStatusBadgeClass } from '../services/memberStatusService'
+import { bankService } from '../services/bankService'
+import { formatMemberName } from '../utils/memberName'
+import type { Bank } from '../types/bank'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import MemberPaymentHistory from '../components/MemberPaymentHistory'
 import './MemberDetail.css'
@@ -31,8 +34,10 @@ const MemberDetail = () => {
   const [success, setSuccess] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [banks, setBanks] = useState<Bank[]>([])
   const [editForm, setEditForm] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     birthDate: '',
     birthplace: '',
@@ -56,6 +61,12 @@ const MemberDetail = () => {
     if (id) {
       loadMember(parseInt(id))
     }
+    bankService.getAllBanks()
+      .then(setBanks)
+      .catch(error => {
+        console.error('Error loading banks:', error)
+        setBanks([])
+      })
   }, [id])
 
   const loadMember = async (memberId: number) => {
@@ -72,6 +83,7 @@ const MemberDetail = () => {
         // Initialize edit form with current member data
         setEditForm({
           firstName: memberWithStatus.firstName,
+          middleName: memberWithStatus.middleName || '',
           lastName: memberWithStatus.lastName,
           birthDate: memberWithStatus.birthDate,
           birthplace: memberWithStatus.birthplace,
@@ -127,6 +139,7 @@ const MemberDetail = () => {
     if (member) {
       setEditForm({
         firstName: member.firstName,
+        middleName: member.middleName || '',
         lastName: member.lastName,
         birthDate: member.birthDate,
         birthplace: member.birthplace,
@@ -259,7 +272,7 @@ const MemberDetail = () => {
                 <User size={48} />
               </div>
               <div className="member-info-large">
-                <h1 className="member-name-large">{member.firstName} {member.lastName}</h1>
+                <h1 className="member-name-large">{formatMemberName(member)}</h1>
                 <div className="member-status">
                   <span className={`status-badge ${getMemberStatusBadgeClass(member.statusInfo)}`}>
                     {getMemberStatusText(member.statusInfo)}
@@ -330,6 +343,19 @@ const MemberDetail = () => {
                   />
                 ) : (
                   <span className="detail-value">{member.firstName}</span>
+                )}
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Middle Name</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    className="edit-input"
+                    value={editForm.middleName}
+                    onChange={(e) => handleInputChange('middleName', e.target.value)}
+                  />
+                ) : (
+                  <span className="detail-value">{member.middleName || '—'}</span>
                 )}
               </div>
               <div className="detail-item">
@@ -490,12 +516,19 @@ const MemberDetail = () => {
               <div className="detail-item">
                 <span className="detail-label">Bank Name</span>
                 {isEditing ? (
-                  <input
-                    type="text"
+                  <select
                     className="edit-input"
                     value={editForm.bankName}
                     onChange={(e) => handleInputChange('bankName', e.target.value)}
-                  />
+                  >
+                    <option value="">Select bank</option>
+                    {banks.map(bank => (
+                      <option key={bank.id} value={bank.name}>{bank.name}</option>
+                    ))}
+                    {editForm.bankName && !banks.some(bank => bank.name === editForm.bankName) && (
+                      <option value={editForm.bankName}>{editForm.bankName}</option>
+                    )}
+                  </select>
                 ) : (
                   <span className="detail-value">
                     <CreditCard size={16} />
@@ -741,7 +774,7 @@ const MemberDetail = () => {
             <div className="payment-history-content">
               <MemberPaymentHistory
                 memberId={member.id}
-                memberName={`${member.firstName} ${member.lastName}`}
+                memberName={formatMemberName(member)}
               />
             </div>
           </div>
@@ -773,7 +806,7 @@ const MemberDetail = () => {
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteMember}
-        itemName={`${member.firstName} ${member.lastName}`}
+        itemName={formatMemberName(member)}
         itemType="Member"
       />
     </div>

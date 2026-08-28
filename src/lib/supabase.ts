@@ -57,6 +57,7 @@ export interface Database {
         Row: {
           id: number
           first_name: string
+          middle_name: string
           last_name: string
           birth_date: string
           birthplace: string
@@ -84,6 +85,7 @@ export interface Database {
         Insert: {
           id?: number
           first_name: string
+          middle_name?: string
           last_name: string
           birth_date: string
           birthplace: string
@@ -111,6 +113,7 @@ export interface Database {
         Update: {
           id?: number
           first_name?: string
+          middle_name?: string
           last_name?: string
           birth_date?: string
           birthplace?: string

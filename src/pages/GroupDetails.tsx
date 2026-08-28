@@ -80,6 +80,18 @@ const GroupDetails = () => {
     return m
   }, [members])
 
+  const totalMonthlyAmount = useMemo(() => {
+    if (!group) return 0
+    return members.reduce((sum, slot) => {
+      const monthDate =
+        typeof slot.assignedMonthDate === 'string'
+          ? slot.assignedMonthDate
+          : `2024-${String(slot.assignedMonthDate).padStart(2, '0')}`
+      const sharersCount = membersPerMonth.get(monthDate) || 1
+      return sum + group.monthlyAmount / sharersCount
+    }, 0)
+  }, [members, membersPerMonth, group])
+
   useEffect(() => {
     // Redirect non-admin users away from this page
     if (!isAdmin) {
@@ -526,6 +538,16 @@ const GroupDetails = () => {
               <div className="overview-content">
                 <h3>Monthly Amount</h3>
                 <p className="overview-value">SRD {group.monthlyAmount.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="overview-card">
+              <div className="overview-icon">
+                <DollarSign size={24} />
+              </div>
+              <div className="overview-content">
+                <h3>Total Monthly amount</h3>
+                <p className="overview-value">SRD {totalMonthlyAmount.toLocaleString()}</p>
               </div>
             </div>
 

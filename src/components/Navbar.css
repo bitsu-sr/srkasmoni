@@ -53,7 +53,27 @@
 .auth-section {
   display: flex;
   align-items: center;
+  gap: 8px;
   margin-left: 20px;
+}
+
+.signup-btn {
+  display: flex;
+  align-items: center;
+  padding: 8px 18px;
+  background: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.signup-btn:hover {
+  background: var(--primary);
+  color: var(--secondary);
 }
 
 .login-btn {
@@ -80,7 +100,21 @@
 .mobile-auth {
   display: none;
   align-items: center;
+  gap: 8px;
   margin-left: 15px;
+}
+
+.mobile-signup-btn {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
 }
 
 .mobile-login-btn {
