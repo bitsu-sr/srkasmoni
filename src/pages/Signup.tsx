@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, X as XIcon, ChevronLeft, ChevronRight } from 'lucide-react'
-import { MEMBER_CITIES, MEMBER_NATIONALITIES, MemberSignupFormData } from '../types/member'
+import { MEMBER_CITIES, MEMBER_NATIONALITIES, MemberSignupFormData, SignupGroupOption } from '../types/member'
 import { memberSignupService } from '../services/memberSignupService'
 import { bankService } from '../services/bankService'
+import { groupService } from '../services/groupService'
 import type { Bank } from '../types/bank'
 import { useLanguage } from '../contexts/LanguageContext'
 import '../components/MemberModal.css'
@@ -23,13 +24,18 @@ const emptySignupForm = (): MemberSignupFormData => ({
   nationality: '',
   occupation: '',
   bankName: '',
-  accountNumber: ''
+  accountNumber: '',
+  groupId: '',
+  slotAmount: '',
+  slotDuration: '',
+  desiredMonth: ''
 })
 
 const STEP_FIELDS: (keyof MemberSignupFormData)[][] = [
   ['firstName', 'lastName', 'birthDate', 'birthplace', 'address', 'city', 'nationality'],
   ['phone', 'email', 'nationalId', 'occupation'],
-  ['bankName', 'accountNumber']
+  ['bankName', 'accountNumber'],
+  ['groupId', 'slotAmount', 'slotDuration', 'desiredMonth']
 ]
 
 const Signup = () => {
@@ -38,6 +44,8 @@ const Signup = () => {
   const [step, setStep] = useState(0)
   const [formData, setFormData] = useState<MemberSignupFormData>(emptySignupForm)
   const [banks, setBanks] = useState<Bank[]>([])
+  const [availableGroups, setAvailableGroups] = useState<SignupGroupOption[]>([])
+  const [groupsLoading, setGroupsLoading] = useState(true)
   const [errors, setErrors] = useState<Partial<Record<keyof MemberSignupFormData, string>>>({})
   const [emailValid, setEmailValid] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -47,7 +55,8 @@ const Signup = () => {
   const steps = [
     t('signup.section.personal'),
     t('signup.section.contact'),
-    t('signup.section.banking')
+    t('signup.section.banking'),
+    t('signup.section.slot')
   ]
 
   useEffect(() => {
@@ -57,6 +66,13 @@ const Signup = () => {
         console.error('Error loading banks:', error)
         setBanks([])
       })
+    groupService.getAvailableSignupGroups()
+      .then(setAvailableGroups)
+      .catch(error => {
+        console.error('Error loading available groups:', error)
+        setAvailableGroups([])
+      })
+      .finally(() => setGroupsLoading(false))
   }, [])
 
   useEffect(() => {
@@ -88,6 +104,25 @@ const Signup = () => {
     }
   }
 
+  const handleGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const groupId = e.target.value
+    const group = availableGroups.find(item => String(item.id) === groupId)
+    setFormData(prev => ({
+      ...prev,
+      groupId,
+      slotAmount: group ? String(group.monthlyAmount) : '',
+      slotDuration: group ? String(group.duration) : '',
+      desiredMonth: ''
+    }))
+    setErrors(prev => ({
+      ...prev,
+      groupId: undefined,
+      slotAmount: undefined,
+      slotDuration: undefined,
+      desiredMonth: undefined
+    }))
+  }
+
   const validateStep = (stepIndex: number): boolean => {
     const newErrors: Partial<Record<keyof MemberSignupFormData, string>> = {}
     const fields = STEP_FIELDS[stepIndex]
@@ -105,7 +140,11 @@ const Signup = () => {
       nationalId: t('signup.error.nationalId'),
       occupation: t('signup.error.occupation'),
       bankName: t('signup.error.bankName'),
-      accountNumber: t('signup.error.accountNumber')
+      accountNumber: t('signup.error.accountNumber'),
+      groupId: t('signup.error.slotAmount'),
+      slotAmount: t('signup.error.slotAmount'),
+      slotDuration: t('signup.error.slotDuration'),
+      desiredMonth: t('signup.error.desiredMonth')
     }
 
     fields.forEach(field => {
@@ -434,6 +473,76 @@ const Signup = () => {
                   className={errors.accountNumber ? 'error' : ''}
                 />
                 {errors.accountNumber && <span className="error-message">{errors.accountNumber}</span>}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="signup-step">
+              <h2 className="signup-step-title">{t('signup.section.slot')}</h2>
+              <div className="form-group">
+                <label htmlFor="groupId">{t('signup.field.slotAmount')} *</label>
+                <select
+                  id="groupId"
+                  name="groupId"
+                  value={formData.groupId}
+                  onChange={handleGroupChange}
+                  className={errors.groupId ? 'error' : ''}
+                  disabled={groupsLoading}
+                >
+                  <option value="">
+                    {groupsLoading
+                      ? t('signup.field.loadingSlots')
+                      : t('signup.field.selectSlotAmount')}
+                  </option>
+                  {availableGroups.map(group => (
+                    <option key={group.id} value={group.id}>
+                      SRD {group.monthlyAmount.toLocaleString()} — {group.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.groupId && <span className="error-message">{errors.groupId}</span>}
+                {!groupsLoading && availableGroups.length === 0 && (
+                  <span className="signup-slot-notice">{t('signup.field.noAvailableGroups')}</span>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="slotDuration">{t('signup.field.slotDuration')} *</label>
+                <input
+                  type="text"
+                  id="slotDuration"
+                  value={formData.slotDuration
+                    ? `${formData.slotDuration} ${t('signup.field.months')}`
+                    : ''}
+                  readOnly
+                  className={errors.slotDuration ? 'error' : ''}
+                />
+                {errors.slotDuration && <span className="error-message">{errors.slotDuration}</span>}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="desiredMonth">{t('signup.field.desiredMonth')} *</label>
+                <select
+                  id="desiredMonth"
+                  name="desiredMonth"
+                  value={formData.desiredMonth}
+                  onChange={handleInputChange}
+                  className={errors.desiredMonth ? 'error' : ''}
+                  disabled={!formData.groupId}
+                >
+                  <option value="">{t('signup.field.selectDesiredMonth')}</option>
+                  {(availableGroups.find(group => String(group.id) === formData.groupId)?.availableMonths || [])
+                    .map(month => (
+                      <option key={month} value={month}>
+                        {new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, {
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                      </option>
+                    ))}
+                </select>
+                {errors.desiredMonth && <span className="error-message">{errors.desiredMonth}</span>}
               </div>
             </div>
           )}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Grid, List, FileText, Check } from 'lucide-react'
+import { Plus, Search, Trash2, User, MoreVertical, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, Grid, List, FileText, Check, UserCheck, UserPlus, UserX } from 'lucide-react'
 import { Member, MemberFormData, MemberFilters, MemberSignup } from '../types/member'
 import { memberService } from '../services/memberService'
 import { memberSignupService } from '../services/memberSignupService'
@@ -328,6 +328,18 @@ const Members = () => {
     try {
       setIsLoading(true)
       const newMember = await memberService.createMember(signupToMemberForm(signup))
+      try {
+        if (signup.groupId && signup.desiredMonth) {
+          await groupService.addMemberToGroup(signup.groupId, {
+            memberId: newMember.id,
+            assignedMonthDate: signup.desiredMonth
+          })
+        }
+      } catch (slotError) {
+        // Keep approval atomic from the administrator's perspective.
+        await memberService.deleteMember(newMember.id)
+        throw slotError
+      }
       await memberSignupService.deleteSignup(signup.id)
       setSignups(prev => prev.filter(s => s.id !== signup.id))
 
@@ -704,6 +716,39 @@ const Members = () => {
         {/* Month Filter */}
         <div className="members-month-filter-container">
           <MonthFilter selectedMonth={selectedMonth} onMonthChange={updateMonth} />
+        </div>
+
+        <div className="members-stats" aria-label="Member totals">
+          {[
+            {
+              label: 'Active Members',
+              count: activeMembers.length,
+              icon: <UserCheck size={18} />,
+              tone: 'active'
+            },
+            {
+              label: t('members.signups.title'),
+              count: signups.length,
+              icon: <UserPlus size={18} />,
+              tone: 'signups'
+            },
+            {
+              label: 'Inactive Members',
+              count: inactiveMembers.length,
+              icon: <UserX size={18} />,
+              tone: 'inactive'
+            }
+          ].map((stat) => {
+            const percentage = members.length === 0 ? 0 : Math.round((stat.count / members.length) * 100)
+            return (
+              <article key={stat.tone} className={`members-stat-card members-stat-card-${stat.tone}`}>
+                <span className="members-stat-percent">{percentage}%</span>
+                <div className="members-stat-icon">{stat.icon}</div>
+                <span className="members-stat-label">{stat.label}</span>
+                <strong className="members-stat-value">{stat.count.toLocaleString()}</strong>
+              </article>
+            )
+          })}
         </div>
 
         {/* Header Actions - Only show for admins */}

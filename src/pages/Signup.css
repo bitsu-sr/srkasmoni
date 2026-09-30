@@ -137,6 +137,18 @@
   margin-bottom: 16px;
 }
 
+.signup-form input[readonly] {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.signup-slot-notice {
+  display: block;
+  margin-top: 8px;
+  color: #b45309;
+  font-size: 0.875rem;
+}
+
 .signup-actions {
   position: fixed;
   left: 0;

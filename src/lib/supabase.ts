@@ -146,6 +146,8 @@ export interface Database {
           description: string | null
           monthly_amount: number
           max_members: number
+          max_members_per_slot: number
+          status: 'closed' | 'available'
           duration: number
           start_date: string
           end_date: string
@@ -158,6 +160,8 @@ export interface Database {
           description?: string | null
           monthly_amount: number
           max_members: number
+          max_members_per_slot?: number
+          status?: 'closed' | 'available'
           duration: number
           start_date: string
           end_date: string
@@ -170,6 +174,8 @@ export interface Database {
           description?: string | null
           monthly_amount?: number
           max_members?: number
+          max_members_per_slot?: number
+          status?: 'closed' | 'available'
           duration?: number
           start_date?: string
           end_date?: string

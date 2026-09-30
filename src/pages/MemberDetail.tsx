@@ -6,6 +6,7 @@ import { memberService } from '../services/memberService'
 import { getMemberWithStatus, MemberWithStatus, getMemberStatusText, getMemberStatusBadgeClass } from '../services/memberStatusService'
 import { bankService } from '../services/bankService'
 import { formatMemberName } from '../utils/memberName'
+import { formatMonthYear } from '../utils/dateUtils'
 import type { Bank } from '../types/bank'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import MemberPaymentHistory from '../components/MemberPaymentHistory'
@@ -18,7 +19,11 @@ interface MemberSlot {
   groupDescription: string | null
   monthlyAmount: number
   slotAmount: number
+  toReceive: number
   sharersCount: number
+  duration: number
+  startDate: string
+  endDate: string
   assignedMonthDate: string
   assignedMonthFormatted: string
   isActive: boolean
@@ -269,15 +274,37 @@ const MemberDetail = () => {
           <div className="member-card-large">
             <div className="member-header-large">
               <div className="member-avatar">
-                <User size={48} />
+                <span aria-hidden="true">
+                  {member.firstName?.charAt(0)}{member.lastName?.charAt(0)}
+                </span>
               </div>
               <div className="member-info-large">
+                <span className="member-eyebrow">Member profile</span>
                 <h1 className="member-name-large">{formatMemberName(member)}</h1>
                 <div className="member-status">
                   <span className={`status-badge ${getMemberStatusBadgeClass(member.statusInfo)}`}>
                     {getMemberStatusText(member.statusInfo)}
                   </span>
-                  <span className="member-id">ID: {member.nationalId}</span>
+                  <span className="member-id">Member ID · {member.nationalId}</span>
+                </div>
+                <div className="member-contact-summary">
+                  <span><Phone size={15} />{member.phone || 'No phone'}</span>
+                  <span><Mail size={15} />{member.email || 'No email'}</span>
+                  <span><MapPin size={15} />{member.city || 'No city'}</span>
+                </div>
+              </div>
+              <div className="member-hero-stats">
+                <div className="hero-stat">
+                  <span className="hero-stat-label">Active slots</span>
+                  <strong>{member.statusInfo.activeSlots}</strong>
+                </div>
+                <div className="hero-stat">
+                  <span className="hero-stat-label">Monthly amount</span>
+                  <strong>SRD {member.statusInfo.totalMonthlyAmount.toLocaleString()}</strong>
+                </div>
+                <div className="hero-stat">
+                  <span className="hero-stat-label">Total received</span>
+                  <strong>SRD {member.totalReceived.toLocaleString()}</strong>
                 </div>
               </div>
             </div>
@@ -286,7 +313,7 @@ const MemberDetail = () => {
 
         <div className="member-details-grid">
           {/* Member Status Overview */}
-          <div className="detail-section">
+          <div className="detail-section status-overview-section full-width">
             <h2 className="section-title">
               <Users size={20} />
               Member Status Overview
@@ -686,7 +713,11 @@ const MemberDetail = () => {
                               <tr>
                                 <th>Group</th>
                                 <th>Month</th>
-                                <th>Receives</th>
+                                <th>Slot</th>
+                                <th>To receive</th>
+                                <th>Duration</th>
+                                <th>First</th>
+                                <th>Last</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -716,6 +747,14 @@ const MemberDetail = () => {
                                       )}
                                     </span>
                                   </td>
+                                  <td>
+                                    <span className="to-receive-amount">
+                                      SRD {slot.toReceive.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td>{slot.duration} month{slot.duration !== 1 ? 's' : ''}</td>
+                                  <td>{formatMonthYear(slot.startDate)}</td>
+                                  <td>{formatMonthYear(slot.endDate)}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -729,6 +768,12 @@ const MemberDetail = () => {
                                     SRD {slots.reduce((sum, slot) => sum + slot.slotAmount, 0).toLocaleString()}/mo
                                   </strong>
                                 </td>
+                                <td>
+                                  <strong>
+                                    SRD {slots.reduce((sum, slot) => sum + slot.toReceive, 0).toLocaleString()}
+                                  </strong>
+                                </td>
+                                <td colSpan={3}></td>
                               </tr>
                             </tfoot>
                           </table>
@@ -755,6 +800,9 @@ const MemberDetail = () => {
                           <strong>Total: {memberSlots.length} slot{memberSlots.length !== 1 ? 's' : ''}</strong>
                           <span className="slots-total-amount">
                             SRD {memberSlots.reduce((sum, slot) => sum + slot.slotAmount, 0).toLocaleString()}/mo
+                            <small>
+                              SRD {memberSlots.reduce((sum, slot) => sum + slot.toReceive, 0).toLocaleString()} to receive
+                            </small>
                           </span>
                         </div>
                       </>

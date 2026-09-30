@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye, Download, Upload, CheckCircle, Grid, List } from 'lucide-react'
+import { Plus, Users, Calendar, DollarSign, Edit, Trash2, Eye, Download, Upload, CheckCircle, Grid, List, Settings2 } from 'lucide-react'
 import type { Group, GroupFormData } from '../types/member'
 import { groupService } from '../services/groupService'
 import { groupsOptimizedService, GroupWithDetails } from '../services/groupsOptimizedService'
@@ -10,7 +10,8 @@ import GroupModal from '../components/GroupModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import MonthFilter from '../components/MonthFilter'
 import { useMonthFilter } from '../hooks/useMonthFilter'
-import { formatDateRange, calculateDuration } from '../utils/dateUtils'
+import { useColumnVisibility, type ColumnDef } from '../hooks/useColumnVisibility'
+import { formatDateRange, calculateDuration, formatMonthYear } from '../utils/dateUtils'
 import './Groups.css'
 import { useLanguage } from '../contexts/LanguageContext'
 import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
@@ -49,6 +50,47 @@ const Groups = () => {
 
   // View mode state - use stored preference from performance settings
   const [viewMode, setViewMode] = useState<'card' | 'table'>(settings.groupsViewMode)
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false)
+  const columnMenuRef = useRef<HTMLDivElement>(null)
+
+  const groupColumnDefs = useMemo<ColumnDef[]>(() => {
+    const columns: ColumnDef[] = [
+      { key: 'name', label: t('groups.columns.name'), defaultVisible: true },
+      { key: 'status', label: t('groups.columns.status'), defaultVisible: false },
+      { key: 'members', label: t('groups.columns.members'), defaultVisible: true },
+      { key: 'monthlyAmount', label: t('groups.columns.monthlyAmount'), defaultVisible: true },
+      { key: 'duration', label: t('groups.columns.duration'), defaultVisible: true },
+      { key: 'toReceive', label: t('groups.columns.toReceive'), defaultVisible: true },
+      { key: 'first', label: t('groups.columns.first'), defaultVisible: false },
+      { key: 'last', label: t('groups.columns.last'), defaultVisible: false },
+      { key: 'deadline', label: t('groups.columns.deadline'), defaultVisible: false },
+      { key: 'progress', label: t('groups.columns.progress'), defaultVisible: true }
+    ]
+
+    if (isAdmin) {
+      columns.push({ key: 'actions', label: t('groups.columns.actions'), defaultVisible: true })
+    }
+
+    return columns
+  }, [isAdmin, t])
+
+  const {
+    visibility,
+    toggleColumn,
+    visibleColumns,
+    allColumns
+  } = useColumnVisibility('groups', groupColumnDefs, 'database')
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(event.target as Node)) {
+        setIsColumnMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     loadGroups()
@@ -177,6 +219,7 @@ const Groups = () => {
     endDate: groupWithDetails.endDate,
     maxMembers: groupWithDetails.maxMembers,
     maxMembersPerSlot: groupWithDetails.maxMembersPerSlot,
+    status: groupWithDetails.status,
     duration: groupWithDetails.duration,
     paymentDeadlineDay: groupWithDetails.paymentDeadlineDay,
     lateFinePercentage: groupWithDetails.lateFinePercentage,
@@ -283,6 +326,7 @@ const Groups = () => {
         description: 'Monthly family savings for emergency fund',
         monthlyAmount: '500',
         maxMembers: '12',
+        status: 'available',
         duration: '12',
         startDate: '2024-01-01',
         endDate: '2024-12-31',
@@ -295,6 +339,7 @@ const Groups = () => {
         description: 'Investment group for small business owners',
         monthlyAmount: '1000',
         maxMembers: '8',
+        status: 'available',
         duration: '24',
         startDate: '2024-01-01',
         endDate: '2025-12-31',
@@ -306,7 +351,7 @@ const Groups = () => {
 
     const csvContent = [
       // Header row
-      'name,description,monthlyAmount,maxMembers,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
+      'name,description,monthlyAmount,maxMembers,status,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
       // Data rows
       ...sampleData.map(row => 
         Object.values(row).map(value => `"${value}"`).join(',')
@@ -358,6 +403,7 @@ const Groups = () => {
         description: row.description || '',
         monthlyAmount: parseFloat(row.monthlyAmount),
         maxMembers: parseInt(row.maxMembers),
+        status: row.status === 'closed' ? 'closed' : 'available',
         duration: parseInt(row.duration),
         startDate: row.startDate,
         endDate: row.endDate,
@@ -467,7 +513,7 @@ const Groups = () => {
       
       const csvContent = [
         // Header row
-        'name,description,monthlyAmount,maxMembers,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
+        'name,description,monthlyAmount,maxMembers,status,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
         // Data rows
         ...groups.map(group => 
           [
@@ -475,6 +521,7 @@ const Groups = () => {
             `"${group.description || ''}"`,
             group.monthlyAmount.toString(),
             group.maxMembers.toString(),
+            group.status,
             group.duration.toString(),
             group.startDate,
             group.endDate,
@@ -520,6 +567,125 @@ const Groups = () => {
       setPdfExportError(t('groups.exportPdfError'))
     } finally {
       setExportingSection(null)
+    }
+  }
+
+  const getDisplayedDuration = (group: GroupWithDetails) =>
+    group.startDate && group.endDate
+      ? calculateDuration(group.startDate, group.endDate)
+      : group.duration || 0
+
+  const renderGroupTableCell = (group: GroupWithDetails, columnKey: string) => {
+    const memberCount = group.members?.length || 0
+    const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
+    const duration = getDisplayedDuration(group)
+    const progressPercentage = slotsInfo.total > 0
+      ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
+      : 0
+
+    switch (columnKey) {
+      case 'name':
+        return (
+          <td key={columnKey} className="group-name-cell">
+            <div className="group-name-info">
+              <h4 className="group-name">{group.name}</h4>
+            </div>
+          </td>
+        )
+      case 'status':
+        return (
+          <td key={columnKey}>
+            <span className={`group-status-badge group-status-${group.status}`}>
+              {group.status === 'available' ? 'Available' : 'Closed'}
+            </span>
+          </td>
+        )
+      case 'members':
+        return (
+          <td key={columnKey} className="group-members-cell">
+            <div className="members-info">
+              <Users size={16} />
+              <span>{memberCount} / {group.maxMembers}</span>
+            </div>
+          </td>
+        )
+      case 'monthlyAmount':
+        return (
+          <td key={columnKey} className="group-amount-cell">
+            <div className="amount-info">
+              <DollarSign size={16} />
+              <span>SRD {group.monthlyAmount.toLocaleString()}</span>
+            </div>
+          </td>
+        )
+      case 'duration':
+        return (
+          <td key={columnKey} className="group-duration-cell">
+            <div className="duration-info">
+              <Calendar size={16} />
+              <span>{duration > 0 ? `${duration} month${duration !== 1 ? 's' : ''}` : 'N/A'}</span>
+            </div>
+          </td>
+        )
+      case 'toReceive':
+        return (
+          <td key={columnKey} className="group-receive-cell">
+            <span>SRD {(group.monthlyAmount * duration).toLocaleString()}</span>
+          </td>
+        )
+      case 'first':
+        return <td key={columnKey}>{formatMonthYear(group.startDate)}</td>
+      case 'last':
+        return <td key={columnKey}>{formatMonthYear(group.endDate)}</td>
+      case 'deadline':
+        return (
+          <td key={columnKey} className="group-deadline-cell">
+            <div className="deadline-info">
+              <Calendar size={16} />
+              <span>{group.paymentDeadlineDay}th</span>
+            </div>
+          </td>
+        )
+      case 'progress':
+        return (
+          <td key={columnKey} className="group-progress-cell">
+            <div className="progress-info">
+              <div className="progress-bar-table">
+                <div className="progress-fill-table" style={{ width: `${progressPercentage}%` }}></div>
+              </div>
+              <span className="progress-text">{progressPercentage}%</span>
+            </div>
+          </td>
+        )
+      case 'actions':
+        return (
+          <td key={columnKey} className="groups-table-actions-cell">
+            <div className="groups-table-actions">
+              <button
+                className="groups-action-btn groups-edit-btn"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  openEditModal(group)
+                }}
+                title="Edit Group"
+              >
+                <Edit size={16} />
+              </button>
+              <button
+                className="groups-action-btn groups-delete-btn"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  openDeleteModal(group)
+                }}
+                title="Delete Group"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </td>
+        )
+      default:
+        return null
     }
   }
 
@@ -569,6 +735,9 @@ const Groups = () => {
                   <div className="group-header">
                     <div className="group-info">
                       <h3 className="group-name">{group.name}</h3>
+                      <span className={`group-status-badge group-status-${group.status}`}>
+                        {group.status === 'available' ? 'Available' : 'Closed'}
+                      </span>
                       {group.description && (
                         <p className="group-description">{group.description}</p>
                       )}
@@ -697,100 +866,28 @@ const Groups = () => {
             <table className={tableClass}>
               <thead>
                 <tr>
-                  <th>Group Name</th>
-                  <th>Members</th>
-                  <th>Monthly Amount</th>
-                  <th>Duration</th>
-                  <th>Payment Deadline</th>
-                  <th>Progress</th>
-                  {isAdmin && <th>Actions</th>}
+                  {visibleColumns.map(column => (
+                    <th key={column.key}>{column.label}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {sectionGroups.map((group) => {
-                  const memberCount = group.members?.length || 0
-                  const slotsInfo = group.slotsInfo || { paid: 0, total: 0 }
-                  const progressPercentage = slotsInfo.total > 0 
-                    ? Math.round((slotsInfo.paid || 0) / slotsInfo.total * 100)
-                    : 0
-                  
-                  return (
-                    <tr key={group.id} className={rowClass}>
-                      <td className="group-name-cell">
-                        <div className="group-name-info">
-                          <h4 className="group-name">{group.name}</h4>
-                        </div>
-                      </td>
-                      <td className="group-members-cell">
-                        <div className="members-info">
-                          <Users size={16} />
-                          <span>{memberCount} / {group.maxMembers}</span>
-                        </div>
-                      </td>
-                      <td className="group-amount-cell">
-                        <div className="amount-info">
-                          <DollarSign size={16} />
-                          <span>SRD {group.monthlyAmount.toLocaleString()}</span>
-                        </div>
-                      </td>
-                      <td className="group-duration-cell">
-                        <div className="duration-info">
-                          <Calendar size={16} />
-                          <span>
-                            {group.startDate && group.endDate ? 
-                              `${calculateDuration(group.startDate, group.endDate)} month${calculateDuration(group.startDate, group.endDate) !== 1 ? 's' : ''}`
-                              : 'N/A'
-                            }
-                          </span>
-                        </div>
-                      </td>
-                      <td className="group-deadline-cell">
-                        <div className="deadline-info">
-                          <Calendar size={16} />
-                          <span>{group.paymentDeadlineDay}th</span>
-                        </div>
-                      </td>
-                      <td className="group-progress-cell">
-                        <div className="progress-info">
-                          <div className="progress-bar-table">
-                            <div 
-                              className="progress-fill-table"
-                              style={{ width: `${progressPercentage}%` }}
-                            ></div>
-                          </div>
-                          <span className="progress-text">{progressPercentage}%</span>
-                        </div>
-                      </td>
-                      {isAdmin && (
-                        <td className="groups-table-actions-cell">
-                          <div className="groups-table-actions">
-                            <button 
-                              className="groups-action-btn groups-view-btn"
-                              onClick={() => navigateToGroupDetails(group.id)}
-                              title="View Details"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button 
-                              className="groups-action-btn groups-edit-btn"
-                              onClick={() => openEditModal(group)}
-                              title="Edit Group"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button 
-                              className="groups-action-btn groups-delete-btn"
-                              onClick={() => openDeleteModal(group)}
-                              title="Delete Group"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  )
-                })}
+                {sectionGroups.map((group) => (
+                  <tr
+                    key={group.id}
+                    className={rowClass}
+                    onClick={() => navigateToGroupDetails(group.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        navigateToGroupDetails(group.id)
+                      }
+                    }}
+                    tabIndex={0}
+                  >
+                    {visibleColumns.map(column => renderGroupTableCell(group, column.key))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -913,9 +1010,8 @@ const Groups = () => {
           </div>
         )}
 
-        {/* Sorting Controls - Only show for admins */}
-        {isAdmin && (
-          <div className="groups-sorting-controls">
+        <div className="groups-sorting-controls">
+          {isAdmin && (
             <div className="groups-sorting-controls-left">
               <div className="groups-sort-label">Sort by:</div>
               <button 
@@ -937,8 +1033,37 @@ const Groups = () => {
                 Members {getSortIcon('members')}
               </button>
             </div>
+          )}
 
-            {/* View Mode Toggle */}
+          <div className="groups-column-toggle-wrapper" ref={columnMenuRef}>
+              <button
+                type="button"
+                className="groups-column-toggle-btn"
+                onClick={() => setIsColumnMenuOpen(prev => !prev)}
+                aria-expanded={isColumnMenuOpen}
+                aria-haspopup="true"
+              >
+                <Settings2 size={18} />
+                <span>{t('groups.columns.button')}</span>
+              </button>
+              {isColumnMenuOpen && (
+                <div className="groups-column-menu" role="menu">
+                  <div className="groups-column-menu-header">{t('groups.columns.menu')}</div>
+                  {allColumns.map(column => (
+                    <label key={column.key} className="groups-column-menu-item">
+                      <input
+                        type="checkbox"
+                        checked={visibility[column.key] ?? column.defaultVisible}
+                        onChange={() => toggleColumn(column.key)}
+                      />
+                      <span>{column.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {isAdmin && (
             <div className="view-mode-toggle">
               <div className="groups-toggle-label">View Mode:</div>
               <div className="groups-toggle-switch">
@@ -966,8 +1091,8 @@ const Groups = () => {
                 </button>
               </div>
             </div>
-          </div>
-        )}
+            )}
+        </div>
 
         
 

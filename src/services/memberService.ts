@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { Member, MemberFormData } from '../types/member'
+import { calculateDuration } from '../utils/dateUtils'
 
 // Transform database row to Member interface
 const transformMemberRow = (row: any): Member => ({
@@ -222,8 +223,13 @@ export const memberService = {
     monthlyAmount: number
     /** Amount this member receives (split when shared) */
     slotAmount: number
+    /** Total amount received over the full group duration */
+    toReceive: number
     /** Number of members sharing this slot; 1 if not shared */
     sharersCount: number
+    duration: number
+    startDate: string
+    endDate: string
     assignedMonthDate: string
     assignedMonthFormatted: string
     /** true when group is still running (current month <= group end month) */
@@ -243,6 +249,7 @@ export const memberService = {
             name,
             description,
             monthly_amount,
+            start_date,
             end_date
           )
         `)
@@ -272,12 +279,14 @@ export const memberService = {
 
       return slotsData.map((slot: any) => {
         const monthDate = slot.assigned_month_date
+        const groupStartDate = slot.group?.start_date || ''
         const groupEndDate = slot.group?.end_date || ''
         // Slot is active when the group is still running (current month <= group end month)
         const isActive = groupEndDate && currentMonth <= groupEndDate
         const groupMonthly = slot.group?.monthly_amount || 0
         const sharersCount = slotCountMap.get(`${slot.group_id}-${monthDate}`) || 1
         const slotAmount = sharersCount > 0 ? groupMonthly / sharersCount : groupMonthly
+        const duration = calculateDuration(groupStartDate, groupEndDate)
 
         let assignedMonthFormatted = monthDate
         try {
@@ -298,7 +307,11 @@ export const memberService = {
           groupDescription: slot.group?.description,
           monthlyAmount: groupMonthly,
           slotAmount,
+          toReceive: slotAmount * duration,
           sharersCount,
+          duration,
+          startDate: groupStartDate,
+          endDate: groupEndDate,
           assignedMonthDate: monthDate,
           assignedMonthFormatted,
           isActive

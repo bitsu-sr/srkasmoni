@@ -36,6 +36,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
     monthlyAmount: 0,
     maxMembers: 1,
     maxMembersPerSlot: 2,
+    status: 'available',
     duration: 6, // Default to 6 months based on default dates
     startDate: getDefaultStartDate(),
     endDate: getDefaultEndDate(),
@@ -55,6 +56,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
         monthlyAmount: group.monthlyAmount,
         maxMembers: group.maxMembers,
         maxMembersPerSlot: group.maxMembersPerSlot ?? 2,
+        status: group.status,
         duration: calculatedDuration as number,
         startDate: group.startDate,
         endDate: group.endDate,
@@ -69,6 +71,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
         monthlyAmount: 0,
         maxMembers: 1,
         maxMembersPerSlot: 2,
+        status: 'available',
         duration: 6, // Default to 6 months based on default dates
         startDate: getDefaultStartDate(),
         endDate: getDefaultEndDate(),
@@ -208,6 +211,19 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
               placeholder="Enter group description"
               rows={3}
             />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="status">Group Status *</label>
+            <select
+              id="status"
+              value={formData.status}
+              onChange={(e) => handleInputChange('status', e.target.value)}
+            >
+              <option value="available">Available</option>
+              <option value="closed">Closed</option>
+            </select>
+            <small className="form-hint">A group is also closed automatically when all of its slots are full.</small>
           </div>
 
           <div className="form-row">

@@ -61,6 +61,21 @@ const SignupDetailsModal = ({
         { label: t('signup.field.accountNumber'), value: signup.accountNumber },
         { label: t('members.signups.submitted'), value: formatDate(signup.created_at) }
       ]
+    },
+    {
+      title: t('signup.section.slot'),
+      fields: [
+        { label: t('signup.field.group'), value: signup.groupName },
+        {
+          label: t('signup.field.slotAmount'),
+          value: signup.slotAmount ? `SRD ${signup.slotAmount.toLocaleString()}` : ''
+        },
+        {
+          label: t('signup.field.slotDuration'),
+          value: signup.slotDuration ? `${signup.slotDuration} ${t('signup.field.months')}` : ''
+        },
+        { label: t('signup.field.desiredMonth'), value: signup.desiredMonth }
+      ]
     }
   ]
 
@@ -85,7 +100,7 @@ const SignupDetailsModal = ({
                 {section.fields.map(field => (
                   <div key={field.label} className="signup-details-item">
                     <dt>{field.label}</dt>
-                    <dd>{field.value?.trim() ? field.value : '—'}</dd>
+                    <dd>{String(field.value || '').trim() || '—'}</dd>
                   </div>
                 ))}
               </dl>

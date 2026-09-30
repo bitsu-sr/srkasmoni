@@ -11,7 +11,8 @@ import {
   Download,
   Upload,
   LayoutGrid,
-  Table as TableIcon
+  Table as TableIcon,
+  ArrowLeftRight
 } from 'lucide-react'
 import type { Group, GroupMember, GroupMemberFormData } from '../types/member'
 import { groupService } from '../services/groupService'
@@ -22,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext'
 import MemberSelectionModal from '../components/MemberSelectionModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import GroupModal from '../components/GroupModal'
+import SwitchPositionsModal from '../components/SwitchPositionsModal'
 import { formatDateRange, calculateDuration, formatMonthYear } from '../utils/dateUtils'
 import './GroupDetails.css'
 import '../components/PaymentTable.css'
@@ -70,6 +72,8 @@ const GroupDetails = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showSlotRemoveModal, setShowSlotRemoveModal] = useState(false)
   const [slotToRemove, setSlotToRemove] = useState<{ memberId: number; monthDate: string; memberName: string } | null>(null)
+  const [showSwitchModal, setShowSwitchModal] = useState(false)
+  const [switchFromSlotId, setSwitchFromSlotId] = useState<number | null>(null)
 
   const membersPerMonth = useMemo(() => {
     const m = new Map<string, number>()
@@ -197,6 +201,19 @@ const GroupDetails = () => {
       setError('Failed to remove slot')
       console.error('Error removing slot:', err)
     }
+  }
+
+  const openSwitchModal = (slotId?: number) => {
+    setSwitchFromSlotId(slotId ?? null)
+    setShowSwitchModal(true)
+  }
+
+  const handleSwitchPositions = async (slotIdA: number, slotIdB: number) => {
+    if (!group) return
+    await groupService.swapMemberPositions(slotIdA, slotIdB)
+    const updatedMembers = await groupService.getGroupMembers(group.id)
+    setMembers(updatedMembers)
+    await loadPaidSlotsCount(group.id, updatedMembers)
   }
 
   const confirmRemoveSlot = (memberId: number, monthDate: string, memberName: string) => {
@@ -625,6 +642,16 @@ const GroupDetails = () => {
                   Table
                 </button>
               </div>
+              {members.length >= 2 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-compact"
+                  onClick={() => openSwitchModal()}
+                >
+                  <ArrowLeftRight size={16} />
+                  Switch positions
+                </button>
+              )}
               {(() => {
                 const groupDuration = group?.startDate && group?.endDate ? calculateDuration(group.startDate, group.endDate) : 0
                 const maxTotalMemberSlots = groupDuration * (group.maxMembersPerSlot ?? 2)
@@ -792,6 +819,16 @@ const GroupDetails = () => {
                         </div>
                       </div>
                       <div className="slot-actions">
+                        {members.length >= 2 && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openSwitchModal(slot.id)}
+                            title="Switch this position with another member"
+                          >
+                            <ArrowLeftRight size={16} />
+                          </button>
+                        )}
                         <button
                           className="btn btn-danger btn-sm"
                           onClick={() => confirmRemoveSlot(slot.memberId, monthDate, `${slot.member?.firstName} ${slot.member?.lastName}`)}
@@ -854,6 +891,15 @@ const GroupDetails = () => {
                             )}
                           </td>
                           <td className="payment-table-actions">
+                            {members.length >= 2 && (
+                              <button
+                                className="payment-table-action-btn payment-table-action-edit"
+                                onClick={(e) => { e.stopPropagation(); openSwitchModal(slot.id) }}
+                                title="Switch this position with another member"
+                              >
+                                <ArrowLeftRight size={16} />
+                              </button>
+                            )}
                             <button
                               className="payment-table-action-btn payment-table-action-delete"
                               onClick={(e) => { e.stopPropagation(); confirmRemoveSlot(slot.memberId, monthDate, `${slot.member?.firstName} ${slot.member?.lastName}`) }}
@@ -879,6 +925,17 @@ const GroupDetails = () => {
         onClose={() => setShowMemberModal(false)}
         onAddMember={handleAddMember}
         groupId={group.id}
+      />
+
+      <SwitchPositionsModal
+        isOpen={showSwitchModal}
+        onClose={() => {
+          setShowSwitchModal(false)
+          setSwitchFromSlotId(null)
+        }}
+        slots={members}
+        initialSlotId={switchFromSlotId}
+        onSwitch={handleSwitchPositions}
       />
 
       <GroupModal

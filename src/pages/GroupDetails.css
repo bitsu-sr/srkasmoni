@@ -145,6 +145,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .slots-view-toggle {
@@ -369,6 +371,9 @@
 
 .slot-actions {
   margin-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .no-slots-available {

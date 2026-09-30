@@ -17,6 +17,11 @@ const transformSignupRow = (row: any): MemberSignup => ({
   occupation: row.occupation,
   bankName: row.bank_name,
   accountNumber: row.account_number,
+  groupId: row.group_id,
+  groupName: row.group?.name || '',
+  slotAmount: Number(row.slot_amount || 0),
+  slotDuration: Number(row.slot_duration || 0),
+  desiredMonth: row.desired_month || '',
   created_at: row.created_at,
   updated_at: row.updated_at
 })
@@ -35,14 +40,18 @@ const transformSignupForInsert = (signup: MemberSignupFormData): any => ({
   nationality: signup.nationality,
   occupation: signup.occupation.trim(),
   bank_name: signup.bankName,
-  account_number: signup.accountNumber.trim()
+  account_number: signup.accountNumber.trim(),
+  group_id: Number(signup.groupId),
+  slot_amount: Number(signup.slotAmount),
+  slot_duration: Number(signup.slotDuration),
+  desired_month: signup.desiredMonth
 })
 
 export const memberSignupService = {
   async getAllSignups(): Promise<MemberSignup[]> {
     const { data, error } = await supabase
       .from('member_signups')
-      .select('*')
+      .select('*, group:groups(name)')
       .order('created_at', { ascending: false })
 
     if (error) throw error

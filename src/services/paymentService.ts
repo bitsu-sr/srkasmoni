@@ -240,6 +240,7 @@ export const paymentService = {
         description: null,
         monthlyAmount: data.group.monthly_amount,
         maxMembers: 0,
+        status: data.group.status || 'closed',
         duration: 0,
         startDate: '',
         endDate: '',

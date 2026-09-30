@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Database } from '../lib/supabase'
-import type { Group, GroupFormData, GroupMember, GroupMemberFormData } from '../types/member'
+import type { Group, GroupFormData, GroupMember, GroupMemberFormData, GroupStatus, SignupGroupOption } from '../types/member'
 import { paymentService } from './paymentService'
 
 // Custom interfaces for database rows with new fields
@@ -11,6 +11,7 @@ interface GroupRow {
   monthly_amount: number
   max_members: number
   max_members_per_slot?: number
+  status: GroupStatus
   duration: number
   start_date: string
   end_date: string
@@ -28,6 +29,7 @@ interface GroupUpdate {
   monthly_amount?: number
   max_members?: number
   max_members_per_slot?: number
+  status?: GroupStatus
   duration?: number
   start_date?: string
   end_date?: string
@@ -48,6 +50,7 @@ const transformGroupRow = (row: GroupRow): Group => ({
   monthlyAmount: row.monthly_amount,
   maxMembers: row.max_members,
   maxMembersPerSlot: row.max_members_per_slot ?? 2,
+  status: row.status || 'closed',
   duration: row.duration,
   startDate: row.start_date,
   endDate: row.end_date,
@@ -135,6 +138,66 @@ export const groupService = {
     }
   },
 
+  // Get the active, available groups and their non-full current/future months
+  // for the public sign-up wizard.
+  async getAvailableSignupGroups(): Promise<SignupGroupOption[]> {
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    const { data, error } = await supabase
+      .from('groups')
+      .select(`
+        id,
+        name,
+        monthly_amount,
+        duration,
+        start_date,
+        end_date,
+        max_members_per_slot,
+        group_members(assigned_month_date)
+      `)
+      .eq('status', 'available')
+      .lte('start_date', currentMonth)
+      .gte('end_date', currentMonth)
+      .order('monthly_amount', { ascending: true })
+
+    if (error) throw error
+
+    return (data || []).flatMap((group: any) => {
+      const monthCounts = new Map<string, number>()
+      ;(group.group_members || []).forEach((slot: any) => {
+        const month = String(slot.assigned_month_date)
+        monthCounts.set(month, (monthCounts.get(month) || 0) + 1)
+      })
+
+      const availableMonths: string[] = []
+      const [startYear, startMonth] = String(group.start_date).split('-').map(Number)
+      const [endYear, endMonth] = String(group.end_date).split('-').map(Number)
+      const maxPerSlot = group.max_members_per_slot ?? 2
+      let year = startYear
+      let month = startMonth
+
+      while (year < endYear || (year === endYear && month <= endMonth)) {
+        const value = `${year}-${String(month).padStart(2, '0')}`
+        if (value >= currentMonth && (monthCounts.get(value) || 0) < maxPerSlot) {
+          availableMonths.push(value)
+        }
+        month += 1
+        if (month > 12) {
+          month = 1
+          year += 1
+        }
+      }
+
+      if (availableMonths.length === 0) return []
+      return [{
+        id: group.id,
+        name: group.name,
+        monthlyAmount: Number(group.monthly_amount),
+        duration: Number(group.duration),
+        availableMonths
+      }]
+    })
+  },
+
   // Get group by ID
   async getGroupById(id: number): Promise<Group | null> {
     try {
@@ -160,6 +223,7 @@ export const groupService = {
         description: groupData.description,
         monthly_amount: groupData.monthlyAmount,
         max_members: groupData.maxMembers,
+        status: groupData.status ?? 'available',
         duration: groupData.duration,
         start_date: groupData.startDate,
         end_date: groupData.endDate,
@@ -196,6 +260,7 @@ export const groupService = {
       if (updates.description !== undefined) updateData.description = updates.description
       if (updates.monthlyAmount !== undefined) updateData.monthly_amount = updates.monthlyAmount
       if (updates.maxMembers !== undefined) updateData.max_members = updates.maxMembers
+      if (updates.status !== undefined) updateData.status = updates.status
       if (updates.duration !== undefined) updateData.duration = updates.duration
       if (updates.startDate !== undefined) updateData.start_date = updates.startDate
       if (updates.endDate !== undefined) updateData.end_date = updates.endDate
@@ -328,6 +393,110 @@ export const groupService = {
     } catch (error) {
       console.error('Error removing member slot:', error)
       throw error
+    }
+  },
+
+  // Swap two members' assigned months. Member A takes member B's month and member B takes member A's month.
+  async swapMemberPositions(slotIdA: number, slotIdB: number): Promise<void> {
+    if (slotIdA === slotIdB) {
+      throw new Error('Choose two different members to switch.')
+    }
+
+    const { data: rows, error: fetchError } = await supabase
+      .from('group_members')
+      .select('id, group_id, member_id, assigned_month_date')
+      .in('id', [slotIdA, slotIdB])
+
+    if (fetchError) throw new Error(fetchError.message || 'Could not load the selected slots.')
+    if (!rows || rows.length !== 2) {
+      throw new Error('Could not find both slots.')
+    }
+
+    const slotA = rows.find((row: { id: number }) => row.id === slotIdA)
+    const slotB = rows.find((row: { id: number }) => row.id === slotIdB)
+    if (!slotA || !slotB) {
+      throw new Error('Could not find both slots.')
+    }
+    if (slotA.group_id !== slotB.group_id) {
+      throw new Error('Both slots must belong to the same group.')
+    }
+
+    const monthA = String(slotA.assigned_month_date)
+    const monthB = String(slotB.assigned_month_date)
+    if (monthA === monthB) {
+      throw new Error('These members are already assigned to the same month.')
+    }
+    if (slotA.member_id === slotB.member_id) {
+      throw new Error('Choose slots that belong to two different members.')
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from('group_members')
+      .select('id, member_id, assigned_month_date')
+      .eq('group_id', slotA.group_id)
+      .in('member_id', [slotA.member_id, slotB.member_id])
+      .in('assigned_month_date', [monthA, monthB])
+
+    if (existingError) throw new Error(existingError.message || 'Could not check existing slots.')
+
+    const occupies = (memberId: number, month: string, ignoreId: number) =>
+      (existing || []).some(
+        (row: { id: number; member_id: number; assigned_month_date: string }) =>
+          row.member_id === memberId && row.assigned_month_date === month && row.id !== ignoreId
+      )
+
+    if (occupies(slotA.member_id, monthB, slotA.id)) {
+      throw new Error('The first member already has a slot in the other month.')
+    }
+    if (occupies(slotB.member_id, monthA, slotB.id)) {
+      throw new Error('The second member already has a slot in the other month.')
+    }
+
+    const setMonth = async (id: number, month: string) => {
+      const { error } = await supabase
+        .from('group_members')
+        .update({ assigned_month_date: month })
+        .eq('id', id)
+      if (error) throw new Error(error.message || 'Failed to update the assigned month.')
+    }
+
+    // Park the first slot on a temporary month so a unique (group, month) constraint cannot block the swap.
+    const tempMonth = '1900-01'
+    try {
+      await setMonth(slotA.id, tempMonth)
+      try {
+        await setMonth(slotB.id, monthA)
+      } catch (error) {
+        await setMonth(slotA.id, monthA)
+        throw error
+      }
+      try {
+        await setMonth(slotA.id, monthB)
+      } catch (error) {
+        await setMonth(slotB.id, monthB)
+        await setMonth(slotA.id, monthA)
+        throw error
+      }
+    } catch (error) {
+      console.error('Error swapping member positions:', error)
+      if (error instanceof Error) throw error
+      throw new Error('Failed to switch positions.')
+    }
+
+    const movePayout = async (slotId: number, month: string) => {
+      const { error } = await supabase
+        .from('payouts')
+        .update({ payout_month: month })
+        .eq('slot_id', slotId)
+      if (error) throw new Error(error.message || 'Failed to update payout month.')
+    }
+
+    try {
+      await movePayout(slotA.id, monthB)
+      await movePayout(slotB.id, monthA)
+    } catch (error) {
+      console.error('Positions swapped, but payout months could not be updated:', error)
+      throw new Error('Members were switched, but their payout months could not be updated. Refresh and check the payout page.')
     }
   },
 

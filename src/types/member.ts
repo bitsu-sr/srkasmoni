@@ -65,6 +65,11 @@ export interface MemberSignup {
   occupation: string
   bankName: string
   accountNumber: string
+  groupId: number
+  groupName: string
+  slotAmount: number
+  slotDuration: number
+  desiredMonth: string
   created_at: string
   updated_at: string
 }
@@ -84,6 +89,10 @@ export interface MemberSignupFormData {
   occupation: string
   bankName: string
   accountNumber: string
+  groupId: string
+  slotAmount: string
+  slotDuration: string
+  desiredMonth: string
 }
 
 export interface MemberFilters {
@@ -99,6 +108,7 @@ export interface Group {
   maxMembers: number
   /** Max members that can share one slot (group/month). Default 2. */
   maxMembersPerSlot?: number
+  status: GroupStatus
   duration: number
   startDate: string
   endDate: string
@@ -115,12 +125,23 @@ export interface GroupFormData {
   monthlyAmount: number
   maxMembers: number
   maxMembersPerSlot?: number
+  status: GroupStatus
   duration: number
   startDate: string
   endDate: string
   paymentDeadlineDay: number
   lateFinePercentage: number
   lateFineFixedAmount: number
+}
+
+export type GroupStatus = 'closed' | 'available'
+
+export interface SignupGroupOption {
+  id: number
+  name: string
+  monthlyAmount: number
+  duration: number
+  availableMonths: string[]
 }
 
 export interface GroupMember {

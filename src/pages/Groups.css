@@ -1,3 +1,29 @@
+.group-status-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.group-status-available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.group-status-closed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.groups-table .group-status-badge {
+  margin-top: 0;
+}
 .groups {
   min-height: 100vh;
   background-color: #f8fafc;
@@ -88,6 +114,7 @@
 .groups-sorting-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   margin: 24px 0;
   padding: 16px;
@@ -95,6 +122,68 @@
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.groups-column-toggle-wrapper {
+  position: relative;
+  margin-left: auto;
+}
+
+.groups-column-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.groups-column-toggle-btn:hover {
+  background: #f3f4f6;
+}
+
+.groups-column-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.groups-column-menu-header {
+  padding: 10px 14px;
+  background: #f9fafb;
+  border-bottom: 1px solid #f3f4f6;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.groups-column-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  color: #374151;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.groups-column-menu-item:hover {
+  background: #f3f4f6;
 }
 
 .sort-label {
@@ -751,7 +840,7 @@
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   margin-bottom: 32px;
 }
@@ -775,6 +864,10 @@
   padding: 16px 12px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: top;
+}
+
+.groups-table tbody tr {
+  cursor: pointer;
 }
 
 .groups-table tr:hover {
@@ -983,16 +1076,6 @@
   .groups-action-btn svg {
     width: 14px;
     height: 14px;
-  }
-
-  /* Hide Members, Payment Deadline, and Progress columns in table view */
-  .groups-table th:nth-child(2),
-  .groups-table th:nth-child(5),
-  .groups-table th:nth-child(6),
-  .group-members-cell,
-  .group-deadline-cell,
-  .group-progress-cell {
-    display: none;
   }
 
   /* Make buttons in CSV section stack vertically on very small screens */
