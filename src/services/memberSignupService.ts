@@ -28,6 +28,13 @@ const transformSignupRow = (row: any): MemberSignup => ({
   updated_at: row.updated_at
 })
 
+const optionalNumber = (value: string): number | null => {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 const transformSignupForInsert = (signup: MemberSignupFormData): any => ({
   first_name: signup.firstName.trim(),
   middle_name: signup.middleName?.trim() || '',
@@ -43,10 +50,10 @@ const transformSignupForInsert = (signup: MemberSignupFormData): any => ({
   occupation: signup.occupation.trim(),
   bank_name: signup.bankName,
   account_number: signup.accountNumber.trim(),
-  group_id: Number(signup.groupId),
-  slot_amount: Number(signup.slotAmount),
-  slot_duration: Number(signup.slotDuration),
-  desired_month: signup.desiredMonth
+  group_id: optionalNumber(signup.groupId),
+  slot_amount: optionalNumber(signup.slotAmount),
+  slot_duration: optionalNumber(signup.slotDuration),
+  desired_month: signup.desiredMonth.trim() || null
 })
 
 export const memberSignupService = {

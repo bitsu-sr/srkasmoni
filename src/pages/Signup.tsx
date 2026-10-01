@@ -5,6 +5,7 @@ import { MEMBER_CITIES, MEMBER_NATIONALITIES, MemberSignupFormData, SignupGroupO
 import { memberSignupService } from '../services/memberSignupService'
 import { bankService } from '../services/bankService'
 import { groupService } from '../services/groupService'
+import { signupSettingsService } from '../services/signupSettingsService'
 import type { Bank } from '../types/bank'
 import { translate, type SupportedLocale } from '../contexts/LanguageContext'
 import { formatGroupAmount } from '../utils/currency'
@@ -109,6 +110,8 @@ const Signup = () => {
   const [banks, setBanks] = useState<Bank[]>([])
   const [availableGroups, setAvailableGroups] = useState<SignupGroupOption[]>([])
   const [groupsLoading, setGroupsLoading] = useState(true)
+  const [showSlotStep, setShowSlotStep] = useState(true)
+  const [slotSettingReady, setSlotSettingReady] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof MemberSignupFormData, string>>>({})
   const [emailValid, setEmailValid] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -119,7 +122,7 @@ const Signup = () => {
     t('signup.section.personal'),
     t('signup.section.contact'),
     t('signup.section.banking'),
-    t('signup.section.slot')
+    ...(showSlotStep ? [t('signup.section.slot')] : [])
   ]
   const dateLocale = signupLocale === 'nl' ? 'nl-NL' : 'en-US'
 
@@ -143,20 +146,58 @@ const Signup = () => {
   }, [signupLocale])
 
   useEffect(() => {
+    let active = true
+    signupSettingsService.getShowSlotStep()
+      .then(show => {
+        if (active) setShowSlotStep(show)
+      })
+      .catch(error => {
+        console.error('Error loading signup slot setting:', error)
+        if (active) setShowSlotStep(true)
+      })
+      .finally(() => {
+        if (active) setSlotSettingReady(true)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!showSlotStep && step > 2) setStep(2)
+  }, [showSlotStep, step])
+
+  useEffect(() => {
     bankService.getAllBanks()
       .then(setBanks)
       .catch(error => {
         console.error('Error loading banks:', error)
         setBanks([])
       })
+  }, [])
+
+  useEffect(() => {
+    if (!showSlotStep) {
+      setGroupsLoading(false)
+      return
+    }
+    let active = true
+    setGroupsLoading(true)
     groupService.getAvailableSignupGroups()
-      .then(setAvailableGroups)
+      .then(groups => {
+        if (active) setAvailableGroups(groups)
+      })
       .catch(error => {
         console.error('Error loading available groups:', error)
-        setAvailableGroups([])
+        if (active) setAvailableGroups([])
       })
-      .finally(() => setGroupsLoading(false))
-  }, [])
+      .finally(() => {
+        if (active) setGroupsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [showSlotStep])
 
   useEffect(() => {
     formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -355,6 +396,10 @@ const Signup = () => {
           </div>
         </div>
 
+        {!slotSettingReady ? (
+          <p className="signup-step-count">{t('signup.wizard.loading')}</p>
+        ) : (
+        <>
         <nav className="signup-progress" aria-label={t('signup.wizard.progress')}>
           {steps.map((label, index) => {
             const status = index < step ? 'complete' : index === step ? 'current' : 'upcoming'
@@ -597,7 +642,7 @@ const Signup = () => {
             </div>
           )}
 
-          {step === 3 && (
+          {showSlotStep && step === 3 && (
             <div className="signup-step">
               <h2 className="signup-step-title">{t('signup.section.slot')}</h2>
               <div className="form-group">
@@ -688,6 +733,8 @@ const Signup = () => {
             )}
           </div>
         </form>
+        </>
+        )}
       </div>
     </div>
   )

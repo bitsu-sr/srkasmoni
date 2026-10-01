@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { usePWASettings } from '../contexts/PWASettingsContext'
-import { User, Bell, Shield, Palette, Globe, Database, Download, Upload, Trash2, Save, X, Building2, Plus, Edit, Zap } from 'lucide-react'
+import { User, Bell, Shield, Palette, Globe, Database, Download, Upload, Trash2, Save, X, Building2, Plus, Edit, Zap, ClipboardList } from 'lucide-react'
 import type { Bank, BankFormData } from '../types/bank'
 import { bankService } from '../services/bankService'
+import { signupSettingsService } from '../services/signupSettingsService'
 import BankModal from '../components/BankModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import { PerformanceSettingsSection } from '../components/PerformanceSettingsSection'
@@ -72,11 +73,35 @@ const Settings = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedBank, setSelectedBank] = useState<Bank | null>(null)
   const [bankModalMode, setBankModalMode] = useState<'create' | 'edit'>('create')
+  const [showSlotStep, setShowSlotStep] = useState(true)
+  const [slotSettingLoading, setSlotSettingLoading] = useState(false)
+  const [slotSettingError, setSlotSettingError] = useState('')
 
   // Load banks when banks tab is active
   useEffect(() => {
     if (activeTab === 'banks') {
       loadBanks()
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab !== 'signup') return
+    let active = true
+    setSlotSettingLoading(true)
+    setSlotSettingError('')
+    signupSettingsService.getShowSlotStep()
+      .then(show => {
+        if (active) setShowSlotStep(show)
+      })
+      .catch(err => {
+        console.error('Error loading signup slot setting:', err)
+        if (active) setSlotSettingError(t('settings.signup.saveError'))
+      })
+      .finally(() => {
+        if (active) setSlotSettingLoading(false)
+      })
+    return () => {
+      active = false
     }
   }, [activeTab])
 
@@ -167,6 +192,19 @@ const Settings = () => {
     }
   }
 
+  const handleSlotStepChange = async (show: boolean) => {
+    const previous = showSlotStep
+    setShowSlotStep(show)
+    setSlotSettingError('')
+    try {
+      await signupSettingsService.setShowSlotStep(show)
+    } catch (err) {
+      console.error('Error saving signup slot setting:', err)
+      setShowSlotStep(previous)
+      setSlotSettingError(t('settings.signup.saveError'))
+    }
+  }
+
   const handleSave = () => {
     setIsEditing(false)
     // Here you would typically save to backend
@@ -204,6 +242,7 @@ const Settings = () => {
     { id: 'language', label: t('settings.tabs.language'), icon: Globe },
     { id: 'data', label: t('settings.tabs.data'), icon: Database },
     { id: 'banks', label: t('settings.tabs.banks'), icon: Building2 },
+    { id: 'signup', label: t('settings.tabs.signup'), icon: ClipboardList },
     { id: 'performance', label: t('settings.tabs.performance'), icon: Zap }
   ]
 
@@ -633,6 +672,32 @@ const Settings = () => {
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'signup' && (
+              <div className="settings-tab">
+                <div className="tab-header">
+                  <h2>{t('settings.signup.title')}</h2>
+                </div>
+                <div className="notifications-section">
+                  <div className="notification-item">
+                    <div className="notification-info">
+                      <h3>{t('settings.signup.slotStep')}</h3>
+                      <p>{t('settings.signup.slotStepDesc')}</p>
+                      {slotSettingError && <p style={{ color: 'red', marginTop: 8 }}>{slotSettingError}</p>}
+                    </div>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={showSlotStep}
+                        disabled={slotSettingLoading}
+                        onChange={(e) => handleSlotStepChange(e.target.checked)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </div>
                 </div>
               </div>
             )}
