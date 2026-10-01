@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import type { Database } from '../lib/supabase'
 import type { Group, GroupFormData, GroupMember, GroupMemberFormData, GroupStatus, SignupGroupOption } from '../types/member'
+import { normalizeGroupCurrency } from '../utils/currency'
 import { paymentService } from './paymentService'
 
 // Custom interfaces for database rows with new fields
@@ -9,6 +10,7 @@ interface GroupRow {
   name: string
   description: string | null
   monthly_amount: number
+  currency?: string | null
   max_members: number
   max_members_per_slot?: number
   status: GroupStatus
@@ -27,6 +29,7 @@ interface GroupUpdate {
   name?: string
   description?: string | null
   monthly_amount?: number
+  currency?: string
   max_members?: number
   max_members_per_slot?: number
   status?: GroupStatus
@@ -47,6 +50,7 @@ const transformGroupRow = (row: GroupRow): Group => ({
   id: row.id,
   name: row.name,
   description: row.description,
+  currency: normalizeGroupCurrency(row.currency),
   monthlyAmount: row.monthly_amount,
   maxMembers: row.max_members,
   maxMembersPerSlot: row.max_members_per_slot ?? 2,
@@ -138,47 +142,88 @@ export const groupService = {
     }
   },
 
-  // Get the active, available groups and their non-full current/future months
+  // Get available active and upcoming groups, with their open months,
   // for the public sign-up wizard.
   async getAvailableSignupGroups(): Promise<SignupGroupOption[]> {
     const currentMonth = new Date().toISOString().slice(0, 7)
-    const { data, error } = await supabase
-      .from('groups')
-      .select(`
+    const signupColumns = `
         id,
         name,
+        currency,
         monthly_amount,
         duration,
         start_date,
         end_date,
         max_members_per_slot,
         group_members(assigned_month_date)
-      `)
+      `
+    let { data, error } = await supabase
+      .from('groups')
+      .select(signupColumns)
       .eq('status', 'available')
-      .lte('start_date', currentMonth)
       .gte('end_date', currentMonth)
       .order('monthly_amount', { ascending: true })
 
+    if (error && String(error.message || '').toLowerCase().includes('currency')) {
+      const fallback = await supabase
+        .from('groups')
+        .select(`
+          id,
+          name,
+          monthly_amount,
+          duration,
+          start_date,
+          end_date,
+          max_members_per_slot,
+          group_members(assigned_month_date)
+        `)
+        .eq('status', 'available')
+        .gte('end_date', currentMonth)
+        .order('monthly_amount', { ascending: true })
+      data = fallback.data
+      error = fallback.error
+    }
+
     if (error) throw error
+
+    let reservedMonths = new Set<string>()
+    const { data: reservedRows, error: reservedError } = await supabase
+      .from('reserved_signup_months')
+      .select('group_id, desired_month')
+
+    if (reservedError) {
+      console.warn('Could not load reserved sign-up months:', reservedError.message)
+    } else {
+      reservedMonths = new Set(
+        (reservedRows || []).map((row: { group_id: number; desired_month: string }) =>
+          `${row.group_id}:${String(row.desired_month).slice(0, 7)}`
+        )
+      )
+    }
 
     return (data || []).flatMap((group: any) => {
       const monthCounts = new Map<string, number>()
       ;(group.group_members || []).forEach((slot: any) => {
-        const month = String(slot.assigned_month_date)
+        const month = String(slot.assigned_month_date || '').slice(0, 7)
+        if (!/^\d{4}-\d{2}$/.test(month)) return
         monthCounts.set(month, (monthCounts.get(month) || 0) + 1)
       })
 
-      const availableMonths: string[] = []
+      const months: { month: string; assigned: boolean; reserved: boolean }[] = []
       const [startYear, startMonth] = String(group.start_date).split('-').map(Number)
       const [endYear, endMonth] = String(group.end_date).split('-').map(Number)
-      const maxPerSlot = group.max_members_per_slot ?? 2
       let year = startYear
       let month = startMonth
 
       while (year < endYear || (year === endYear && month <= endMonth)) {
         const value = `${year}-${String(month).padStart(2, '0')}`
-        if (value >= currentMonth && (monthCounts.get(value) || 0) < maxPerSlot) {
-          availableMonths.push(value)
+        if (value >= currentMonth) {
+          const assigned = (monthCounts.get(value) || 0) > 0
+          months.push({
+            month: value,
+            assigned,
+            reserved: !assigned && reservedMonths.has(`${group.id}:${value}`)
+          })
         }
         month += 1
         if (month > 12) {
@@ -187,13 +232,14 @@ export const groupService = {
         }
       }
 
-      if (availableMonths.length === 0) return []
+      if (months.length === 0) return []
       return [{
         id: group.id,
         name: group.name,
+        currency: normalizeGroupCurrency(group.currency),
         monthlyAmount: Number(group.monthly_amount),
         duration: Number(group.duration),
-        availableMonths
+        months
       }]
     })
   },
@@ -221,6 +267,7 @@ export const groupService = {
       const insertPayload: Record<string, unknown> = {
         name: groupData.name,
         description: groupData.description,
+        currency: normalizeGroupCurrency(groupData.currency),
         monthly_amount: groupData.monthlyAmount,
         max_members: groupData.maxMembers,
         status: groupData.status ?? 'available',
@@ -258,6 +305,7 @@ export const groupService = {
       
       if (updates.name !== undefined) updateData.name = updates.name
       if (updates.description !== undefined) updateData.description = updates.description
+      if (updates.currency !== undefined) updateData.currency = normalizeGroupCurrency(updates.currency)
       if (updates.monthlyAmount !== undefined) updateData.monthly_amount = updates.monthlyAmount
       if (updates.maxMembers !== undefined) updateData.max_members = updates.maxMembers
       if (updates.status !== undefined) updateData.status = updates.status

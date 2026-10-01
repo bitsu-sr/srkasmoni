@@ -12,6 +12,7 @@ import MonthFilter from '../components/MonthFilter'
 import { useMonthFilter } from '../hooks/useMonthFilter'
 import { useColumnVisibility, type ColumnDef } from '../hooks/useColumnVisibility'
 import { formatDateRange, calculateDuration, formatMonthYear } from '../utils/dateUtils'
+import { formatGroupAmount, isGroupCurrency, normalizeGroupCurrency } from '../utils/currency'
 import './Groups.css'
 import { useLanguage } from '../contexts/LanguageContext'
 import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
@@ -214,6 +215,7 @@ const Groups = () => {
     id: groupWithDetails.id,
     name: groupWithDetails.name,
     description: groupWithDetails.description,
+    currency: normalizeGroupCurrency(groupWithDetails.currency),
     monthlyAmount: groupWithDetails.monthlyAmount,
     startDate: groupWithDetails.startDate,
     endDate: groupWithDetails.endDate,
@@ -324,6 +326,7 @@ const Groups = () => {
       {
         name: 'Family Savings Group',
         description: 'Monthly family savings for emergency fund',
+        currency: 'SRD',
         monthlyAmount: '500',
         maxMembers: '12',
         status: 'available',
@@ -337,6 +340,7 @@ const Groups = () => {
       {
         name: 'Business Investment Group',
         description: 'Investment group for small business owners',
+        currency: 'USD',
         monthlyAmount: '1000',
         maxMembers: '8',
         status: 'available',
@@ -351,7 +355,7 @@ const Groups = () => {
 
     const csvContent = [
       // Header row
-      'name,description,monthlyAmount,maxMembers,status,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
+      'name,description,currency,monthlyAmount,maxMembers,status,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
       // Data rows
       ...sampleData.map(row => 
         Object.values(row).map(value => `"${value}"`).join(',')
@@ -398,9 +402,15 @@ const Groups = () => {
       }
 
       // Transform to GroupFormData format
+      const currencyValue = (row.currency || '').trim().toUpperCase()
+      if (currencyValue && !isGroupCurrency(currencyValue === 'EURO' ? 'EUR' : currencyValue)) {
+        throw new Error(`Row ${i + 1}: Invalid currency '${row.currency}'. Use SRD, USD, or EUR`)
+      }
+
       const groupData: GroupFormData = {
         name: row.name,
         description: row.description || '',
+        currency: normalizeGroupCurrency(row.currency),
         monthlyAmount: parseFloat(row.monthlyAmount),
         maxMembers: parseInt(row.maxMembers),
         status: row.status === 'closed' ? 'closed' : 'available',
@@ -513,12 +523,13 @@ const Groups = () => {
       
       const csvContent = [
         // Header row
-        'name,description,monthlyAmount,maxMembers,status,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
+        'name,description,currency,monthlyAmount,maxMembers,status,duration,startDate,endDate,paymentDeadlineDay,lateFinePercentage,lateFineFixedAmount',
         // Data rows
         ...groups.map(group => 
           [
             `"${group.name}"`,
             `"${group.description || ''}"`,
+            normalizeGroupCurrency(group.currency),
             group.monthlyAmount.toString(),
             group.maxMembers.toString(),
             group.status,
@@ -614,7 +625,7 @@ const Groups = () => {
           <td key={columnKey} className="group-amount-cell">
             <div className="amount-info">
               <DollarSign size={16} />
-              <span>SRD {group.monthlyAmount.toLocaleString()}</span>
+              <span>{formatGroupAmount(group.monthlyAmount, group.currency)}</span>
             </div>
           </td>
         )
@@ -630,7 +641,7 @@ const Groups = () => {
       case 'toReceive':
         return (
           <td key={columnKey} className="group-receive-cell">
-            <span>SRD {(group.monthlyAmount * duration).toLocaleString()}</span>
+            <span>{formatGroupAmount(group.monthlyAmount * duration, group.currency)}</span>
           </td>
         )
       case 'first':
@@ -790,7 +801,7 @@ const Groups = () => {
                     <div className="stat-row">
                       <div className="stat-item">
                         <DollarSign size={16} />
-                        <span>SRD {group.monthlyAmount.toLocaleString()}/month</span>
+                        <span>{formatGroupAmount(group.monthlyAmount, group.currency)}/month</span>
                       </div>
                       <div className="stat-item">
                         <CheckCircle size={16} />
@@ -807,7 +818,7 @@ const Groups = () => {
                       <div className="stat-item">
                         <span className="fine-info">
                           {group.lateFineFixedAmount > 0 
-                            ? `Fine: SRD ${group.lateFineFixedAmount}`
+                            ? `Fine: ${formatGroupAmount(group.lateFineFixedAmount, group.currency)}`
                             : `Fine: ${group.lateFinePercentage}%`
                           }
                         </span>

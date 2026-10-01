@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase'
 import { paymentService } from './paymentService'
 import { memberInactivityService } from './memberInactivityService'
+import { normalizeGroupCurrency } from '../utils/currency'
+import type { GroupCurrency } from '../types/member'
 
 export interface DashboardStats {
   totalExpected: number
@@ -19,6 +21,7 @@ export interface DashboardGroup {
   id: number
   name: string
   description: string
+  currency: GroupCurrency
   monthlyAmount: number
   startDate: string
   endDate: string
@@ -381,15 +384,31 @@ export const dashboardService = {
   async getGroupsWithMembers() {
     try {
       // First, try a simple groups query to see if the table has data
-      const { data: simpleGroups, error: simpleError } = await supabase
+      let { data: simpleGroups, error: simpleError } = await supabase
         .from('groups')
-        .select('id, name, description, monthly_amount, start_date, end_date, created_at')
+        .select('id, name, description, currency, monthly_amount, start_date, end_date, created_at')
         .order('created_at', { ascending: false })
         .limit(50)
       
       if (simpleError) {
-        console.error('❌ Error in simple groups query:', simpleError)
-        return []
+        const message = String(simpleError.message || '')
+        if (message.toLowerCase().includes('currency')) {
+          const fallback = await supabase
+            .from('groups')
+            .select('id, name, description, monthly_amount, start_date, end_date, created_at')
+            .order('created_at', { ascending: false })
+            .limit(50)
+          if (!fallback.error) {
+            simpleGroups = fallback.data
+            simpleError = null
+          } else {
+            console.error('❌ Error in simple groups query:', fallback.error)
+            return []
+          }
+        } else {
+          console.error('❌ Error in simple groups query:', simpleError)
+          return []
+        }
       }
       
       // If we have groups, try to get member info for each one
@@ -671,6 +690,7 @@ export const dashboardService = {
           id: group.id,
           name: group.name,
           description: group.description,
+          currency: normalizeGroupCurrency(group.currency),
           monthlyAmount: group.monthly_amount || group.monthlyAmount,
           startDate: group.start_date || group.startDate,
           endDate: group.end_date || group.endDate,
@@ -784,11 +804,25 @@ export const dashboardService = {
         .select(`
           id,
           name,
+          currency,
           monthly_amount,
           created_at
         `)
         .order('created_at', { ascending: false })
         .limit(limit)
+
+      if (error && String(error.message || '').toLowerCase().includes('currency')) {
+        const fallback = await supabase
+          .from('groups')
+          .select('id, name, monthly_amount, created_at')
+          .order('created_at', { ascending: false })
+          .limit(limit)
+        if (fallback.error) {
+          console.error('Error fetching recent groups:', fallback.error)
+          return []
+        }
+        return fallback.data || []
+      }
 
       if (error) {
         console.error('Error fetching recent groups:', error)

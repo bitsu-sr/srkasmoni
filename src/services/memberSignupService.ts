@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { MemberSignup, MemberSignupFormData } from '../types/member'
+import { normalizeGroupCurrency } from '../utils/currency'
 
 const transformSignupRow = (row: any): MemberSignup => ({
   id: row.id,
@@ -19,6 +20,7 @@ const transformSignupRow = (row: any): MemberSignup => ({
   accountNumber: row.account_number,
   groupId: row.group_id,
   groupName: row.group?.name || '',
+  currency: normalizeGroupCurrency(row.group?.currency),
   slotAmount: Number(row.slot_amount || 0),
   slotDuration: Number(row.slot_duration || 0),
   desiredMonth: row.desired_month || '',
@@ -49,10 +51,19 @@ const transformSignupForInsert = (signup: MemberSignupFormData): any => ({
 
 export const memberSignupService = {
   async getAllSignups(): Promise<MemberSignup[]> {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('member_signups')
-      .select('*, group:groups(name)')
+      .select('*, group:groups(name, currency)')
       .order('created_at', { ascending: false })
+
+    if (error && String(error.message || '').toLowerCase().includes('currency')) {
+      const fallback = await supabase
+        .from('member_signups')
+        .select('*, group:groups(name)')
+        .order('created_at', { ascending: false })
+      data = fallback.data
+      error = fallback.error
+    }
 
     if (error) throw error
     return data ? data.map(transformSignupRow) : []

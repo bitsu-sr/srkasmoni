@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { X, User, Building2, Calendar, DollarSign, CreditCard, Banknote } from 'lucide-react'
 import type { Payment, PaymentFormData } from '../types/payment'
 import type { Group } from '../types/member'
@@ -11,7 +11,53 @@ import { paymentService } from '../services/paymentService'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { getDefaultPaymentNote } from '../utils/paymentNotes'
+import { normalizeGroupCurrency } from '../utils/currency'
 import './PaymentModal.css'
+
+const getLocalYearMonth = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+const toDateInputValue = (value?: string | null) => (value ? String(value).slice(0, 10) : '')
+const toMonthInputValue = (value?: string | null) => (value ? String(value).slice(0, 7) : '')
+
+const groupFromPayment = (payment: Payment): Group => ({
+  id: payment.groupId,
+  name: payment.group?.name || 'Selected group',
+  description: payment.group?.description ?? null,
+  currency: normalizeGroupCurrency(payment.group?.currency),
+  monthlyAmount: payment.group?.monthlyAmount || payment.amount || 0,
+  maxMembers: payment.group?.maxMembers || 0,
+  maxMembersPerSlot: payment.group?.maxMembersPerSlot,
+  status: payment.group?.status || 'closed',
+  duration: payment.group?.duration || 0,
+  startDate: payment.group?.startDate || '',
+  endDate: payment.group?.endDate || '',
+  paymentDeadlineDay: payment.group?.paymentDeadlineDay || 25,
+  lateFinePercentage: payment.group?.lateFinePercentage || 0,
+  lateFineFixedAmount: payment.group?.lateFineFixedAmount || 0,
+  createdAt: payment.group?.createdAt || '',
+  updatedAt: payment.group?.updatedAt || ''
+})
+
+// A group covers a payment month when that month falls inside its start and end months.
+// This is the same rule the Members page uses to mark someone active or inactive.
+const isGroupActiveForMonth = (group: Group, paymentMonth: string): boolean => {
+  if (!paymentMonth) return false
+
+  if (group.startDate) {
+    const startMonth = group.startDate.substring(0, 7)
+    if (paymentMonth < startMonth) return false
+  }
+
+  if (group.endDate) {
+    const endMonth = group.endDate.substring(0, 7)
+    if (paymentMonth > endMonth) return false
+  }
+
+  return true
+}
 
 interface PaymentModalProps {
   isOpen: boolean
@@ -30,19 +76,36 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
   // Check if user has permission to create/edit payments
   const canManagePayments = user?.role === 'admin';
   
-  const [formData, setFormData] = useState<PaymentFormData>({
-     memberId: 0,
-     groupId: 0,
-     slotId: '',
-     paymentDate: new Date().toLocaleDateString('en-CA'), // Use local timezone, format: YYYY-MM-DD
-     paymentMonth: new Date().toISOString().substring(0, 7), // Default to current month (YYYY-MM)
-     amount: 0,
-     paymentMethod: 'bank_transfer',
-     status: 'pending',
-     senderBankId: undefined,
-     receiverBankId: undefined,
-     notes: getDefaultPaymentNote('pending')
-   })
+  const [formData, setFormData] = useState<PaymentFormData>(() => {
+    if (payment && isEditing) {
+      return {
+        memberId: payment.memberId,
+        groupId: payment.groupId,
+        slotId: payment.slotId,
+        paymentDate: toDateInputValue(payment.paymentDate),
+        paymentMonth: toMonthInputValue(payment.paymentMonth),
+        amount: Number(payment.amount) || 0,
+        paymentMethod: payment.paymentMethod,
+        status: payment.status,
+        senderBankId: payment.senderBankId,
+        receiverBankId: payment.receiverBankId,
+        notes: payment.notes || ''
+      }
+    }
+    return {
+      memberId: 0,
+      groupId: 0,
+      slotId: '',
+      paymentDate: new Date().toLocaleDateString('en-CA'),
+      paymentMonth: getLocalYearMonth(),
+      amount: 0,
+      paymentMethod: 'bank_transfer',
+      status: 'pending',
+      senderBankId: undefined,
+      receiverBankId: undefined,
+      notes: getDefaultPaymentNote('pending')
+    }
+  })
 
   const [groups, setGroups] = useState<Group[]>([])
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([])
@@ -54,10 +117,8 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [duplicateWarning, setDuplicateWarning] = useState<string>('')
   
-  // Filtered data based on active groups/members
-  const [activeGroups, setActiveGroups] = useState<Group[]>([])
-  const [activeGroupIds, setActiveGroupIds] = useState<Set<number>>(new Set())
-  
+  const membersLoadId = useRef(0)
+
   // Member-first workflow state
   const [allMembers, setAllMembers] = useState<any[]>([])
   const [memberGroups, setMemberGroups] = useState<Group[]>([])
@@ -88,43 +149,24 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
     notes: string
   }>({
     paymentDate: new Date().toLocaleDateString('en-CA'),
-    paymentMonth: new Date().toISOString().substring(0, 7),
+    paymentMonth: getLocalYearMonth(),
     paymentMethod: 'bank_transfer',
     status: 'pending',
     notes: getDefaultPaymentNote('pending')
   })
 
-  // Helper function to check if a group is active for a given payment month
-  const isGroupActiveForMonth = (group: Group, paymentMonth: string): boolean => {
-    let isActive = true
-    
-    // Check if group has started
-    if (group.startDate) {
-      const startMonth = group.startDate.substring(0, 7)
-      if (paymentMonth < startMonth) {
-        isActive = false
-      }
-    }
-    
-    // Check if group has ended
-    if (isActive && group.endDate) {
-      const endMonth = group.endDate.substring(0, 7)
-      if (paymentMonth > endMonth) {
-        isActive = false
-      }
-    }
-    
-    return isActive
-  }
+  // Editing one payment always uses the single-payment fields, even if the
+  // last workflow used to record a payment was multi-group.
+  const formWorkflow = isEditing ? 'member-first' : workflow
 
-  // Filter groups based on payment month
-  const filterActiveGroups = (groupsData: Group[], paymentMonth: string) => {
-    const filtered = groupsData.filter(group => isGroupActiveForMonth(group, paymentMonth))
-    const activeIds = new Set(filtered.map(g => g.id))
-    setActiveGroups(filtered)
-    setActiveGroupIds(activeIds)
-    return filtered
-  }
+  const selectedPaymentMonth = formWorkflow === 'multi-group'
+    ? multiGroupPaymentInfo.paymentMonth
+    : formData.paymentMonth
+
+  const activeGroups = useMemo(
+    () => groups.filter(group => isGroupActiveForMonth(group, selectedPaymentMonth)),
+    [groups, selectedPaymentMonth]
+  )
 
      // Load initial data
    useEffect(() => {
@@ -141,14 +183,9 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
           
           setGroups(groupsData)
           setBanks(banksData)
-          
-          // Filter active groups based on payment month
-          const filtered = filterActiveGroups(groupsData, formData.paymentMonth)
-          
-          // Load all members for member-first and multi-group workflows
-          if (workflow === 'member-first' || workflow === 'multi-group') {
-            await loadAllMembersWithGroups(filtered)
-          }
+
+          // Load every membership once. The selected payment month filters this list.
+          await loadAllMembersWithGroups(groupsData)
         } catch (error) {
           console.error('Failed to load initial data:', error)
         } finally {
@@ -183,20 +220,20 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
            loadMemberSlots(prefillData.memberId, prefillData.groupId)
          }
                     } else if (payment && isEditing) {
-         // Set the form data with existing payment values
          setFormData({
            memberId: payment.memberId,
            groupId: payment.groupId,
            slotId: payment.slotId,
-           paymentDate: payment.paymentDate,
-           paymentMonth: payment.paymentMonth,
-           amount: payment.amount,
+           paymentDate: toDateInputValue(payment.paymentDate),
+           paymentMonth: toMonthInputValue(payment.paymentMonth),
+           amount: Number(payment.amount) || 0,
            paymentMethod: payment.paymentMethod,
            status: payment.status,
            senderBankId: payment.senderBankId,
            receiverBankId: payment.receiverBankId,
            notes: payment.notes || ''
          })
+         setMemberGroups([groupFromPayment(payment)])
          
          // Set the member data directly from the payment to avoid clearing
          if (payment.member) {
@@ -236,18 +273,15 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
            }])
          }
          
-         // Load the existing slot data for this payment
-         if (payment.slot) {
-           setMemberSlots([{
-             id: payment.slot.id,
-             groupId: payment.slot.groupId,
-             memberId: payment.slot.memberId,
-             monthDate: payment.slot.monthDate,
-             amount: payment.slot.amount,
-             dueDate: payment.slot.dueDate,
-             createdAt: payment.slot.createdAt
-           }])
-         }
+         setMemberSlots([{
+           id: payment.slot?.id || payment.slotId,
+           groupId: payment.slot?.groupId || payment.groupId,
+           memberId: payment.slot?.memberId || payment.memberId,
+           monthDate: toMonthInputValue(payment.slot?.monthDate || payment.paymentMonth),
+           amount: Number(payment.slot?.amount || payment.amount) || 0,
+           dueDate: payment.slot?.dueDate || '',
+           createdAt: payment.slot?.createdAt || ''
+         }])
          
          // Load cascading data for editing (but don't override existing data)
          // Groups and banks are already loaded in the initial data loading
@@ -255,40 +289,79 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      }
    }, [isOpen, payment, isEditing, prefillData, workflow])
 
-  // Re-filter groups and members when payment month changes
+  // Drop a selection that is no longer active for the chosen payment month.
   useEffect(() => {
-    if (groups.length > 0 && formData.paymentMonth) {
-      const filtered = filterActiveGroups(groups, formData.paymentMonth)
-      
-      // Reload members for member-first and multi-group workflows with active groups
-      if (workflow === 'member-first' || workflow === 'multi-group') {
-        loadAllMembersWithGroups(filtered)
-      }
-    }
-  }, [formData.paymentMonth])
+    if (!isOpen || isEditing || isInitialLoading || allMembers.length === 0) return
 
-  // Re-filter for multi-group workflow when its payment month changes
-  useEffect(() => {
-    if (workflow === 'multi-group' && groups.length > 0 && multiGroupPaymentInfo.paymentMonth) {
-      filterActiveGroups(groups, multiGroupPaymentInfo.paymentMonth)
-      setExistingPayments({})
-      setSelectedCombinations(new Set())
-      
-      // Reload member data if a member is already selected
-      if (selectedMemberForMulti) {
-        loadMemberForMulti(selectedMemberForMulti.memberId)
-      }
+    if (workflow === 'group-first') {
+      if (!formData.groupId) return
+      const group = groups.find(item => item.id === formData.groupId)
+      if (group && isGroupActiveForMonth(group, formData.paymentMonth)) return
+
+      setGroupMembers([])
+      setMemberSlots([])
+      setFormData(prev => (
+        prev.groupId === 0 && prev.memberId === 0
+          ? prev
+          : { ...prev, groupId: 0, memberId: 0, slotId: '', amount: 0 }
+      ))
+      return
     }
+
+    if (workflow !== 'member-first' || !formData.memberId) return
+
+    const groupMap = new Map<number, Group>()
+    allMembers.forEach(member => {
+      if (member.memberId !== formData.memberId || !member.group) return
+      if (!isGroupActiveForMonth(member.group, formData.paymentMonth)) return
+      if (!groupMap.has(member.group.id)) groupMap.set(member.group.id, member.group)
+    })
+    const groupsForMonth = Array.from(groupMap.values())
+
+    if (groupsForMonth.length === 0) {
+      setMemberGroups([])
+      setMemberSlots([])
+      setMemberSearchTerm('')
+      setFormData(prev => (
+        prev.memberId === 0
+          ? prev
+          : { ...prev, memberId: 0, groupId: 0, slotId: '', amount: 0 }
+      ))
+      return
+    }
+
+    setMemberGroups(groupsForMonth)
+    if (formData.groupId && !groupMap.has(formData.groupId)) {
+      setMemberSlots([])
+      setFormData(prev => ({ ...prev, groupId: 0, slotId: '', amount: 0 }))
+    }
+  }, [isOpen, isEditing, isInitialLoading, workflow, formData.paymentMonth, formData.memberId, formData.groupId, allMembers, groups])
+
+  // Re-filter multi-group selections when that workflow's payment month changes
+  useEffect(() => {
+    if (workflow !== 'multi-group' || !multiGroupPaymentInfo.paymentMonth) return
+
+    setExistingPayments({})
+    setSelectedCombinations(new Set())
+
+    if (!selectedMemberForMulti) return
+
+    const memberId = selectedMemberForMulti.memberId
+    const stillActive = allMembers.some(member =>
+      member.memberId === memberId &&
+      member.group &&
+      isGroupActiveForMonth(member.group, multiGroupPaymentInfo.paymentMonth)
+    )
+
+    if (!stillActive) {
+      setSelectedMemberForMulti(null)
+      setGroupSlotCombinations([])
+      setMemberSearchTerm('')
+      return
+    }
+
+    loadMemberForMulti(memberId)
   }, [multiGroupPaymentInfo.paymentMonth])
-
-  // Load all members after groups are loaded for member-first workflow
-  // This useEffect is now handled by the initial data loading and paymentMonth change effect
-  // which properly filters to only active groups
-  useEffect(() => {
-    if (workflow === 'member-first' && activeGroups.length > 0 && allMembers.length === 0) {
-      loadAllMembersWithGroups(activeGroups)
-    }
-  }, [activeGroups, workflow])
 
    // Ensure amount is loaded whenever groupId changes
    useEffect(() => {
@@ -342,8 +415,8 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
      const loadGroupMembers = async (groupId: number) => {
     if (!groupId) return
     try {
-      // Only load members if the group is active for the payment month
-      if (!activeGroupIds.has(groupId)) {
+      const group = groups.find(item => item.id === groupId)
+      if (!group || !isGroupActiveForMonth(group, formData.paymentMonth)) {
         setGroupMembers([])
         return
       }
@@ -410,55 +483,73 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
 
   // Member-first workflow functions
   const loadAllMembersWithGroups = async (groupsData: Group[]) => {
+    const loadId = ++membersLoadId.current
     try {
-      // Process all groups in parallel for better performance
-      const groupPromises = groupsData.map(async (group) => {
-        try {
-          const members = await paymentSlotService.getGroupMembers(group.id)
-          
-          // Batch check: Get all member IDs and query their assignments in one go
-          const memberIds = members.map(m => m.memberId)
-          
-          // Query all assignments for all members in this group at once
-          const { data: assignmentsData, error: assignmentsError } = await supabase
-            .from('group_members')
-            .select('member_id, assigned_month_date')
-            .eq('group_id', group.id)
-            .in('member_id', memberIds)
-          
-          if (assignmentsError) {
-            console.error(`Failed to fetch assignments for group ${group.id}:`, assignmentsError)
-            return []
-          }
-          
-          // Create a map of member_id to whether they have assignments
-          const memberHasSlots = new Map<number, boolean>()
-          assignmentsData?.forEach((assignment: any) => {
-            if (assignment.assigned_month_date) {
-              memberHasSlots.set(assignment.member_id, true)
-            }
-          })
-          
-          // Filter members who have at least one assignment
-          const validMembers = members
-            .filter(member => memberHasSlots.get(member.memberId))
-            .map(member => ({
-              ...member,
-              group: group,
-              hasSlots: true
-            }))
-          
-          return validMembers
-        } catch (error) {
-          console.error(`Failed to load members for group ${group.id}:`, error)
-          return []
+      if (!groupsData.length) {
+        if (loadId === membersLoadId.current) setAllMembers([])
+        return
+      }
+
+      const groupById = new Map(groupsData.map(group => [group.id, group]))
+      const pageSize = 1000
+      const rows: any[] = []
+      let from = 0
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('group_members')
+          .select(`
+            id,
+            member_id,
+            group_id,
+            assigned_month_date,
+            member:members(id, first_name, last_name)
+          `)
+          .order('id', { ascending: true })
+          .range(from, from + pageSize - 1)
+
+        if (loadId !== membersLoadId.current) return
+        if (error) {
+          console.error('Failed to load members for payment month filtering:', error)
+          return
         }
+
+        rows.push(...(data || []))
+        if (!data || data.length < pageSize) break
+        from += pageSize
+      }
+
+      if (loadId !== membersLoadId.current) return
+
+      const seen = new Set<string>()
+      const entries: any[] = []
+
+      rows.forEach((row: any) => {
+        if (!row.assigned_month_date) return
+        const group = groupById.get(row.group_id)
+        const member = Array.isArray(row.member) ? row.member[0] : row.member
+        if (!group || !member) return
+
+        const key = `${row.member_id}-${row.group_id}`
+        if (seen.has(key)) return
+        seen.add(key)
+
+        entries.push({
+          id: key,
+          groupId: row.group_id,
+          memberId: row.member_id,
+          assignedMonthDate: row.assigned_month_date,
+          group,
+          hasSlots: true,
+          member: {
+            id: member.id,
+            firstName: member.first_name,
+            lastName: member.last_name
+          }
+        })
       })
-      
-      const allGroupMembers = await Promise.all(groupPromises)
-      const allMembersData = allGroupMembers.flat()
-      
-      setAllMembers(allMembersData)
+
+      setAllMembers(entries)
     } catch (error) {
       console.error('Failed to load all members:', error)
     }
@@ -501,26 +592,69 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
     }
   }
 
-  // Filter members based on search term (memoized for performance)
-  const filteredMembers = useMemo(() => {
-    const matchingMembers = allMembers.filter(member => {
-      const fullName = `${member.member.firstName} ${member.member.lastName}`.toLowerCase()
-      return fullName.includes(memberSearchTerm.toLowerCase())
-    })
-    
-    const memberMap = new Map()
-    matchingMembers.forEach(member => {
+  // Members who belong to a group that is running during the selected payment month.
+  // The payment being edited stays in the list even when that member is inactive for the month.
+  const membersActiveForMonth = useMemo(() => {
+    const memberMap = new Map<number, any>()
+    allMembers.forEach(member => {
+      if (!member.group || !isGroupActiveForMonth(member.group, selectedPaymentMonth)) return
       if (!memberMap.has(member.memberId)) {
         memberMap.set(member.memberId, member)
       }
     })
-    
+    if (isEditing && payment?.memberId && !memberMap.has(payment.memberId)) {
+      memberMap.set(payment.memberId, {
+        memberId: payment.memberId,
+        group: groups.find(group => group.id === payment.groupId),
+        member: {
+          id: payment.member?.id || payment.memberId,
+          firstName: payment.member?.firstName || '',
+          lastName: payment.member?.lastName || ''
+        }
+      })
+    }
     return Array.from(memberMap.values())
-  }, [allMembers, memberSearchTerm])
+  }, [allMembers, selectedPaymentMonth, isEditing, payment, groups])
+
+  const memberGroupsForForm = useMemo(() => {
+    if (!isEditing || !payment?.groupId) return memberGroups
+    if (memberGroups.some(group => group.id === payment.groupId)) return memberGroups
+    const recordedGroup = groups.find(group => group.id === payment.groupId) || groupFromPayment(payment)
+    return [recordedGroup, ...memberGroups]
+  }, [memberGroups, groups, isEditing, payment])
+
+  const slotsForForm = useMemo(() => {
+    if (!isEditing || !payment?.slotId) return memberSlots
+    if (memberSlots.some(slot => String(slot.id) === String(payment.slotId))) return memberSlots
+    return [{
+      id: payment.slot?.id || payment.slotId,
+      groupId: payment.slot?.groupId || payment.groupId,
+      memberId: payment.slot?.memberId || payment.memberId,
+      monthDate: toMonthInputValue(payment.slot?.monthDate || payment.paymentMonth),
+      amount: Number(payment.slot?.amount || payment.amount) || 0,
+      dueDate: payment.slot?.dueDate || '',
+      createdAt: payment.slot?.createdAt || ''
+    }, ...memberSlots]
+  }, [memberSlots, isEditing, payment])
+
+  const filteredMembers = useMemo(() => {
+    const term = memberSearchTerm.toLowerCase()
+    return membersActiveForMonth.filter(member => {
+      const fullName = `${member.member.firstName} ${member.member.lastName}`.toLowerCase()
+      return fullName.includes(term)
+    })
+  }, [membersActiveForMonth, memberSearchTerm])
 
   const getMemberName = (memberId: number) => {
-    const member = allMembers.find(m => m.memberId === memberId)
-    return member ? `${member.member.firstName} ${member.member.lastName}` : 'Unknown Member'
+    const member = allMembers.find(entry => entry.memberId === memberId)
+      || groupMembers.find(entry => entry.memberId === memberId)
+    if (member?.member?.firstName || member?.member?.lastName) {
+      return `${member.member.firstName} ${member.member.lastName}`.trim()
+    }
+    if (payment?.memberId === memberId && payment.member) {
+      return `${payment.member.firstName} ${payment.member.lastName}`.trim()
+    }
+    return ''
   }
 
   const handleMemberSelect = (memberId: number) => {
@@ -849,7 +983,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
       setExistingPayments({})
       setMultiGroupPaymentInfo({
         paymentDate: new Date().toLocaleDateString('en-CA'),
-        paymentMonth: new Date().toISOString().substring(0, 7),
+        paymentMonth: getLocalYearMonth(),
         paymentMethod: 'bank_transfer',
         status: 'pending',
         notes: ''
@@ -1084,7 +1218,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
         <div className="payment-modal-header">
           <h2>
             {isEditing ? 'Edit Payment' : 'Record New Payment'}
-            {workflow === 'member-first' && (
+            {!isEditing && workflow === 'member-first' && (
               <span className="workflow-indicator"> - Member First</span>
             )}
           </h2>
@@ -1093,8 +1227,9 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
           </button>
         </div>
 
-        <form onSubmit={workflow === 'multi-group' ? handleMultiGroupSubmit : handleSubmit} className="payment-modal-form">
+        <form onSubmit={formWorkflow === 'multi-group' ? handleMultiGroupSubmit : handleSubmit} className="payment-modal-form">
           {/* Workflow Selection */}
+          {!isEditing && (
           <div className="workflow-selection-section">
             <label htmlFor="workflowSelect">
               <Building2 size={16} />
@@ -1117,7 +1252,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                   groupId: 0,
                   slotId: '',
                   paymentDate: new Date().toLocaleDateString('en-CA'),
-                  paymentMonth: new Date().toISOString().substring(0, 7),
+                  paymentMonth: getLocalYearMonth(),
                   amount: 0,
                   paymentMethod: 'bank_transfer',
                   status: 'pending',
@@ -1142,14 +1277,14 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                 setExistingPayments({})
                 setMultiGroupPaymentInfo({
         paymentDate: new Date().toLocaleDateString('en-CA'),
-        paymentMonth: new Date().toISOString().substring(0, 7),
+        paymentMonth: getLocalYearMonth(),
         paymentMethod: 'bank_transfer',
         status: 'pending',
         notes: ''
       })
                 
                 // Update workflow
-                if (newWorkflow === 'member-first' || newWorkflow === 'multi-group') {
+                if ((newWorkflow === 'member-first' || newWorkflow === 'multi-group') && allMembers.length === 0) {
                   setIsWorkflowLoading(true)
                   loadAllMembersWithGroups(groups).finally(() => {
                     setIsWorkflowLoading(false)
@@ -1172,9 +1307,10 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               Choose how you want to record the payment
             </small>
           </div>
+          )}
 
           {/* Group-First Workflow */}
-          {workflow === 'group-first' && (
+          {formWorkflow === 'group-first' && (
             <>
           {/* Group Selection */}
           <div className="payment-modal-form-group">
@@ -1230,7 +1366,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
           )}
 
           {/* Member-First Workflow */}
-          {workflow === 'member-first' && (
+          {formWorkflow === 'member-first' && (
             <>
               {/* Member Selection - Searchable Dropdown */}
               <div className="payment-modal-form-group">
@@ -1281,7 +1417,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                 </div>
                 {errors.memberId && <span className="payment-modal-error-message">{errors.memberId}</span>}
                 <small className="payment-modal-form-help">
-                  Available members: {allMembers.length} | Showing: {filteredMembers.length}
+                  Showing {filteredMembers.length} of {membersActiveForMonth.length} members active in {formData.paymentMonth}
                 </small>
               </div>
 
@@ -1301,7 +1437,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                   <option value={0}>
                     {isLoadingMemberGroups ? 'Loading groups...' : 'Select a group'}
                   </option>
-                  {memberGroups.map(group => (
+                  {memberGroupsForForm.map(group => (
                     <option key={group.id} value={group.id}>
                       {group.name}
                     </option>
@@ -1311,7 +1447,9 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                 <small className="payment-modal-form-help">
                   {isLoadingMemberGroups 
                     ? 'Loading available groups...' 
-                    : `Showing only active groups for ${formData.paymentMonth} (${memberGroups.length} available)`
+                    : isEditing
+                      ? 'Group recorded on this payment'
+                      : `Showing only active groups for ${formData.paymentMonth} (${memberGroupsForForm.length} available)`
                   }
                 </small>
               </div>
@@ -1319,7 +1457,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
           )}
 
           {/* Multi-Group Workflow */}
-          {workflow === 'multi-group' && (
+          {formWorkflow === 'multi-group' && (
             <>
               {/* Member Selection for Multi-Group */}
               <div className="payment-modal-form-group">
@@ -1343,7 +1481,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                         setExistingPayments({})
                         setMultiGroupPaymentInfo({
         paymentDate: new Date().toLocaleDateString('en-CA'),
-        paymentMonth: new Date().toISOString().substring(0, 7),
+        paymentMonth: getLocalYearMonth(),
         paymentMethod: 'bank_transfer',
         status: 'pending',
         notes: ''
@@ -1382,7 +1520,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                   )}
                 </div>
                 <small className="payment-modal-form-help">
-                  Select a member to see their active groups for {multiGroupPaymentInfo.paymentMonth}
+                  Showing {filteredMembers.length} of {membersActiveForMonth.length} members active in {multiGroupPaymentInfo.paymentMonth}
                 </small>
               </div>
 
@@ -1470,7 +1608,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
           )}
 
                      {/* Slot Selection - Hidden for multi-group */}
-           {workflow !== 'multi-group' && (
+           {formWorkflow !== 'multi-group' && (
            <div className="payment-modal-form-group">
              <label htmlFor="slotId">
                <Calendar size={16} />
@@ -1484,19 +1622,19 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
                className={errors.slotId ? 'error' : ''}
              >
                <option value="">Select a slot</option>
-               {memberSlots.map(slot => (
+               {slotsForForm.map(slot => (
                  <option key={`slot-${slot.id}`} value={slot.id}>
-                   {paymentSlotService.formatMonthDate(slot.monthDate)} - SRD {slot.amount.toLocaleString()}
+                   {paymentSlotService.formatMonthDate(slot.monthDate)} - SRD {Number(slot.amount || 0).toLocaleString()}
                  </option>
                ))}
              </select>
              {errors.slotId && <span className="payment-modal-error-message">{errors.slotId}</span>}
-             <small className="payment-modal-form-help">Available slots: {memberSlots.length}</small>
+             <small className="payment-modal-form-help">Available slots: {slotsForForm.length}</small>
            </div>
            )}
 
           {/* Amount (Read-only) - Hidden for multi-group */}
-          {workflow !== 'multi-group' && (
+          {formWorkflow !== 'multi-group' && (
           <div className="payment-modal-form-group">
             <label htmlFor="amount">
               <DollarSign size={16} />
@@ -1522,9 +1660,9 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
             <input
               type="date"
               id="paymentDate"
-              value={workflow === 'multi-group' ? multiGroupPaymentInfo.paymentDate : formData.paymentDate}
+              value={formWorkflow === 'multi-group' ? multiGroupPaymentInfo.paymentDate : formData.paymentDate}
               onChange={(e) => {
-                if (workflow === 'multi-group') {
+                if (formWorkflow === 'multi-group') {
                   setMultiGroupPaymentInfo(prev => ({ ...prev, paymentDate: e.target.value }))
                 } else {
                   handleInputChange('paymentDate', e.target.value)
@@ -1545,9 +1683,9 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
             <input
               type="month"
               id="paymentMonth"
-              value={workflow === 'multi-group' ? multiGroupPaymentInfo.paymentMonth : formData.paymentMonth}
+              value={formWorkflow === 'multi-group' ? multiGroupPaymentInfo.paymentMonth : formData.paymentMonth}
               onChange={(e) => {
-                if (workflow === 'multi-group') {
+                if (formWorkflow === 'multi-group') {
                   setMultiGroupPaymentInfo(prev => ({ ...prev, paymentMonth: e.target.value }))
                 } else {
                   handleInputChange('paymentMonth', e.target.value)
@@ -1555,9 +1693,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
               }}
             />
             <small className="payment-modal-form-help">
-              {workflow === 'multi-group' 
-                ? 'Changes will filter available groups and members' 
-                : 'Defaults to current month. Editable.'}
+              Members and groups are limited to those active in this month.
             </small>
           </div>
 
@@ -1690,7 +1826,7 @@ const PaymentModal = ({ isOpen, onClose, onSave, payment, isEditing = false, pre
            {/* Form Actions */}
            <div className="payment-modal-form-actions">
              <div className="payment-modal-actions-left">
-               {workflow === 'multi-group' && selectedCombinations.size > 0 && (
+               {formWorkflow === 'multi-group' && selectedCombinations.size > 0 && (
                  <div className="payment-modal-total-amount">
                    <span className="total-label">Total:</span>
                    <span className="total-amount">

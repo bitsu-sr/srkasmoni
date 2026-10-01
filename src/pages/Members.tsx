@@ -741,12 +741,22 @@ const Members = () => {
           ].map((stat) => {
             const percentage = members.length === 0 ? 0 : Math.round((stat.count / members.length) * 100)
             return (
-              <article key={stat.tone} className={`members-stat-card members-stat-card-${stat.tone}`}>
+              <button
+                key={stat.tone}
+                type="button"
+                className={`members-stat-card members-stat-card-${stat.tone}`}
+                onClick={() => {
+                  document.getElementById(`members-section-${stat.tone}`)?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                  })
+                }}
+              >
                 <span className="members-stat-percent">{percentage}%</span>
                 <div className="members-stat-icon">{stat.icon}</div>
                 <span className="members-stat-label">{stat.label}</span>
                 <strong className="members-stat-value">{stat.count.toLocaleString()}</strong>
-              </article>
+              </button>
             )
           })}
         </div>
@@ -945,8 +955,9 @@ const Members = () => {
           return (
             <>
               {/* Active Members Section */}
-              {filteredActiveMembers.length > 0 && (
-                <div className="members-section">
+              <div id="members-section-active" className="members-section">
+              {filteredActiveMembers.length > 0 ? (
+                <>
                   <div className="members-section-header">
                     <h2 className="members-section-title">Active Members</h2>
                     <span className="members-section-count">{filteredActiveMembers.length} member{filteredActiveMembers.length !== 1 ? 's' : ''}</span>
@@ -1108,12 +1119,22 @@ const Members = () => {
                       </table>
                     </div>
                   )}
-                </div>
+                </>
+              ) : (
+                <>
+                  <div className="members-section-header">
+                    <h2 className="members-section-title">Active Members</h2>
+                    <span className="members-section-count">0 members</span>
+                  </div>
+                  <div className="members-signups-empty">No active members.</div>
+                </>
               )}
+              </div>
 
               {/* New Sign-ups Section */}
-              {isAdmin && (
-                <div className="members-section members-section-signups">
+              <div id="members-section-signups" className="members-section members-section-signups">
+              {isAdmin ? (
+                <>
                   <div className="members-section-header">
                     <h2 className="members-section-title">{t('members.signups.title')}</h2>
                     <span className="members-section-count">
@@ -1193,12 +1214,22 @@ const Members = () => {
                       </table>
                     </div>
                   )}
-                </div>
+                </>
+              ) : (
+                <>
+                  <div className="members-section-header">
+                    <h2 className="members-section-title">{t('members.signups.title')}</h2>
+                    <span className="members-section-count">0</span>
+                  </div>
+                  <div className="members-signups-empty">{t('members.signups.empty')}</div>
+                </>
               )}
+              </div>
 
               {/* Inactive Members Section */}
-              {filteredInactiveMembers.length > 0 && (
-                <div className="members-section members-section-inactive">
+              <div id="members-section-inactive" className="members-section members-section-inactive">
+              {filteredInactiveMembers.length > 0 ? (
+                <>
                   <div className="members-section-header">
                     <h2 className="members-section-title">Inactive Members</h2>
                     <span className="members-section-count">{filteredInactiveMembers.length} member{filteredInactiveMembers.length !== 1 ? 's' : ''}</span>
@@ -1360,8 +1391,17 @@ const Members = () => {
                       </table>
                     </div>
                   )}
-                </div>
+                </>
+              ) : (
+                <>
+                  <div className="members-section-header">
+                    <h2 className="members-section-title">Inactive Members</h2>
+                    <span className="members-section-count">0 members</span>
+                  </div>
+                  <div className="members-signups-empty">No inactive members.</div>
+                </>
               )}
+              </div>
 
               {/* Empty State - Only show when there are no members at all */}
               {members.length === 0 && (

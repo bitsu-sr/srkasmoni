@@ -1,3 +1,7 @@
+import type { GroupCurrency } from '../utils/currency'
+
+export type { GroupCurrency }
+
 export const MEMBER_CITIES = ['Paramaribo', 'Nieuw Nickerie', 'Lelydorp', 'Moengo', 'Albina', 'Other']
 export const MEMBER_NATIONALITIES = ['Surinamese', 'Dutch', 'American', 'Canadian', 'Other']
 
@@ -67,6 +71,7 @@ export interface MemberSignup {
   accountNumber: string
   groupId: number
   groupName: string
+  currency: GroupCurrency
   slotAmount: number
   slotDuration: number
   desiredMonth: string
@@ -104,6 +109,7 @@ export interface Group {
   id: number
   name: string
   description: string | null
+  currency: GroupCurrency
   monthlyAmount: number
   maxMembers: number
   /** Max members that can share one slot (group/month). Default 2. */
@@ -122,6 +128,7 @@ export interface Group {
 export interface GroupFormData {
   name: string
   description: string
+  currency: GroupCurrency
   monthlyAmount: number
   maxMembers: number
   maxMembersPerSlot?: number
@@ -136,12 +143,19 @@ export interface GroupFormData {
 
 export type GroupStatus = 'closed' | 'available'
 
+export interface SignupMonthOption {
+  month: string
+  assigned: boolean
+  reserved: boolean
+}
+
 export interface SignupGroupOption {
   id: number
   name: string
+  currency: GroupCurrency
   monthlyAmount: number
   duration: number
-  availableMonths: string[]
+  months: SignupMonthOption[]
 }
 
 export interface GroupMember {

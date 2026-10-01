@@ -7,7 +7,8 @@ import { dashboardService } from '../services/dashboardService'
 import { payoutService } from '../services/payoutService'
 import { useMonthFilter } from '../hooks/useMonthFilter'
 import { useColumnVisibility, type ColumnDef } from '../hooks/useColumnVisibility'
-import { formatPaymentDate } from '../utils/dateUtils'
+import { calculateDuration, formatPaymentDate } from '../utils/dateUtils'
+import { formatGroupAmount } from '../utils/currency'
 import MonthFilter from '../components/MonthFilter'
 import './Dashboard.css'
 
@@ -96,11 +97,13 @@ const Dashboard = () => {
   const groupColumnDefs: ColumnDef[] = [
     { key: 'name', label: t('dashboard.groups.headers.name'), defaultVisible: true },
     { key: 'monthlyAmount', label: t('dashboard.groups.headers.monthlyAmount'), defaultVisible: true },
+    { key: 'toReceive', label: t('dashboard.groups.headers.toReceive'), defaultVisible: false },
     { key: 'nextRecipient', label: t('dashboard.groups.headers.nextRecipient'), defaultVisible: true },
-    { key: 'slots', label: t('dashboard.groups.headers.slots'), defaultVisible: true },
+    { key: 'slots', label: t('dashboard.groups.headers.slots'), defaultVisible: false },
     { key: 'slotsProgress', label: t('dashboard.groups.headers.slotsProgress'), defaultVisible: true },
+    { key: 'first', label: t('dashboard.groups.headers.first'), defaultVisible: true },
     { key: 'last', label: t('dashboard.groups.headers.last'), defaultVisible: true },
-    { key: 'created', label: t('dashboard.groups.headers.created'), defaultVisible: true },
+    { key: 'created', label: t('dashboard.groups.headers.created'), defaultVisible: false },
   ]
 
   const {
@@ -109,16 +112,18 @@ const Dashboard = () => {
     isVisible,
     visibleColumns,
     allColumns,
-  } = useColumnVisibility('dashboard-groups', groupColumnDefs)
+  } = useColumnVisibility('dashboard-groups-v2', groupColumnDefs)
 
   // Column width map for the grid layout
   const columnWidths: Record<string, string> = {
     name: '1.5fr',
     monthlyAmount: '1fr',
+    toReceive: '1fr',
     nextRecipient: '1.5fr',
     slots: '1.2fr',
     slotsProgress: '1.2fr',
-    last: '0.7fr',
+    first: '0.8fr',
+    last: '0.8fr',
     created: '1fr',
   }
 
@@ -454,15 +459,21 @@ const Dashboard = () => {
             <div className="dashboard-table-header" style={{ gridTemplateColumns }}>
               <div className={`dashboard-header-cell${isVisible('name') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.name')}</div>
               <div className={`dashboard-header-cell${isVisible('monthlyAmount') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.monthlyAmount')}</div>
+              <div className={`dashboard-header-cell${isVisible('toReceive') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.toReceive')}</div>
               <div className={`dashboard-header-cell${isVisible('nextRecipient') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.nextRecipient')}</div>
               <div className={`dashboard-header-cell${isVisible('slots') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.slots')}</div>
               <div className={`dashboard-header-cell${isVisible('slotsProgress') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.slotsProgress')}</div>
+              <div className={`dashboard-header-cell${isVisible('first') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.first')}</div>
               <div className={`dashboard-header-cell${isVisible('last') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.last')}</div>
               <div className={`dashboard-header-cell${isVisible('created') ? '' : ' dashboard-header-cell--hidden'}`}>{t('dashboard.groups.headers.created')}</div>
             </div>
             {dashboardData?.groups
               .sort((a: any, b: any) => a.name.localeCompare(b.name))
-              .map((group: any) => (
+              .map((group: any) => {
+              const duration = group.startDate && group.endDate
+                ? calculateDuration(group.startDate, group.endDate)
+                : 0
+              return (
               <div
                 key={group.id}
                 className="dashboard-table-row dashboard-table-row-clickable"
@@ -488,8 +499,11 @@ const Dashboard = () => {
                   </div>
                      </div>
                 <div className={`dashboard-table-cell${isVisible('monthlyAmount') ? '' : ' dashboard-table-cell--hidden'}`}>
-                  SRD {group.monthlyAmount?.toLocaleString()}
+                  {formatGroupAmount(group.monthlyAmount, group.currency)}
                    </div>
+                <div className={`dashboard-table-cell${isVisible('toReceive') ? '' : ' dashboard-table-cell--hidden'}`}>
+                  {formatGroupAmount(group.monthlyAmount * duration, group.currency)}
+                </div>
                 <div className={`dashboard-table-cell${isVisible('nextRecipient') ? '' : ' dashboard-table-cell--hidden'}`}>
                   {group.nextRecipient}
                 </div>
@@ -515,6 +529,9 @@ const Dashboard = () => {
                      </div>
                    </div>
                      </div>
+                <div className={`dashboard-table-cell${isVisible('first') ? '' : ' dashboard-table-cell--hidden'}`}>
+                  {group.startDate ? formatMonthYear(group.startDate) : '-'}
+                </div>
                 <div className={`dashboard-table-cell${isVisible('last') ? '' : ' dashboard-table-cell--hidden'}`}>
                   {group.lastSlotMonth ? formatMonthYear(group.lastSlotMonth) : '-'}
                 </div>
@@ -522,7 +539,8 @@ const Dashboard = () => {
                   {formatMonthYear(group.created_at)}
                    </div>
                  </div>
-            ))}
+              )
+            })}
             {(!dashboardData?.groups || dashboardData.groups.length === 0) && (
               <div className="dashboard-table-empty">No active groups</div>
              )}
@@ -642,7 +660,7 @@ const Dashboard = () => {
                      <div className="dashboard-activity-content">
                       <div className="dashboard-activity-title">{group.name}</div>
                       <div className="dashboard-activity-subtitle">
-                        SRD {group.monthly_amount?.toLocaleString()}/month
+                        {formatGroupAmount(group.monthly_amount, group.currency)}/month
                        </div>
                       <div className="dashboard-activity-meta">
                         {formatRelativeTime(group.created_at)}

@@ -6,9 +6,71 @@ import { memberSignupService } from '../services/memberSignupService'
 import { bankService } from '../services/bankService'
 import { groupService } from '../services/groupService'
 import type { Bank } from '../types/bank'
-import { useLanguage } from '../contexts/LanguageContext'
+import { translate, type SupportedLocale } from '../contexts/LanguageContext'
+import { formatGroupAmount } from '../utils/currency'
 import '../components/MemberModal.css'
 import './Signup.css'
+
+const SIGNUP_LOCALE_KEY = 'signup-locale'
+
+const readSignupLocale = (): SupportedLocale => {
+  try {
+    const stored = localStorage.getItem(SIGNUP_LOCALE_KEY)
+    if (stored === 'en' || stored === 'nl') return stored
+  } catch {
+    // Keep the signup wizard in Nederlands when storage is unavailable.
+  }
+  return 'nl'
+}
+
+const SurinameFlag = () => (
+  <svg viewBox="0 0 60 40" aria-hidden="true" className="signup-flag">
+    <rect width="60" height="8" fill="#377e3f" />
+    <rect y="8" width="60" height="4" fill="#ffffff" />
+    <rect y="12" width="60" height="16" fill="#b40a2d" />
+    <rect y="28" width="60" height="4" fill="#ffffff" />
+    <rect y="32" width="60" height="8" fill="#377e3f" />
+    <polygon fill="#ecc81d" points="30,15 31.8,20.2 37.3,20.2 32.8,23.5 34.5,28.8 30,25.6 25.5,28.8 27.2,23.5 22.7,20.2 28.2,20.2" />
+  </svg>
+)
+
+const AmericanFlag = () => (
+  <svg viewBox="0 0 60 40" aria-hidden="true" className="signup-flag">
+    <rect width="60" height="40" fill="#bf0a30" />
+    <rect y="3.08" width="60" height="3.08" fill="#ffffff" />
+    <rect y="9.23" width="60" height="3.08" fill="#ffffff" />
+    <rect y="15.38" width="60" height="3.08" fill="#ffffff" />
+    <rect y="21.54" width="60" height="3.08" fill="#ffffff" />
+    <rect y="27.69" width="60" height="3.08" fill="#ffffff" />
+    <rect y="33.85" width="60" height="3.08" fill="#ffffff" />
+    <rect width="24" height="21.54" fill="#002868" />
+    <g fill="#ffffff">
+      <circle cx="4" cy="3.2" r="0.7" />
+      <circle cx="8" cy="3.2" r="0.7" />
+      <circle cx="12" cy="3.2" r="0.7" />
+      <circle cx="16" cy="3.2" r="0.7" />
+      <circle cx="20" cy="3.2" r="0.7" />
+      <circle cx="6" cy="6.4" r="0.7" />
+      <circle cx="10" cy="6.4" r="0.7" />
+      <circle cx="14" cy="6.4" r="0.7" />
+      <circle cx="18" cy="6.4" r="0.7" />
+      <circle cx="4" cy="9.6" r="0.7" />
+      <circle cx="8" cy="9.6" r="0.7" />
+      <circle cx="12" cy="9.6" r="0.7" />
+      <circle cx="16" cy="9.6" r="0.7" />
+      <circle cx="20" cy="9.6" r="0.7" />
+      <circle cx="6" cy="12.8" r="0.7" />
+      <circle cx="10" cy="12.8" r="0.7" />
+      <circle cx="14" cy="12.8" r="0.7" />
+      <circle cx="18" cy="12.8" r="0.7" />
+      <circle cx="4" cy="16" r="0.7" />
+      <circle cx="8" cy="16" r="0.7" />
+      <circle cx="12" cy="16" r="0.7" />
+      <circle cx="16" cy="16" r="0.7" />
+      <circle cx="20" cy="16" r="0.7" />
+    </g>
+  </svg>
+)
 
 const emptySignupForm = (): MemberSignupFormData => ({
   firstName: '',
@@ -39,7 +101,8 @@ const STEP_FIELDS: (keyof MemberSignupFormData)[][] = [
 ]
 
 const Signup = () => {
-  const { t } = useLanguage()
+  const [signupLocale, setSignupLocale] = useState<SupportedLocale>(readSignupLocale)
+  const t = (key: string) => translate(signupLocale, key)
   const formTopRef = useRef<HTMLDivElement>(null)
   const [step, setStep] = useState(0)
   const [formData, setFormData] = useState<MemberSignupFormData>(emptySignupForm)
@@ -58,6 +121,26 @@ const Signup = () => {
     t('signup.section.banking'),
     t('signup.section.slot')
   ]
+  const dateLocale = signupLocale === 'nl' ? 'nl-NL' : 'en-US'
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIGNUP_LOCALE_KEY, signupLocale)
+    } catch {
+      // The choice still applies for this visit.
+    }
+    document.documentElement.setAttribute('lang', signupLocale)
+    return () => {
+      let appLocale = 'en'
+      try {
+        const stored = localStorage.getItem('locale')
+        if (stored === 'en' || stored === 'nl') appLocale = stored
+      } catch {
+        // Fall back to the app default.
+      }
+      document.documentElement.setAttribute('lang', appLocale)
+    }
+  }, [signupLocale])
 
   useEffect(() => {
     bankService.getAllBanks()
@@ -158,6 +241,16 @@ const Signup = () => {
       newErrors.email = t('signup.error.emailInvalid')
     }
 
+    if (fields.includes('desiredMonth') && formData.desiredMonth) {
+      const selectedGroup = availableGroups.find(group => String(group.id) === formData.groupId)
+      const selectedMonth = selectedGroup?.months.find(month => month.month === formData.desiredMonth)
+      if (!selectedMonth || selectedMonth.assigned || selectedMonth.reserved) {
+        newErrors.desiredMonth = selectedMonth?.reserved
+          ? t('signup.error.monthReserved')
+          : t('signup.error.monthAssigned')
+      }
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -202,7 +295,10 @@ const Signup = () => {
       setIsSubmitted(true)
     } catch (error) {
       console.error('Error submitting signup:', error)
-      setSubmitError(t('signup.error.submit'))
+      const code = typeof error === 'object' && error && 'code' in error
+        ? String((error as { code?: string }).code)
+        : ''
+      setSubmitError(code === '23505' ? t('signup.error.monthReserved') : t('signup.error.submit'))
     } finally {
       setIsLoading(false)
     }
@@ -231,8 +327,32 @@ const Signup = () => {
     <div className="signup-page">
       <div className="signup-container" ref={formTopRef}>
         <div className="signup-header">
-          <h1>{t('signup.title')}</h1>
-          <p>{t('signup.subtitle')}</p>
+          <div className="signup-header-text">
+            <h1>{t('signup.title')}</h1>
+            <p>{t('signup.subtitle')}</p>
+          </div>
+          <div className="signup-language" role="group" aria-label={t('signup.language.choose')}>
+            <button
+              type="button"
+              className={`signup-language-btn${signupLocale === 'nl' ? ' active' : ''}`}
+              onClick={() => setSignupLocale('nl')}
+              aria-pressed={signupLocale === 'nl'}
+              aria-label={t('signup.language.dutch')}
+              title={t('signup.language.dutch')}
+            >
+              <SurinameFlag />
+            </button>
+            <button
+              type="button"
+              className={`signup-language-btn${signupLocale === 'en' ? ' active' : ''}`}
+              onClick={() => setSignupLocale('en')}
+              aria-pressed={signupLocale === 'en'}
+              aria-label={t('signup.language.english')}
+              title={t('signup.language.english')}
+            >
+              <AmericanFlag />
+            </button>
+          </div>
         </div>
 
         <nav className="signup-progress" aria-label={t('signup.wizard.progress')}>
@@ -354,7 +474,7 @@ const Signup = () => {
                 >
                   <option value="">{t('signup.field.selectCity')}</option>
                   {MEMBER_CITIES.map(city => (
-                    <option key={city} value={city}>{city}</option>
+                    <option key={city} value={city}>{city === 'Other' ? t('signup.city.Other') : city}</option>
                   ))}
                 </select>
                 {errors.city && <span className="error-message">{errors.city}</span>}
@@ -370,7 +490,7 @@ const Signup = () => {
                 >
                   <option value="">{t('signup.field.selectNationality')}</option>
                   {MEMBER_NATIONALITIES.map(nat => (
-                    <option key={nat} value={nat}>{nat}</option>
+                    <option key={nat} value={nat}>{t(`signup.nationality.${nat}`)}</option>
                   ))}
                 </select>
                 {errors.nationality && <span className="error-message">{errors.nationality}</span>}
@@ -497,7 +617,7 @@ const Signup = () => {
                   </option>
                   {availableGroups.map(group => (
                     <option key={group.id} value={group.id}>
-                      SRD {group.monthlyAmount.toLocaleString()} — {group.name}
+                      {formatGroupAmount(group.monthlyAmount, group.currency)} — {group.name}
                     </option>
                   ))}
                 </select>
@@ -532,13 +652,15 @@ const Signup = () => {
                   disabled={!formData.groupId}
                 >
                   <option value="">{t('signup.field.selectDesiredMonth')}</option>
-                  {(availableGroups.find(group => String(group.id) === formData.groupId)?.availableMonths || [])
+                  {(availableGroups.find(group => String(group.id) === formData.groupId)?.months || [])
                     .map(month => (
-                      <option key={month} value={month}>
-                        {new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, {
+                      <option key={month.month} value={month.month} disabled={month.assigned || month.reserved}>
+                        {new Date(`${month.month}-01T00:00:00`).toLocaleDateString(dateLocale, {
                           month: 'long',
                           year: 'numeric'
                         })}
+                        {month.assigned ? ` (${t('signup.field.monthAssigned')})` : ''}
+                        {!month.assigned && month.reserved ? ` (${t('signup.field.monthReserved')})` : ''}
                       </option>
                     ))}
                 </select>

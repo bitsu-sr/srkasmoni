@@ -1,6 +1,7 @@
 import { X, Check, Trash2 } from 'lucide-react'
 import { MemberSignup } from '../types/member'
 import { formatMemberName } from '../utils/memberName'
+import { formatGroupAmount } from '../utils/currency'
 import { useLanguage } from '../contexts/LanguageContext'
 import './SignupDetailsModal.css'
 
@@ -68,7 +69,7 @@ const SignupDetailsModal = ({
         { label: t('signup.field.group'), value: signup.groupName },
         {
           label: t('signup.field.slotAmount'),
-          value: signup.slotAmount ? `SRD ${signup.slotAmount.toLocaleString()}` : ''
+          value: signup.slotAmount ? formatGroupAmount(signup.slotAmount, signup.currency) : ''
         },
         {
           label: t('signup.field.slotDuration'),

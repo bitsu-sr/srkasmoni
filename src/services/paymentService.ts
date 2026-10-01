@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Payment, PaymentFormData, PaymentFilters, PaymentStats } from '../types/payment'
+import { normalizeGroupCurrency } from '../utils/currency'
 
 export const paymentService = {
   // Get all payments with optional filters
@@ -8,11 +9,11 @@ export const paymentService = {
       .from('payments')
       .select(`
         *,
-        member:members(first_name, last_name),
-        group:groups(name, monthly_amount),
-        slot:payment_slots(month_date),
-        senderBank:banks!payments_sender_bank_id_fkey(name),
-        receiverBank:banks!payments_receiver_bank_id_fkey(name)
+        member:members(id, first_name, last_name),
+        group:groups(id, name, monthly_amount),
+        slot:payment_slots(id, group_id, member_id, month_date, amount, due_date, created_at),
+        senderBank:banks!payments_sender_bank_id_fkey(id, name),
+        receiverBank:banks!payments_receiver_bank_id_fkey(id, name)
       `)
       .order('created_at', { ascending: false })
 
@@ -174,11 +175,11 @@ export const paymentService = {
       .from('payments')
       .select(`
         *,
-        member:members(first_name, last_name),
-        group:groups(name, monthly_amount),
-        slot:payment_slots(month_date),
-        senderBank:banks!payments_sender_bank_id_fkey(name),
-        receiverBank:banks!payments_receiver_bank_id_fkey(name)
+        member:members(id, first_name, last_name),
+        group:groups(id, name, currency, monthly_amount),
+        slot:payment_slots(id, group_id, member_id, month_date, amount, due_date, created_at),
+        senderBank:banks!payments_sender_bank_id_fkey(id, name),
+        receiverBank:banks!payments_receiver_bank_id_fkey(id, name)
       `)
       .eq('id', id)
       .single()
@@ -238,6 +239,7 @@ export const paymentService = {
         id: data.group.id,
         name: data.group.name,
         description: null,
+        currency: normalizeGroupCurrency(data.group.currency),
         monthlyAmount: data.group.monthly_amount,
         maxMembers: 0,
         status: data.group.status || 'closed',

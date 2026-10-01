@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-type SupportedLocale = 'en' | 'nl'
-
 type Translations = Record<string, string>
 
 const en: Translations = {
@@ -71,9 +69,11 @@ const en: Translations = {
   'dashboard.groups.all': 'All Groups',
   'dashboard.groups.headers.name': 'Group Name',
   'dashboard.groups.headers.monthlyAmount': 'Monthly Amount',
+  'dashboard.groups.headers.toReceive': 'To Receive',
   'dashboard.groups.headers.nextRecipient': 'Next Recipient',
   'dashboard.groups.headers.slots': 'Slots',
   'dashboard.groups.headers.slotsProgress': 'Slots Progress',
+  'dashboard.groups.headers.first': 'First',
   'dashboard.groups.headers.last': 'Last',
   'dashboard.groups.headers.created': 'Created',
   'common.refreshingData': 'Refreshing data...',
@@ -270,8 +270,19 @@ const en: Translations = {
   'signup.field.slotDuration': 'Slot Duration',
   'signup.field.desiredMonth': 'Desired Month',
   'signup.field.selectDesiredMonth': 'Select a month',
+  'signup.field.monthAssigned': 'Assigned',
+  'signup.field.monthReserved': 'Reserved',
+  'signup.language.choose': 'Choose language',
+  'signup.language.dutch': 'Nederlands',
+  'signup.language.english': 'English',
+  'signup.nationality.Surinamese': 'Surinamese',
+  'signup.nationality.Dutch': 'Dutch',
+  'signup.nationality.American': 'American',
+  'signup.nationality.Canadian': 'Canadian',
+  'signup.nationality.Other': 'Other',
+  'signup.city.Other': 'Other',
   'signup.field.loadingSlots': 'Loading available slots...',
-  'signup.field.noAvailableGroups': 'There are currently no available active groups.',
+  'signup.field.noAvailableGroups': 'There are currently no available active or upcoming groups.',
   'signup.field.months': 'months',
   'signup.submit': 'Submit sign-up',
   'signup.submitting': 'Submitting...',
@@ -295,6 +306,8 @@ const en: Translations = {
   'signup.error.slotAmount': 'Slot amount is required',
   'signup.error.slotDuration': 'Slot duration is required',
   'signup.error.desiredMonth': 'Desired month is required',
+  'signup.error.monthAssigned': 'That month is already assigned',
+  'signup.error.monthReserved': 'That month is reserved by another sign-up',
   'signup.error.submit': 'Could not submit your sign-up. Please try again.',
   'signup.wizard.progress': 'Sign-up steps',
   'signup.wizard.step': 'Step {current} of {total}',
@@ -449,9 +462,11 @@ const nl: Translations = {
   'dashboard.groups.all': 'Alle groepen',
   'dashboard.groups.headers.name': 'Groepsnaam',
   'dashboard.groups.headers.monthlyAmount': 'Maandelijks bedrag',
+  'dashboard.groups.headers.toReceive': 'Te ontvangen',
   'dashboard.groups.headers.nextRecipient': 'Volgende ontvanger',
   'dashboard.groups.headers.slots': 'Slots',
   'dashboard.groups.headers.slotsProgress': 'Slots-voortgang',
+  'dashboard.groups.headers.first': 'Eerste',
   'dashboard.groups.headers.last': 'Laatste',
   'dashboard.groups.headers.created': 'Aangemaakt',
   'common.refreshingData': 'Gegevens verversen...',
@@ -648,8 +663,19 @@ const nl: Translations = {
   'signup.field.slotDuration': 'Slotduur',
   'signup.field.desiredMonth': 'Gewenste maand',
   'signup.field.selectDesiredMonth': 'Selecteer een maand',
+  'signup.field.monthAssigned': 'Toegewezen',
+  'signup.field.monthReserved': 'Gereserveerd',
+  'signup.language.choose': 'Kies een taal',
+  'signup.language.dutch': 'Nederlands',
+  'signup.language.english': 'Engels',
+  'signup.nationality.Surinamese': 'Surinaams',
+  'signup.nationality.Dutch': 'Nederlands',
+  'signup.nationality.American': 'Amerikaans',
+  'signup.nationality.Canadian': 'Canadees',
+  'signup.nationality.Other': 'Anders',
+  'signup.city.Other': 'Anders',
   'signup.field.loadingSlots': 'Beschikbare slots laden...',
-  'signup.field.noAvailableGroups': 'Er zijn momenteel geen beschikbare actieve groepen.',
+  'signup.field.noAvailableGroups': 'Er zijn momenteel geen beschikbare actieve of aankomende groepen.',
   'signup.field.months': 'maanden',
   'signup.submit': 'Aanmelding versturen',
   'signup.submitting': 'Versturen...',
@@ -673,6 +699,8 @@ const nl: Translations = {
   'signup.error.slotAmount': 'Slotbedrag is verplicht',
   'signup.error.slotDuration': 'Slotduur is verplicht',
   'signup.error.desiredMonth': 'Gewenste maand is verplicht',
+  'signup.error.monthAssigned': 'Die maand is al toegewezen',
+  'signup.error.monthReserved': 'Die maand is gereserveerd door een andere aanmelding',
   'signup.error.submit': 'Je aanmelding kon niet worden verstuurd. Probeer het opnieuw.',
   'signup.wizard.progress': 'Aanmeldstappen',
   'signup.wizard.step': 'Stap {current} van {total}',
@@ -761,6 +789,13 @@ const nl: Translations = {
 }
 
 const LOCALE_STORAGE_KEY = 'locale'
+
+export type SupportedLocale = 'en' | 'nl'
+
+export const translate = (locale: SupportedLocale, key: string): string => {
+  const dict = locale === 'nl' ? nl : en
+  return dict[key] ?? en[key] ?? key
+}
 
 interface LanguageContextValue {
   locale: SupportedLocale

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import type { Group, GroupFormData } from '../types/member'
+import { GROUP_CURRENCY_OPTIONS, isGroupCurrency, normalizeGroupCurrency } from '../utils/currency'
 import { calculateDuration } from '../utils/dateUtils'
 import './GroupModal.css'
 
@@ -33,6 +34,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
   const [formData, setFormData] = useState<GroupFormData>({
     name: '',
     description: '',
+    currency: 'SRD',
     monthlyAmount: 0,
     maxMembers: 1,
     maxMembersPerSlot: 2,
@@ -53,6 +55,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
       setFormData({
         name: group.name,
         description: group.description || '',
+        currency: normalizeGroupCurrency(group.currency),
         monthlyAmount: group.monthlyAmount,
         maxMembers: group.maxMembers,
         maxMembersPerSlot: group.maxMembersPerSlot ?? 2,
@@ -68,6 +71,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
       setFormData({
         name: '',
         description: '',
+        currency: 'SRD',
         monthlyAmount: 0,
         maxMembers: 1,
         maxMembersPerSlot: 2,
@@ -88,6 +92,10 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
 
     if (!formData.name.trim()) {
       newErrors.name = 'Group name is required'
+    }
+
+    if (!isGroupCurrency(formData.currency)) {
+      newErrors.currency = 'Choose SRD, USD, or Euro'
     }
 
     if (formData.monthlyAmount <= 0) {
@@ -226,9 +234,25 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
             <small className="form-hint">A group is also closed automatically when all of its slots are full.</small>
           </div>
 
+          <div className="form-group">
+            <label htmlFor="currency">Currency *</label>
+            <select
+              id="currency"
+              value={formData.currency}
+              onChange={(e) => handleInputChange('currency', e.target.value)}
+              className={errors.currency ? 'error' : ''}
+            >
+              {GROUP_CURRENCY_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <small className="form-hint">Used for this group's monthly amount and fines.</small>
+            {errors.currency && <span className="error-message">{errors.currency}</span>}
+          </div>
+
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="monthlyAmount">Monthly Amount (SRD) *</label>
+              <label htmlFor="monthlyAmount">Monthly Amount ({formData.currency}) *</label>
               <input
                 type="number"
                 id="monthlyAmount"
@@ -343,7 +367,7 @@ const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, onSave, group,
           </div>
 
           <div className="form-group">
-            <label htmlFor="lateFineFixedAmount">Fixed Late Fine Amount (SRD)</label>
+            <label htmlFor="lateFineFixedAmount">Fixed Late Fine Amount ({formData.currency})</label>
             <input
               type="number"
               id="lateFineFixedAmount"

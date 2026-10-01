@@ -23,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext'
 import MemberSelectionModal from '../components/MemberSelectionModal'
 import DeleteConfirmModal from '../components/DeleteConfirmModal'
 import GroupModal from '../components/GroupModal'
+import { formatGroupAmount } from '../utils/currency'
 import SwitchPositionsModal from '../components/SwitchPositionsModal'
 import { formatDateRange, calculateDuration, formatMonthYear } from '../utils/dateUtils'
 import './GroupDetails.css'
@@ -554,7 +555,7 @@ const GroupDetails = () => {
               </div>
               <div className="overview-content">
                 <h3>Monthly Amount</h3>
-                <p className="overview-value">SRD {group.monthlyAmount.toLocaleString()}</p>
+                <p className="overview-value">{formatGroupAmount(group.monthlyAmount, group.currency)}</p>
               </div>
             </div>
 
@@ -564,7 +565,7 @@ const GroupDetails = () => {
               </div>
               <div className="overview-content">
                 <h3>Total Monthly amount</h3>
-                <p className="overview-value">SRD {totalMonthlyAmount.toLocaleString()}</p>
+                <p className="overview-value">{formatGroupAmount(totalMonthlyAmount, group.currency)}</p>
               </div>
             </div>
 
@@ -808,7 +809,7 @@ const GroupDetails = () => {
                         </div>
                         <div className="slot-details">
                           <span className="slot-amount">
-                            Receives: SRD {slotAmount.toLocaleString()}
+                            Receives: {formatGroupAmount(slotAmount, group?.currency)}
                             {sharersCount > 1 && (
                               <span className="slot-split-note"> (split)</span>
                             )}
@@ -881,7 +882,7 @@ const GroupDetails = () => {
                               <span className="member-email">{slot.member?.email}</span>
                             </div>
                           </td>
-                          <td>SRD {slotAmount.toLocaleString()}</td>
+                          <td>{formatGroupAmount(slotAmount, group?.currency)}</td>
                           <td>{groupDuration} month{groupDuration !== 1 ? 's' : ''}</td>
                           <td>
                             {isPaid ? (

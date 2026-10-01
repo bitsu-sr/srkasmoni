@@ -145,6 +145,7 @@ export interface Database {
           name: string
           description: string | null
           monthly_amount: number
+          currency: 'SRD' | 'USD' | 'EUR'
           max_members: number
           max_members_per_slot: number
           status: 'closed' | 'available'
@@ -159,6 +160,7 @@ export interface Database {
           name: string
           description?: string | null
           monthly_amount: number
+          currency?: 'SRD' | 'USD' | 'EUR'
           max_members: number
           max_members_per_slot?: number
           status?: 'closed' | 'available'
@@ -173,6 +175,7 @@ export interface Database {
           name?: string
           description?: string | null
           monthly_amount?: number
+          currency?: 'SRD' | 'USD' | 'EUR'
           max_members?: number
           max_members_per_slot?: number
           status?: 'closed' | 'available'

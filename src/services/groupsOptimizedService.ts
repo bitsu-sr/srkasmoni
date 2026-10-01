@@ -1,10 +1,12 @@
 import { supabase } from '../lib/supabase'
-import type { GroupStatus } from '../types/member'
+import type { GroupCurrency, GroupStatus } from '../types/member'
+import { normalizeGroupCurrency } from '../utils/currency'
 
 export interface GroupWithDetails {
   id: number
   name: string
   description: string
+  currency: GroupCurrency
   monthlyAmount: number
   startDate: string
   endDate: string
@@ -132,6 +134,7 @@ export const groupsOptimizedService = {
           id: group.id,
           name: group.name,
           description: group.description,
+          currency: normalizeGroupCurrency(group.currency),
           monthlyAmount: group.monthly_amount || group.monthlyAmount,
           startDate: group.start_date || group.startDate,
           endDate: group.end_date || group.endDate,

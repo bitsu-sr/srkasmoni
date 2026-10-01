@@ -37,12 +37,27 @@
 
 .members-stat-card {
   position: relative;
+  width: 100%;
   min-height: 132px;
   padding: 20px 22px;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
   background: white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.members-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.members-stat-card:focus-visible {
+  outline: 2px solid #166534;
+  outline-offset: 3px;
 }
 
 .members-stat-percent {
@@ -1000,6 +1015,7 @@
 /* Members Sections */
 .members-section {
   margin-bottom: 32px;
+  scroll-margin-top: 96px;
 }
 
 .members-section-header {

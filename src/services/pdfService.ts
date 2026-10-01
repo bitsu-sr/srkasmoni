@@ -7,6 +7,7 @@ import { Payment } from '../types/payment';
 import type { Group, GroupMember } from '../types/member';
 import type { GroupWithDetails } from './groupsOptimizedService';
 import { formatMemberName } from '../utils/memberName';
+import { formatGroupAmount } from '../utils/currency';
 
 // Type for unpaid slots with member and group info
 interface UnpaidSlot extends PaymentSlot {
@@ -542,7 +543,7 @@ export const pdfService = {
           body.push([
             { text: formatMonthYear(monthDate), fontSize: tableFontSize },
             { text: `${slot.member?.firstName || ''} ${slot.member?.lastName || ''}`.trim() || '-', fontSize: tableFontSize },
-            { text: `SRD ${slotAmount.toLocaleString()}`, alignment: 'right', fontSize: tableFontSize },
+            { text: formatGroupAmount(slotAmount, group.currency), alignment: 'right', fontSize: tableFontSize },
             ...months.map((m) => dotCell(statusByMemberAndMonth[`${slot.memberId}-${m}`] ?? 'not_paid'))
           ]);
         });
@@ -598,7 +599,7 @@ export const pdfService = {
               body: [
                 [{ text: 'Group Name:', fontSize: 9 }, { text: group.name, fontSize: 9 }],
                 [{ text: 'Description:', fontSize: 9 }, { text: group.description || '-', fontSize: 9 }],
-                [{ text: 'Monthly Amount:', fontSize: 9 }, { text: `SRD ${group.monthlyAmount.toLocaleString()}`, fontSize: 9 }],
+                [{ text: 'Monthly Amount:', fontSize: 9 }, { text: formatGroupAmount(group.monthlyAmount, group.currency), fontSize: 9 }],
                 [{ text: 'Duration:', fontSize: 9 }, { text: `${groupDuration} months`, fontSize: 9 }],
                 [{ text: 'Period:', fontSize: 9 }, { text: periodLabel, fontSize: 9 }],
                 [{ text: 'Members / Slots:', fontSize: 9 }, { text: `${uniqueMembers} members, ${members.length} slots / ${group.maxMembers}`, fontSize: 9 }]
@@ -1397,8 +1398,12 @@ export const pdfService = {
           return (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
         };
 
-        const formatSrdAmount = (amount: number): string =>
-          `SRD ${amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const formatAmount = (amount: number, currency?: string | null): string =>
+          formatGroupAmount(amount, currency, {
+            locale: 'nl-NL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          });
 
         const tableFontSize = 9;
         const headerFill = '#007000';
@@ -1478,9 +1483,9 @@ export const pdfService = {
               tableBody.push([
                 { text: formatMonthYear(monthDate), fontSize: tableFontSize },
                 { text: memberName, fontSize: tableFontSize },
-                { text: formatSrdAmount(group.monthlyAmount || 0), fontSize: tableFontSize },
+                { text: formatAmount(group.monthlyAmount || 0, group.currency), fontSize: tableFontSize },
                 { text: String(groupDuration), fontSize: tableFontSize },
-                { text: formatSrdAmount(receivesAmount), fontSize: tableFontSize }
+                { text: formatAmount(receivesAmount, group.currency), fontSize: tableFontSize }
               ]);
             });
           }
