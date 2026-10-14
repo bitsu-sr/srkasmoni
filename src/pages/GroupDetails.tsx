@@ -12,7 +12,8 @@ import {
   Upload,
   LayoutGrid,
   Table as TableIcon,
-  ArrowLeftRight
+  ArrowLeftRight,
+  FileText
 } from 'lucide-react'
 import type { Group, GroupMember, GroupMemberFormData } from '../types/member'
 import { groupService } from '../services/groupService'
@@ -490,6 +491,55 @@ const GroupDetails = () => {
     }
   }
 
+  const getSlotMonthDate = (assignedMonthDate: string | number): string =>
+    typeof assignedMonthDate === 'string'
+      ? assignedMonthDate
+      : `2024-${String(assignedMonthDate).padStart(2, '0')}`
+
+  const handleGenerateContract = async (slot: GroupMember) => {
+    if (!group) return
+
+    const member = slot.member
+    if (!member?.id) {
+      alert('Lidgegevens niet gevonden.')
+      return
+    }
+
+    try {
+      await pdfService.generateContractPDF(
+        {
+          id: member.id,
+          firstName: member.firstName,
+          lastName: member.lastName,
+          birthDate: member.birthDate,
+          birthplace: member.birthplace,
+          address: member.address,
+          city: member.city,
+          phone: member.phone,
+          email: member.email,
+          nationalId: member.nationalId,
+          occupation: member.occupation,
+          bankName: member.bankName,
+          accountNumber: member.accountNumber,
+          middleName: member.middleName
+        },
+        {
+          id: group.id,
+          name: group.name,
+          monthlyAmount: group.monthlyAmount,
+          startDate: group.startDate,
+          endDate: group.endDate,
+          duration: group.duration,
+          maxMembers: group.maxMembers
+        },
+        getSlotMonthDate(slot.assignedMonthDate)
+      )
+    } catch (error) {
+      console.error('Error generating contract:', error)
+      alert('Er is een fout opgetreden bij het genereren van het contract.')
+    }
+  }
+
   // Show loading while checking permissions or loading data
   if (loading || !isAdmin) {
     return (
@@ -820,6 +870,14 @@ const GroupDetails = () => {
                         </div>
                       </div>
                       <div className="slot-actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleGenerateContract(slot)}
+                          title="Contract genereren"
+                        >
+                          <FileText size={16} />
+                        </button>
                         {members.length >= 2 && (
                           <button
                             type="button"
@@ -892,6 +950,13 @@ const GroupDetails = () => {
                             )}
                           </td>
                           <td className="payment-table-actions">
+                            <button
+                              className="payment-table-action-btn payment-table-action-view"
+                              onClick={(e) => { e.stopPropagation(); handleGenerateContract(slot) }}
+                              title="Contract genereren"
+                            >
+                              <FileText size={16} />
+                            </button>
                             {members.length >= 2 && (
                               <button
                                 className="payment-table-action-btn payment-table-action-edit"

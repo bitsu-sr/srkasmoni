@@ -929,6 +929,30 @@ export const pdfService = {
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
+        const brandGreen = '#1F7A4D'
+        const brandGreenDark = '#145A38'
+        const brandGreenLight = '#EAF4EE'
+        const textColor = '#24312A'
+        const mutedTextColor = '#66736C'
+        const borderColor = '#D7E2DB'
+
+        // Load the public logo from the current deployment, so this also works
+        // locally and on deployments with a different host.
+        let logoDataUrl = ''
+        try {
+          const response = await fetch('/logokasmonigr.png')
+          if (!response.ok) throw new Error(`Logo request failed (${response.status})`)
+          const blob = await response.blob()
+          logoDataUrl = await new Promise<string>((resolveLogo, rejectLogo) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolveLogo(String(reader.result || ''))
+            reader.onerror = () => rejectLogo(reader.error)
+            reader.readAsDataURL(blob)
+          })
+        } catch (error) {
+          console.warn('Could not load contract logo, proceeding without it:', error)
+        }
+
         // Kashouder information (from the PDF template)
         const kashouder = {
           name: 'LEVENS, Anastasio',
@@ -1010,93 +1034,105 @@ export const pdfService = {
 
         const content: any[] = []
 
-        // Title
+        // Branded document header
         content.push({
-          text: 'SRANAN KASMONI',
-          fontSize: 16,
-          bold: true,
-          alignment: 'center',
-          margin: [0, 0, 0, 20]
+          columns: [
+            logoDataUrl
+              ? { image: logoDataUrl, fit: [62, 62], width: 72 }
+              : { text: 'SK', style: 'logoFallback', width: 72 },
+            {
+              stack: [
+                { text: 'SRANAN KASMONI', style: 'brandName' },
+                { text: 'OVEREENKOMST', style: 'documentTitle' },
+                { text: `Contractnummer  SK-${group.id}-${member.id}-${assignedMonth}`, style: 'documentMeta' }
+              ],
+              margin: [10, 2, 0, 0]
+            }
+          ],
+          margin: [0, 0, 0, 14]
         })
 
         content.push({
-          text: 'OVEREENKOMST',
-          fontSize: 18,
-          bold: true,
-          alignment: 'center',
-          margin: [0, 0, 0, 30]
-        })
-
-        // Member information section
-        content.push({
-          text: `Naam: ${formatMemberName(member)},`,
-          fontSize: 11,
-          margin: [0, 0, 0, 5]
+          canvas: [
+            { type: 'line', x1: 0, y1: 0, x2: 491, y2: 0, lineWidth: 2, lineColor: brandGreen }
+          ],
+          margin: [0, 0, 0, 18]
         })
 
         content.push({
-          text: `geboren te ${member.birthplace} op ${formatDateShort(member.birthDate)},`,
-          fontSize: 11,
-          margin: [0, 0, 0, 5]
+          table: {
+            widths: ['*', '*', '*'],
+            body: [[
+              { stack: [{ text: 'KASGROEP', style: 'summaryLabel' }, { text: group.name, style: 'summaryValue' }] },
+              { stack: [{ text: 'LOOPTIJD', style: 'summaryLabel' }, { text: `${group.duration} maanden`, style: 'summaryValue' }] },
+              { stack: [{ text: 'UITBETALINGSMAAND', style: 'summaryLabel' }, { text: assignedMonthFormatted, style: 'summaryValue' }] }
+            ]]
+          },
+          layout: {
+            fillColor: () => brandGreenLight,
+            hLineColor: () => borderColor,
+            vLineColor: () => borderColor,
+            paddingLeft: () => 12,
+            paddingRight: () => 12,
+            paddingTop: () => 10,
+            paddingBottom: () => 10
+          },
+          margin: [0, 0, 0, 22]
+        })
+
+        // Contracting parties
+        content.push({ text: 'CONTRACTERENDE PARTIJEN', style: 'sectionTitle' })
+        content.push({
+          table: {
+            widths: [105, '*'],
+            body: [
+              [{ text: 'Kasdeelnemer', style: 'infoLabel' }, { text: formatMemberName(member), style: 'infoValue' }],
+              [{ text: 'Geboortegegevens', style: 'infoLabel' }, { text: `${member.birthplace}, ${formatDateShort(member.birthDate)}`, style: 'infoValue' }],
+              [{ text: 'Adres', style: 'infoLabel' }, { text: `${member.address}, ${member.city}`, style: 'infoValue' }],
+              [{ text: 'Identiteitsnummer', style: 'infoLabel' }, { text: member.nationalId, style: 'infoValue' }],
+              [{ text: 'Werkgever', style: 'infoLabel' }, { text: member.occupation || 'Niet opgegeven', style: 'infoValue' }],
+              [{ text: 'Contact', style: 'infoLabel' }, { text: `${member.phone}  •  ${member.email}`, style: 'infoValue' }]
+            ]
+          },
+          layout: {
+            fillColor: (rowIndex: number) => rowIndex % 2 === 0 ? '#F7FAF8' : '#FFFFFF',
+            hLineColor: () => borderColor,
+            vLineColor: () => borderColor,
+            paddingLeft: () => 9,
+            paddingRight: () => 9,
+            paddingTop: () => 6,
+            paddingBottom: () => 6
+          },
+          margin: [0, 0, 0, 14]
         })
 
         content.push({
-          text: `wonende aan de ${member.address} te ${member.city},`,
-          fontSize: 11,
-          margin: [0, 0, 0, 5]
+          stack: [
+            { text: 'KASHOUDER', style: 'cardLabel' },
+            {
+              text: `${kashouder.name}, geboren te ${kashouder.birthplace} op ${kashouder.birthDate}, wonende aan de ${kashouder.address} te ${kashouder.city}, houder van het Surinaams identiteitsbewijs met nummer ${kashouder.nationalId}. Bereikbaar via ${kashouder.phone} en ${kashouder.email}.`,
+              style: 'body'
+            }
+          ],
+          fillColor: '#F7FAF8',
+          margin: [10, 9, 10, 9]
         })
 
         content.push({
-          text: `houder van het Surinaams identiteitsbewijs met nummer ${member.nationalId},`,
-          fontSize: 11,
-          margin: [0, 0, 0, 5]
-        })
-
-        content.push({
-          text: `in dienst bij ${member.occupation || '…………………………………………………'} personeelsnummer: ………………………………………,`,
-          fontSize: 11,
-          margin: [0, 0, 0, 5]
-        })
-
-        content.push({
-          text: `te bereiken op telefoonnummer ${member.phone} en e-mailadres ${member.email}`,
-          fontSize: 11,
-          margin: [0, 0, 0, 20]
-        })
-
-        // Kashouder information
-        content.push({
-          text: 'EN',
-          fontSize: 11,
-          bold: true,
-          margin: [0, 0, 0, 10]
-        })
-
-        content.push({
-          text: `${kashouder.name}, geboren te ${kashouder.birthplace} op ${kashouder.birthDate}, wonende aan de ${kashouder.address} te ${kashouder.city}, houder van het Surinaams identiteitsbewijs met nummer ${kashouder.nationalId} te bereiken op het telefoonnummer ${kashouder.phone} en het e-mailadres ${kashouder.email}, hierna te noemen de kashouder`,
-          fontSize: 11,
-          margin: [0, 0, 0, 20]
-        })
-
-        content.push({
-          text: 'Hierna gezamenlijk \'partijen\'',
-          fontSize: 11,
-          bold: true,
-          margin: [0, 0, 0, 30]
+          text: 'De hierboven genoemde personen worden hierna gezamenlijk aangeduid als “partijen”.',
+          style: 'introText',
+          margin: [0, 12, 0, 24]
         })
 
         // Definitions
         content.push({
           text: 'DEFINITIES',
-          fontSize: 12,
-          bold: true,
-          margin: [0, 0, 0, 10]
+          style: 'sectionTitle'
         })
 
         content.push({
           text: 'IN DEZE OVEREENKOMST WORDT VERSTAAN ONDER:',
-          fontSize: 11,
-          bold: true,
+          style: 'subheading',
           margin: [0, 0, 0, 10]
         })
 
@@ -1125,8 +1161,7 @@ export const pdfService = {
         // Overwegende dat
         content.push({
           text: 'OVERWEGENDE DAT:',
-          fontSize: 11,
-          bold: true,
+          style: 'sectionTitle',
           margin: [0, 0, 0, 10]
         })
 
@@ -1155,17 +1190,14 @@ export const pdfService = {
         // Articles
         content.push({
           text: 'ZIJN ALS VOLGT OVEREENGEKOMEN:',
-          fontSize: 11,
-          bold: true,
+          style: 'agreementLead',
           margin: [0, 0, 0, 20]
         })
 
         // Article 1
         content.push({
           text: '1. Artikel 1 – Deelname en samenstelling kasgroep',
-          fontSize: 11,
-          bold: true,
-          margin: [0, 0, 0, 10]
+          style: 'articleTitle'
         })
 
         content.push({
@@ -1183,9 +1215,7 @@ export const pdfService = {
         // Article 2
         content.push({
           text: '2. Artikel 2 – Looptijd en maandelijkse bijdrage',
-          fontSize: 11,
-          bold: true,
-          margin: [0, 0, 0, 10]
+          style: 'articleTitle'
         })
 
         content.push({
@@ -1221,9 +1251,7 @@ export const pdfService = {
         // Article 3
         content.push({
           text: '3. Artikel 3 – Betalingswijze',
-          fontSize: 11,
-          bold: true,
-          margin: [0, 0, 0, 10]
+          style: 'articleTitle'
         })
 
         content.push({
@@ -1285,9 +1313,8 @@ export const pdfService = {
         remainingArticles.forEach(article => {
           content.push({
             text: article.title,
-            fontSize: 11,
-            bold: true,
-            margin: [0, 20, 0, 10]
+            style: 'articleTitle',
+            margin: [0, 18, 0, 9]
           })
 
           article.content.forEach((para, index) => {
@@ -1303,60 +1330,141 @@ export const pdfService = {
         // Signatures section
         content.push({
           text: '14. Ondertekening',
-          fontSize: 11,
-          bold: true,
-          margin: [0, 30, 0, 10]
+          style: 'articleTitle',
+          margin: [0, 14, 0, 10]
         })
 
         content.push({
           text: 'Aldus opgemaakt en getekend door de Partijen en in tweevoud uitgegeven.',
-          fontSize: 10,
-          margin: [0, 0, 0, 30]
-        })
-
-        content.push({
-          columns: [
-            {
-              text: [
-                { text: 'De kasdeelnemer,\n', fontSize: 10, bold: true },
-                { text: 'Naam: _________________________\n', fontSize: 10 },
-                { text: 'Datum: _________________________', fontSize: 10 }
-              ],
-              width: '50%'
-            },
-            {
-              text: [
-                { text: 'De kashouder,\n', fontSize: 10, bold: true },
-                { text: 'Naam: _________________________\n', fontSize: 10 },
-                { text: 'Datum: _________________________', fontSize: 10 }
-              ],
-              width: '50%'
-            }
-          ],
+          style: 'body',
           margin: [0, 0, 0, 20]
         })
 
         content.push({
-          columns: [
-            {
-              text: 'Handtekening',
-              fontSize: 10,
-              width: '50%'
-            },
-            {
-              text: 'Handtekening',
-              fontSize: 10,
-              width: '50%'
-            }
-          ]
+          table: {
+            widths: ['*', '*'],
+            body: [[
+              {
+                stack: [
+                  { text: 'DE KASDEELNEMER', style: 'signatureTitle' },
+                  { text: formatMemberName(member), style: 'signatureName' },
+                  { text: '\n\n________________________________', color: mutedTextColor },
+                  { text: 'Handtekening', style: 'signatureLabel' },
+                  { text: '\nDatum: _________________________', style: 'signatureLabel' }
+                ]
+              },
+              {
+                stack: [
+                  { text: 'DE KASHOUDER', style: 'signatureTitle' },
+                  { text: kashouder.name, style: 'signatureName' },
+                  { text: '\n\n________________________________', color: mutedTextColor },
+                  { text: 'Handtekening', style: 'signatureLabel' },
+                  { text: '\nDatum: _________________________', style: 'signatureLabel' }
+                ]
+              }
+            ]]
+          },
+          layout: {
+            fillColor: () => '#F7FAF8',
+            hLineColor: () => borderColor,
+            vLineColor: () => borderColor,
+            paddingLeft: () => 14,
+            paddingRight: () => 14,
+            paddingTop: () => 14,
+            paddingBottom: () => 14
+          },
+          margin: [0, 0, 0, 20]
         })
 
         const docDefinition: TDocumentDefinitions = {
           pageSize: 'A4',
-          pageMargins: [40, 60, 40, 60],
+          pageMargins: [52, 54, 52, 58],
+          defaultStyle: {
+            fontSize: 10,
+            color: textColor,
+            lineHeight: 1.25
+          },
+          footer: (currentPage, pageCount) => ({
+            margin: [52, 12, 52, 0],
+            columns: [
+              {
+                text: 'SRANAN KASMONI  •  OVEREENKOMST',
+                color: mutedTextColor,
+                fontSize: 8
+              },
+              {
+                text: `Pagina ${currentPage} van ${pageCount}`,
+                alignment: 'right',
+                color: mutedTextColor,
+                fontSize: 8
+              }
+            ]
+          }),
           content,
           styles: {
-            header: { fontSize: 14, bold: true, color: '#007000' }
+            logoFallback: {
+              fontSize: 22,
+              bold: true,
+              color: '#FFFFFF',
+              fillColor: brandGreen,
+              alignment: 'center',
+              margin: [0, 14, 0, 14]
+            },
+            brandName: {
+              fontSize: 10,
+              bold: true,
+              color: brandGreen,
+              characterSpacing: 1.5
+            },
+            documentTitle: {
+              fontSize: 23,
+              bold: true,
+              color: brandGreenDark,
+              margin: [0, 3, 0, 3]
+            },
+            documentMeta: { fontSize: 8.5, color: mutedTextColor },
+            summaryLabel: {
+              fontSize: 7.5,
+              bold: true,
+              color: brandGreen,
+              characterSpacing: 0.8,
+              margin: [0, 0, 0, 3]
+            },
+            summaryValue: { fontSize: 10.5, bold: true, color: brandGreenDark },
+            sectionTitle: {
+              fontSize: 10,
+              bold: true,
+              color: brandGreenDark,
+              characterSpacing: 0.8,
+              margin: [0, 0, 0, 9]
+            },
+            subheading: { fontSize: 9, bold: true, color: mutedTextColor },
+            agreementLead: {
+              fontSize: 10,
+              bold: true,
+              color: brandGreenDark,
+              fillColor: brandGreenLight
+            },
+            articleTitle: {
+              fontSize: 11,
+              bold: true,
+              color: brandGreenDark,
+              margin: [0, 14, 0, 9]
+            },
+            infoLabel: { fontSize: 8.5, bold: true, color: mutedTextColor },
+            infoValue: { fontSize: 9.5, color: textColor },
+            cardLabel: {
+              fontSize: 8,
+              bold: true,
+              color: brandGreen,
+              characterSpacing: 0.8,
+              margin: [0, 0, 0, 4]
+            },
+            body: { fontSize: 10, color: textColor, lineHeight: 1.25 },
+            introText: { fontSize: 9.5, italics: true, color: mutedTextColor },
+            signatureTitle: { fontSize: 8, bold: true, color: brandGreen, characterSpacing: 0.8 },
+            signatureName: { fontSize: 10, bold: true, color: textColor, margin: [0, 5, 0, 0] },
+            signatureLabel: { fontSize: 8.5, color: mutedTextColor, margin: [0, 3, 0, 0] }
           }
         }
 
