@@ -8,6 +8,7 @@ import type { Group, GroupMember } from '../types/member';
 import type { GroupWithDetails } from './groupsOptimizedService';
 import { formatMemberName } from '../utils/memberName';
 import { formatGroupAmount } from '../utils/currency';
+import { formatMonthYear } from '../utils/dateUtils';
 
 // Type for unpaid slots with member and group info
 interface UnpaidSlot extends PaymentSlot {
@@ -885,17 +886,11 @@ export const pdfService = {
     });
   },
 
-  // Helper function to format month date
+  // Helper function to format a slot month (YYYY-MM or YYYY-MM-DD).
+  // Parse the year and month from the string. new Date("YYYY-MM") is UTC
+  // midnight on the 1st, which in Suriname (UTC-3) falls on the previous month.
   formatMonthDate(dateString: string): string {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short' 
-      });
-    } catch {
-      return dateString;
-    }
+    return formatMonthYear(dateString);
   },
 
   // Generate contract PDF for a member and group
@@ -1639,6 +1634,244 @@ export const pdfService = {
         reject(error);
       }
     });
+  },
+
+  /**
+   * Slot Details PDF for one member: either active slots or inactive slots.
+   */
+  async generateMemberSlotsPDF(options: {
+    memberName: string
+    nationalId: string
+    kind: 'active' | 'inactive'
+    slots: {
+      groupName: string
+      groupDescription: string | null
+      monthlyAmount: number
+      slotAmount: number
+      toReceive: number
+      sharersCount: number
+      duration: number
+      startDate: string
+      endDate: string
+      assignedMonthFormatted: string
+    }[]
+  }): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { memberName, nationalId, kind, slots } = options
+        const title = kind === 'active' ? 'Active Slots' : 'Inactive Slots'
+
+        let logoBase64 = ''
+        try {
+          const response = await fetch('https://srkasmoni.vercel.app/logokasmonigr.png')
+          const blob = await response.blob()
+          const arrayBuffer = await blob.arrayBuffer()
+          const uint8Array = new Uint8Array(arrayBuffer)
+          logoBase64 = btoa(String.fromCharCode(...uint8Array))
+        } catch (error) {
+          console.warn('Could not fetch logo, proceeding without it:', error)
+        }
+
+        const formatSrd = (amount: number) => `SRD ${amount.toLocaleString()}`
+        const tableFontSize = 8
+        const headerCell = (text: string, alignment: 'left' | 'right' | 'center' = 'left'): TableCell => ({
+          text,
+          bold: true,
+          fillColor: '#007000',
+          color: 'white',
+          fontSize: tableFontSize,
+          alignment
+        })
+
+        const tableBody: TableCell[][] = [[
+          headerCell('Group'),
+          headerCell('Month'),
+          headerCell('Slot', 'right'),
+          headerCell('To receive', 'right'),
+          headerCell('Duration'),
+          headerCell('First'),
+          headerCell('Last')
+        ]]
+
+        slots.forEach((slot) => {
+          const monthCell: TableCell = slot.sharersCount > 1
+            ? {
+                stack: [
+                  { text: slot.assignedMonthFormatted, fontSize: tableFontSize },
+                  { text: `(shared ${slot.sharersCount})`, fontSize: 7, color: '#4b5563', margin: [0, 1, 0, 0] }
+                ]
+              }
+            : { text: slot.assignedMonthFormatted, fontSize: tableFontSize }
+          const slotCell: TableCell = slot.sharersCount > 1
+            ? {
+                stack: [
+                  { text: formatSrd(slot.slotAmount), fontSize: tableFontSize, alignment: 'right' },
+                  { text: `of ${slot.monthlyAmount.toLocaleString()}/mo`, fontSize: 7, color: '#4b5563', alignment: 'right', margin: [0, 1, 0, 0] }
+                ]
+              }
+            : { text: formatSrd(slot.slotAmount), fontSize: tableFontSize, alignment: 'right' }
+
+          const groupCell: TableCell = slot.groupDescription
+            ? {
+                stack: [
+                  { text: slot.groupName, bold: true, fontSize: tableFontSize },
+                  { text: slot.groupDescription, fontSize: 7, color: '#4b5563', margin: [0, 2, 0, 0] }
+                ]
+              }
+            : { text: slot.groupName, bold: true, fontSize: tableFontSize }
+
+          tableBody.push([
+            groupCell,
+            monthCell,
+            slotCell,
+            { text: formatSrd(slot.toReceive), fontSize: tableFontSize, alignment: 'right' },
+            { text: `${slot.duration} month${slot.duration !== 1 ? 's' : ''}`, fontSize: tableFontSize },
+            { text: formatMonthYear(slot.startDate), fontSize: tableFontSize },
+            { text: formatMonthYear(slot.endDate), fontSize: tableFontSize }
+          ])
+        })
+
+        const slotTotal = slots.reduce((sum, slot) => sum + slot.slotAmount, 0)
+        const receiveTotal = slots.reduce((sum, slot) => sum + slot.toReceive, 0)
+        const summaryFill = '#f0fdf4'
+        tableBody.push([
+          {
+            text: `${slots.length} slot${slots.length !== 1 ? 's' : ''}`,
+            bold: true,
+            fontSize: tableFontSize,
+            colSpan: 2,
+            fillColor: summaryFill
+          },
+          { text: '', fillColor: summaryFill },
+          {
+            text: `${formatSrd(slotTotal)}/mo`,
+            bold: true,
+            fontSize: tableFontSize,
+            alignment: 'right',
+            fillColor: summaryFill
+          },
+          {
+            text: formatSrd(receiveTotal),
+            bold: true,
+            fontSize: tableFontSize,
+            alignment: 'right',
+            fillColor: summaryFill
+          },
+          { text: '', colSpan: 3, fillColor: summaryFill },
+          { text: '', fillColor: summaryFill },
+          { text: '', fillColor: summaryFill }
+        ])
+
+        const content: any[] = []
+        if (logoBase64) {
+          content.push({
+            columns: [
+              {
+                image: `data:image/png;base64,${logoBase64}`,
+                width: 50,
+                height: 50
+              },
+              { text: '', width: '*' }
+            ],
+            margin: [0, 0, 0, 16]
+          })
+        }
+
+        content.push(
+          {
+            text: `Generated on: ${new Date().toLocaleString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            })}`,
+            fontSize: 9,
+            alignment: 'right',
+            margin: [0, 0, 0, 12]
+          },
+          {
+            text: title,
+            fontSize: 16,
+            bold: true,
+            margin: [0, 0, 0, 12]
+          },
+          {
+            table: {
+              widths: ['auto', '*'],
+              body: [
+                [
+                  { text: 'Member:', bold: true, fontSize: 10 },
+                  { text: memberName, fontSize: 10 }
+                ],
+                [
+                  { text: 'National ID:', bold: true, fontSize: 10 },
+                  { text: nationalId || '-', fontSize: 10 }
+                ],
+                [
+                  { text: 'Slots:', bold: true, fontSize: 10 },
+                  { text: String(slots.length), fontSize: 10 }
+                ]
+              ]
+            },
+            layout: {
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0.5,
+              hLineColor: () => '#cccccc',
+              vLineColor: () => '#cccccc'
+            },
+            margin: [0, 0, 0, 16]
+          },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 70, 64, 58, 52, 44, 44],
+              body: tableBody
+            },
+            layout: {
+              fillColor: (rowIndex: number) => {
+                if (rowIndex === 0 || rowIndex === tableBody.length - 1) return null
+                return rowIndex % 2 === 0 ? '#f9fafb' : null
+              },
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0.5,
+              hLineColor: () => '#cccccc',
+              vLineColor: () => '#cccccc'
+            }
+          }
+        )
+
+        const docDefinition: TDocumentDefinitions = {
+          pageSize: 'A4',
+          pageOrientation: 'portrait',
+          pageMargins: [32, 56, 32, 48],
+          header: {
+            text: `Sranan Kasmoni - ${title}`,
+            style: 'header',
+            alignment: 'center',
+            margin: [0, 10]
+          },
+          footer: (currentPage, pageCount) => ({
+            text: `Page ${currentPage} of ${pageCount}`,
+            alignment: 'right',
+            margin: [0, 10, 40, 0],
+            fontSize: 9
+          }),
+          content,
+          styles: {
+            header: { fontSize: 14, bold: true, color: '#007000' }
+          }
+        }
+
+        const safeName = memberName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'member'
+        const pdfDoc = pdfMake.createPdf(docDefinition)
+        pdfDoc.download(`member-slots-${kind}-${safeName}-${new Date().toISOString().split('T')[0]}.pdf`)
+        resolve()
+      } catch (error) {
+        reject(error)
+      }
+    })
   },
 
   // Helper to convert numbers to Dutch words

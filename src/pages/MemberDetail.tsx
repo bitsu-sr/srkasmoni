@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, CreditCard, Hash, DollarSign, FileText, Users, Clock, X, Save, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, CreditCard, Hash, DollarSign, FileText, Users, Clock, X, Save, CheckCircle, Download } from 'lucide-react'
 
 import { memberService } from '../services/memberService'
+import { pdfService } from '../services/pdfService'
 import { getMemberWithStatus, MemberWithStatus, getMemberStatusText, getMemberStatusBadgeClass } from '../services/memberStatusService'
 import { bankService } from '../services/bankService'
 import { formatMemberName } from '../utils/memberName'
@@ -39,6 +40,8 @@ const MemberDetail = () => {
   const [success, setSuccess] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [exportingSlots, setExportingSlots] = useState<'active' | 'inactive' | null>(null)
+  const [slotPdfMessage, setSlotPdfMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [banks, setBanks] = useState<Bank[]>([])
   const [editForm, setEditForm] = useState({
     firstName: '',
@@ -115,6 +118,33 @@ const MemberDetail = () => {
       console.error('Error loading member:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleExportSlotsPdf = async (kind: 'active' | 'inactive', slots: MemberSlot[]) => {
+    if (!member || slots.length === 0) return
+
+    try {
+      setExportingSlots(kind)
+      setSlotPdfMessage(null)
+      await pdfService.generateMemberSlotsPDF({
+        memberName: formatMemberName(member),
+        nationalId: member.nationalId,
+        kind,
+        slots
+      })
+      setSlotPdfMessage({
+        type: 'success',
+        text: `${kind === 'active' ? 'Active' : 'Inactive'} slots PDF downloaded.`
+      })
+    } catch (err) {
+      console.error('Error exporting slots PDF:', err)
+      setSlotPdfMessage({
+        type: 'error',
+        text: 'Failed to export slots PDF. Please try again.'
+      })
+    } finally {
+      setExportingSlots(null)
     }
   }
 
@@ -782,18 +812,45 @@ const MemberDetail = () => {
                     )
                     return (
                       <>
+                        {slotPdfMessage && (
+                          <p className={`slots-pdf-message ${slotPdfMessage.type}`}>{slotPdfMessage.text}</p>
+                        )}
                         <div className="slots-subsection slots-active">
-                          <h3 className="slots-subsection-title">
-                            <Clock size={18} />
-                            Active Slots ({activeSlots.length})
-                          </h3>
+                          <div className="slots-subsection-header">
+                            <h3 className="slots-subsection-title">
+                              <Clock size={18} />
+                              Active Slots ({activeSlots.length})
+                            </h3>
+                            <button
+                              type="button"
+                              className="btn slots-pdf-btn"
+                              onClick={() => handleExportSlotsPdf('active', activeSlots)}
+                              disabled={activeSlots.length === 0 || exportingSlots !== null}
+                              title="Download a PDF of active slots"
+                            >
+                              <Download size={14} />
+                              {exportingSlots === 'active' ? 'Exporting...' : 'Export PDF'}
+                            </button>
+                          </div>
                           <SlotsTable slots={activeSlots} emptyMessage="No upcoming slots." />
                         </div>
                         <div className="slots-subsection slots-inactive">
-                          <h3 className="slots-subsection-title">
-                            <CheckCircle size={18} />
-                            Inactive Slots ({inactiveSlots.length})
-                          </h3>
+                          <div className="slots-subsection-header">
+                            <h3 className="slots-subsection-title">
+                              <CheckCircle size={18} />
+                              Inactive Slots ({inactiveSlots.length})
+                            </h3>
+                            <button
+                              type="button"
+                              className="btn slots-pdf-btn"
+                              onClick={() => handleExportSlotsPdf('inactive', inactiveSlots)}
+                              disabled={inactiveSlots.length === 0 || exportingSlots !== null}
+                              title="Download a PDF of inactive slots"
+                            >
+                              <Download size={14} />
+                              {exportingSlots === 'inactive' ? 'Exporting...' : 'Export PDF'}
+                            </button>
+                          </div>
                           <SlotsTable slots={inactiveSlots} emptyMessage="No completed slots yet." />
                         </div>
                         <div className="slots-total-summary">
