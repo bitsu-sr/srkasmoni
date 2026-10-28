@@ -1386,6 +1386,24 @@
   color: #111827;
 }
 
+a.dashboard-entity-link {
+  display: inline-block;
+  color: #1d4ed8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.dashboard-entity-link:hover {
+  color: #1e40af;
+  text-decoration: underline;
+}
+
+a.dashboard-entity-link:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .dashboard-member-status-date {
   color: #64748b;
 }

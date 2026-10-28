@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { DollarSign, Building2, CreditCard, Banknote } from 'lucide-react'
 import type { Payment } from '../types/payment'
 import { paymentService } from '../services/paymentService'
@@ -12,11 +13,72 @@ interface MemberPaymentHistoryProps {
   onClose?: () => void
 }
 
+type PaymentSortField = 'date' | 'group' | 'slot' | 'amount' | 'method' | 'status' | 'notes'
+type SortDirection = 'asc' | 'desc'
+
+function compareSortValues(a: string | number, b: string | number, direction: SortDirection): number {
+  const factor = direction === 'asc' ? 1 : -1
+  if (typeof a === 'number' && typeof b === 'number') {
+    return (a - b) * factor
+  }
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }) * factor
+}
+
 const MemberPaymentHistory = ({ memberId, memberName, onClose }: MemberPaymentHistoryProps) => {
   const [payments, setPayments] = useState<Payment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [totalPaid, setTotalPaid] = useState(0)
   const [totalPending, setTotalPending] = useState(0)
+  const [sortField, setSortField] = useState<PaymentSortField | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+
+  const handleSort = (field: PaymentSortField) => {
+    if (sortField === field) {
+      setSortDirection(current => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortField(field)
+    setSortDirection('asc')
+  }
+
+  const sortedPayments = [...payments].sort((a, b) => {
+    if (!sortField) return 0
+    const valueFor = (payment: Payment): string | number => {
+      switch (sortField) {
+        case 'date':
+          return payment.paymentDate || ''
+        case 'group':
+          return payment.group?.name || ''
+        case 'slot':
+          return payment.slot?.monthDate || ''
+        case 'amount':
+          return payment.amount
+        case 'method':
+          return payment.paymentMethod || ''
+        case 'status':
+          return payment.status || ''
+        case 'notes':
+          return payment.notes || ''
+      }
+    }
+    return compareSortValues(valueFor(a), valueFor(b), sortDirection)
+  })
+
+  const renderHeader = (field: PaymentSortField, label: string) => (
+    <th
+      className="sortable"
+      aria-sort={sortField === field ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <button type="button" className="sort-header-btn" onClick={() => handleSort(field)}>
+        {label}
+        {sortField === field && (
+          <span className="sort-indicator" aria-hidden="true">
+            {sortDirection === 'asc' ? '↑' : '↓'}
+          </span>
+        )}
+      </button>
+    </th>
+  )
 
   useEffect(() => {
     loadMemberPayments()
@@ -177,23 +239,29 @@ const MemberPaymentHistory = ({ memberId, memberName, onClose }: MemberPaymentHi
             <table className="history-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Group</th>
-                  <th>Slot</th>
-                  <th>Amount</th>
-                  <th>Method</th>
-                  <th>Status</th>
-                  <th>Notes</th>
+                  {renderHeader('date', 'Date')}
+                  {renderHeader('group', 'Group')}
+                  {renderHeader('slot', 'Slot')}
+                  {renderHeader('amount', 'Amount')}
+                  {renderHeader('method', 'Method')}
+                  {renderHeader('status', 'Status')}
+                  {renderHeader('notes', 'Notes')}
                 </tr>
               </thead>
               <tbody>
-                {payments.map((payment) => (
+                {sortedPayments.map((payment) => (
                   <tr key={payment.id}>
                                          <td>{formatPaymentDate(payment.paymentDate)}</td>
                     <td>
                       <div className="group-info">
                         <Building2 size={14} />
-                        <span>{payment.group?.name || 'N/A'}</span>
+                        {payment.groupId && payment.group?.name ? (
+                          <Link to={`/groups/${payment.groupId}`} className="member-detail-entity-link">
+                            {payment.group.name}
+                          </Link>
+                        ) : (
+                          <span>{payment.group?.name || 'N/A'}</span>
+                        )}
                       </div>
                     </td>
                     <td>{formatSlot(payment.slot)}</td>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Edit, Trash2, User, Phone, Mail, MapPin, Calendar, CreditCard, Hash, DollarSign, FileText, Users, Clock, X, Save, CheckCircle, Download } from 'lucide-react'
 
 import { memberService } from '../services/memberService'
@@ -28,6 +28,150 @@ interface MemberSlot {
   assignedMonthDate: string
   assignedMonthFormatted: string
   isActive: boolean
+}
+
+type SlotSortField = 'group' | 'month' | 'slot' | 'toReceive' | 'duration' | 'first' | 'last'
+type SortDirection = 'asc' | 'desc'
+
+function compareSortValues(a: string | number, b: string | number, direction: SortDirection): number {
+  const factor = direction === 'asc' ? 1 : -1
+  if (typeof a === 'number' && typeof b === 'number') {
+    return (a - b) * factor
+  }
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' }) * factor
+}
+
+function MemberSlotsTable({ slots, emptyMessage }: { slots: MemberSlot[]; emptyMessage: string }) {
+  const [sortField, setSortField] = useState<SlotSortField | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+
+  const handleSort = (field: SlotSortField) => {
+    if (sortField === field) {
+      setSortDirection(current => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortField(field)
+    setSortDirection('asc')
+  }
+
+  const sortedSlots = [...slots].sort((a, b) => {
+    if (!sortField) return 0
+    const valueFor = (slot: MemberSlot): string | number => {
+      switch (sortField) {
+        case 'group':
+          return slot.groupName
+        case 'month':
+          return slot.assignedMonthDate
+        case 'slot':
+          return slot.slotAmount
+        case 'toReceive':
+          return slot.toReceive
+        case 'duration':
+          return slot.duration
+        case 'first':
+          return slot.startDate
+        case 'last':
+          return slot.endDate
+      }
+    }
+    return compareSortValues(valueFor(a), valueFor(b), sortDirection)
+  })
+
+  const renderHeader = (field: SlotSortField, label: string) => (
+    <th
+      className="sortable"
+      aria-sort={sortField === field ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <button type="button" className="sort-header-btn" onClick={() => handleSort(field)}>
+        {label}
+        {sortField === field && (
+          <span className="sort-indicator" aria-hidden="true">
+            {sortDirection === 'asc' ? '↑' : '↓'}
+          </span>
+        )}
+      </button>
+    </th>
+  )
+
+  if (slots.length === 0) {
+    return <p className="slots-subsection-empty">{emptyMessage}</p>
+  }
+
+  return (
+    <div className="slots-table-container">
+      <table className="slots-table">
+        <thead>
+          <tr>
+            {renderHeader('group', 'Group')}
+            {renderHeader('month', 'Month')}
+            {renderHeader('slot', 'Slot')}
+            {renderHeader('toReceive', 'To receive')}
+            {renderHeader('duration', 'Duration')}
+            {renderHeader('first', 'First')}
+            {renderHeader('last', 'Last')}
+          </tr>
+        </thead>
+        <tbody>
+          {sortedSlots.map((slot) => (
+            <tr key={slot.id} className={slot.isActive ? 'future-slot' : 'past-slot'}>
+              <td>
+                <div className="group-info">
+                  <Link to={`/groups/${slot.groupId}`} className="group-name member-detail-entity-link">
+                    {slot.groupName}
+                  </Link>
+                  {slot.groupDescription && (
+                    <div className="group-description">{slot.groupDescription}</div>
+                  )}
+                </div>
+              </td>
+              <td>
+                <span className="month-date">{slot.assignedMonthFormatted}</span>
+                {slot.sharersCount > 1 && (
+                  <span className="slot-shared-badge" title="Shared slot">
+                    {' '}(shared {slot.sharersCount})
+                  </span>
+                )}
+              </td>
+              <td>
+                <span className="monthly-amount">
+                  SRD {slot.slotAmount.toLocaleString()}
+                  {slot.sharersCount > 1 && (
+                    <span className="slot-split-note"> of {slot.monthlyAmount.toLocaleString()}/mo</span>
+                  )}
+                </span>
+              </td>
+              <td>
+                <span className="to-receive-amount">
+                  SRD {slot.toReceive.toLocaleString()}
+                </span>
+              </td>
+              <td>{slot.duration} month{slot.duration !== 1 ? 's' : ''}</td>
+              <td>{formatMonthYear(slot.startDate)}</td>
+              <td>{formatMonthYear(slot.endDate)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="slots-summary">
+            <td colSpan={2}>
+              <strong>{slots.length} slot{slots.length !== 1 ? 's' : ''}</strong>
+            </td>
+            <td>
+              <strong>
+                SRD {slots.reduce((sum, slot) => sum + slot.slotAmount, 0).toLocaleString()}/mo
+              </strong>
+            </td>
+            <td>
+              <strong>
+                SRD {slots.reduce((sum, slot) => sum + slot.toReceive, 0).toLocaleString()}
+              </strong>
+            </td>
+            <td colSpan={3}></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )
 }
 
 const MemberDetail = () => {
@@ -733,83 +877,6 @@ const MemberDetail = () => {
                   {(() => {
                     const activeSlots = memberSlots.filter(slot => slot.isActive)
                     const inactiveSlots = memberSlots.filter(slot => !slot.isActive)
-                    const SlotsTable = ({ slots, emptyMessage }: { slots: MemberSlot[]; emptyMessage: string }) => (
-                      slots.length === 0 ? (
-                        <p className="slots-subsection-empty">{emptyMessage}</p>
-                      ) : (
-                        <div className="slots-table-container">
-                          <table className="slots-table">
-                            <thead>
-                              <tr>
-                                <th>Group</th>
-                                <th>Month</th>
-                                <th>Slot</th>
-                                <th>To receive</th>
-                                <th>Duration</th>
-                                <th>First</th>
-                                <th>Last</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {slots.map((slot) => (
-                                <tr key={slot.id} className={slot.isActive ? 'future-slot' : 'past-slot'}>
-                                  <td>
-                                    <div className="group-info">
-                                      <div className="group-name">{slot.groupName}</div>
-                                      {slot.groupDescription && (
-                                        <div className="group-description">{slot.groupDescription}</div>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td>
-                                    <span className="month-date">{slot.assignedMonthFormatted}</span>
-                                    {slot.sharersCount > 1 && (
-                                      <span className="slot-shared-badge" title="Shared slot">
-                                        {' '}(shared {slot.sharersCount})
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td>
-                                    <span className="monthly-amount">
-                                      SRD {slot.slotAmount.toLocaleString()}
-                                      {slot.sharersCount > 1 && (
-                                        <span className="slot-split-note"> of {slot.monthlyAmount.toLocaleString()}/mo</span>
-                                      )}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <span className="to-receive-amount">
-                                      SRD {slot.toReceive.toLocaleString()}
-                                    </span>
-                                  </td>
-                                  <td>{slot.duration} month{slot.duration !== 1 ? 's' : ''}</td>
-                                  <td>{formatMonthYear(slot.startDate)}</td>
-                                  <td>{formatMonthYear(slot.endDate)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot>
-                              <tr className="slots-summary">
-                                <td colSpan={2}>
-                                  <strong>{slots.length} slot{slots.length !== 1 ? 's' : ''}</strong>
-                                </td>
-                                <td>
-                                  <strong>
-                                    SRD {slots.reduce((sum, slot) => sum + slot.slotAmount, 0).toLocaleString()}/mo
-                                  </strong>
-                                </td>
-                                <td>
-                                  <strong>
-                                    SRD {slots.reduce((sum, slot) => sum + slot.toReceive, 0).toLocaleString()}
-                                  </strong>
-                                </td>
-                                <td colSpan={3}></td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      )
-                    )
                     return (
                       <>
                         {slotPdfMessage && (
@@ -832,7 +899,7 @@ const MemberDetail = () => {
                               {exportingSlots === 'active' ? 'Exporting...' : 'Export PDF'}
                             </button>
                           </div>
-                          <SlotsTable slots={activeSlots} emptyMessage="No upcoming slots." />
+                          <MemberSlotsTable slots={activeSlots} emptyMessage="No upcoming slots." />
                         </div>
                         <div className="slots-subsection slots-inactive">
                           <div className="slots-subsection-header">
@@ -851,7 +918,7 @@ const MemberDetail = () => {
                               {exportingSlots === 'inactive' ? 'Exporting...' : 'Export PDF'}
                             </button>
                           </div>
-                          <SlotsTable slots={inactiveSlots} emptyMessage="No completed slots yet." />
+                          <MemberSlotsTable slots={inactiveSlots} emptyMessage="No completed slots yet." />
                         </div>
                         <div className="slots-total-summary">
                           <strong>Total: {memberSlots.length} slot{memberSlots.length !== 1 ? 's' : ''}</strong>

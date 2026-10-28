@@ -522,6 +522,24 @@
   color: #374151;
 }
 
+a.payouts-entity-link {
+  display: inline-block;
+  color: #1d4ed8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.payouts-entity-link:hover {
+  color: #1e40af;
+  text-decoration: underline;
+}
+
+a.payouts-entity-link:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Amount Info */
 .payouts-amount-info {
   display: flex;

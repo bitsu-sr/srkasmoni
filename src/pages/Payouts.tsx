@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { 
   Search, 
   Download, 
@@ -1206,12 +1207,24 @@ const Payouts: React.FC = () => {
                 <tr key={payout.slotId} className={`payouts-table-row ${payout.payout ? 'payouts-table-row-paid' : ''}`}>
                   <td className="payouts-table-cell col-member">
                     <div className="payouts-member-info">
-                      <span className="payouts-member-name">{payout.memberName}</span>
+                      {payout.memberId ? (
+                        <Link to={`/members/${payout.memberId}`} className="payouts-member-name payouts-entity-link">
+                          {payout.memberName}
+                        </Link>
+                      ) : (
+                        <span className="payouts-member-name">{payout.memberName}</span>
+                      )}
                       <span className="payouts-member-id">ID: {payout.memberId}</span>
                     </div>
                   </td>
                   <td className="payouts-table-cell col-group">
-                    <span className="payouts-group-name">{payout.groupName}</span>
+                    {payout.groupId ? (
+                      <Link to={`/groups/${payout.groupId}`} className="payouts-group-name payouts-entity-link">
+                        {payout.groupName}
+                      </Link>
+                    ) : (
+                      <span className="payouts-group-name">{payout.groupName}</span>
+                    )}
                   </td>
                   <td className="payouts-table-cell col-total">
                     <div className="payouts-amount-info">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import { usePerformanceSettings } from '../contexts/PerformanceSettingsContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -401,6 +402,15 @@ const PaymentsDue: React.FC = () => {
     } catch (error) {
       console.error('Error saving payment:', error)
     }
+  }
+
+  const renderEntityLink = (to: string, label?: string) => {
+    if (!label) return null
+    return (
+      <Link to={to} className="payments-due-entity-link">
+        {label}
+      </Link>
+    )
   }
 
   // Format month date
@@ -830,9 +840,9 @@ const PaymentsDue: React.FC = () => {
                     className={`payments-due-table-row ${slot.hasPayment ? 'has-payment' : ''}`}
                   >
                     <td className="payments-due-table-cell row-number">{startIndex + index + 1}</td>
-                    <td>{slot.member?.first_name}</td>
-                    <td>{slot.member?.last_name}</td>
-                    <td>{slot.group?.name}</td>
+                    <td>{renderEntityLink(`/members/${slot.memberId}`, slot.member?.first_name)}</td>
+                    <td>{renderEntityLink(`/members/${slot.memberId}`, slot.member?.last_name)}</td>
+                    <td>{renderEntityLink(`/groups/${slot.groupId}`, slot.group?.name)}</td>
                     <td>{formatMonthDate(slot.monthDate)}</td>
                     <td className="amount">
                       <span className={`amount-label ${slot.hasPayment ? 'paid' : 'unpaid'}`}>

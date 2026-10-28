@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Edit, Trash2, Eye, FileText } from 'lucide-react'
 import type { Payment } from '../types/payment'
 import { paymentSlotService } from '../services/paymentSlotService'
@@ -27,6 +28,16 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView, onStatusUpdate, onGe
   const formatSlot = (slot: any) => {
     if (!slot || !slot.monthDate) return 'N/A'
     return paymentSlotService.formatMonthDate(slot.monthDate)
+  }
+
+  const renderEntityLink = (path: 'members' | 'groups', id: number | undefined, label?: string) => {
+    if (!label) return 'N/A'
+    if (!id) return label
+    return (
+      <Link to={`/${path}/${id}`} className="payment-table-entity-link">
+        {label}
+      </Link>
+    )
   }
 
   if (payments.length === 0) {
@@ -59,9 +70,9 @@ const PaymentTable = ({ payments, onEdit, onDelete, onView, onStatusUpdate, onGe
             {payments.map((payment) => (
               <tr key={payment.id}>
                 <td>{formatPaymentDate(payment.paymentDate)}</td>
-                <td>{payment.member?.firstName || 'N/A'}</td>
-                <td>{payment.member?.lastName || 'N/A'}</td>
-                <td>{payment.group?.name || 'N/A'}</td>
+                <td>{renderEntityLink('members', payment.memberId, payment.member?.firstName)}</td>
+                <td>{renderEntityLink('members', payment.memberId, payment.member?.lastName)}</td>
+                <td>{renderEntityLink('groups', payment.groupId, payment.group?.name)}</td>
                 <td>{formatSlot(payment.slot)}</td>
                 <td className="payment-table-amount">{formatAmount(payment.amount)}</td>
                 <td>

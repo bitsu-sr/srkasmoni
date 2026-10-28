@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Plus, Users, UserPlus, TrendingUp, DollarSign, Clock, CheckCircle, XCircle, ArrowRight, AlertTriangle, CheckCircle2, Settings2 } from 'lucide-react'
 import { useCachedDashboard } from '../hooks/useCachedQueries'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -82,6 +82,7 @@ const Dashboard = () => {
 
   // Member payment status modal state
   const [isMemberStatusModalOpen, setIsMemberStatusModalOpen] = useState(false)
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null)
   const [selectedGroupName, setSelectedGroupName] = useState('')
   const [memberPaymentStatuses, setMemberPaymentStatuses] = useState<Array<{
     groupMemberId: number
@@ -153,6 +154,7 @@ const Dashboard = () => {
   }
 
   const handleGroupRowClick = async (group: any) => {
+    setSelectedGroupId(group.id)
     setSelectedGroupName(group.name)
     setIsMemberStatusModalOpen(true)
     setLoadingMemberStatuses(true)
@@ -684,7 +686,15 @@ const Dashboard = () => {
               <div>
                 <h2 className="dashboard-member-status-title">Member Payment Status</h2>
                 <p className="dashboard-member-status-subtitle">
-                  {selectedGroupName} - {formatMonthYear(selectedMonth)}
+                  {selectedGroupId ? (
+                    <Link to={`/groups/${selectedGroupId}`} className="dashboard-entity-link">
+                      {selectedGroupName}
+                    </Link>
+                  ) : (
+                    selectedGroupName
+                  )}
+                  {' - '}
+                  {formatMonthYear(selectedMonth)}
                 </p>
               </div>
               <button
@@ -721,7 +731,15 @@ const Dashboard = () => {
                     <tbody>
                       {memberPaymentStatuses.map((member) => (
                         <tr key={member.groupMemberId}>
-                          <td className="dashboard-member-status-name">{member.memberName}</td>
+                          <td className="dashboard-member-status-name">
+                            {member.memberId ? (
+                              <Link to={`/members/${member.memberId}`} className="dashboard-entity-link">
+                                {member.memberName}
+                              </Link>
+                            ) : (
+                              member.memberName
+                            )}
+                          </td>
                           <td className="dashboard-member-status-status">
                             {getDashboardMemberStatusBadge(member.paymentStatus)}
                           </td>
