@@ -1262,7 +1262,7 @@ export const pdfService = {
         })
 
         content.push({
-          text: 'b) Rekeningnummer 1001476501 bij Finabank, ten name van Levens, Anastasio.',
+          text: 'b) Rekeningnummer 1002429019 bij Finabank, ten name van Levens, Anastasio.',
           fontSize: 10,
           margin: [20, 0, 0, 5]
         })
